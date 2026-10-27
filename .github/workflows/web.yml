@@ -45,6 +45,19 @@ jobs:
           curl --fail --silent http://127.0.0.1:8080/health/ready
       - name: Verify container-served storefront
         run: pnpm test:e2e
+      - name: Verify development file sync and hot reload
+        working-directory: .
+        run: |
+          docker compose -f compose.yaml -f compose.dev.yaml up -d --build --wait --wait-timeout 120
+          docker compose -f compose.yaml -f compose.dev.yaml watch --no-up > /tmp/nivaro-watch.log 2>&1 &
+          watch_pid=$!
+          trap 'kill "$watch_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if grep -q 'Watch enabled' /tmp/nivaro-watch.log; then break; fi
+            sleep 1
+          done
+          grep -q 'Watch enabled' /tmp/nivaro-watch.log
+          node apps/web/scripts/verify-watch.mjs
       - name: Container diagnostics
         if: failure()
         working-directory: .
