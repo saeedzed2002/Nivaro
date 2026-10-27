@@ -6,7 +6,7 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 
 | Page | Image produced before code | Status |
 | --- | --- | --- |
-| Home | [Dark](concepts/r2-blue-rgb-fa-dark.png), [light](concepts/r2-blue-rgb-fa-light.png) | Accepted earlier; implementation started |
+| Home | [Dark](concepts/r2-blue-rgb-fa-dark.png), [light](concepts/r2-blue-rgb-fa-light.png) | Implemented; local browser matrix passed, container verification pending |
 | Products / category / search results | [Products](pages/products.png) | Generated and inspected before coding; reference-only collection for P01, API integration in P02 |
 | Product details, including reviews section | [Details](pages/product-details.png) | Generated and inspected before coding; no fabricated review counts or live purchase action |
 
