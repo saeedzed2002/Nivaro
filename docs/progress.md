@@ -44,3 +44,9 @@ The owner authorized implementation of the roadmap and required a generated imag
 - P00 frontend baseline is verified; Python/worker/checker and backend container baselines remain unverified and must precede their corresponding implementation. No six-service runtime readiness claim.
 - P02 API-backed catalog, hardware compatibility and product comparison have not started. Remaining page references are pending in `design/PAGE_DESIGNS.md`; generate and inspect each before coding it. Cart, checkout, accounts, orders, admin and support remain later phases.
 - Preserve the untracked Persian roadmap without reading or staging it. Its previously documented divergence remains intentional; use the English canonical document.
+
+### Private Git and CI evidence
+
+- Confirmed private destination and author identity immediately before commits. Preserved the initial documentation commit `149c52f`; added frontend `ef2c59d`, Docker/CI `be237bf`, and execution-status documentation `337320a`. Push of `main` through `337320a` succeeded.
+- [CI run 40502820292](https://github.com/saeedzed2002/Nivaro/actions/runs/40502820292), revision `337320a0f17f67f492c368164f285e8a35471643`: installation, lint, TypeScript, production build, browser installation and host browser tests were confirmed successful. The last received state was container build/run in progress. Status monitoring and one retry then timed out connecting to GitHub; final container/CI outcome is **unknown**, not failed or passed. Re-read this run before deciding whether changes are needed.
+- Local preview health returned `{"status":"ok","service":"web","dataMode":"reference-preview"}`. Docker image inventory was still empty at the final local check. No new local pull was attempted.
