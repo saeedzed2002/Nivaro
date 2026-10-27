@@ -4,7 +4,7 @@
 
 Drafting and source-verification date: `2026-10-26`, timezone `Asia/Tehran`.
 
-Document version: `1.3.0`. Final design/contract review date: `2026-10-27`, timezone `Asia/Tehran`. Status: **Blue RGB visual baseline approved; assembly/cart/checkout contracts finalized for phased implementation; implementation has not started.** The owner authorized finalizing the three reviewed contract gaps using established commerce patterns and explicitly deferred coding to a later message. This revision specifies configuration grouping, version-bound compatibility and distinct prebuilt/component stock policies. The six-service architecture, independent Iran/USD pricing and unrelated stack decisions remain unchanged. The package-version snapshot below remains dated `2026-10-26`; installability and runtime compatibility must be verified in `P00`.
+Document version: `1.3.0` with execution-status addendum `2026-10-27`. Final design/contract review date: `2026-10-27`, timezone `Asia/Tehran`. Status: **Blue RGB visual baseline approved; assembly/cart/checkout contracts finalized; phased implementation authorized and in progress.** The owner subsequently instructed implementation, image references before each page, and bounded Docker downloads. Current evidence and unfinished gates are recorded in [progress](progress.md). This revision specifies configuration grouping, version-bound compatibility and distinct prebuilt/component stock policies. The six-service architecture, independent Iran/USD pricing and unrelated stack decisions remain unchanged. The package-version snapshot below remains dated `2026-10-26`; installability and runtime compatibility must be verified in `P00`.
 
 The Persian reading copy remains the earlier `1.1.0` snapshot and is not synchronized with this gaming revision. Do not use its former Persian-only, single-currency, or desk-accessory decisions as implementation input. Research, source limitations, reference prices, and visual proposals are in [Gaming design research](design/GAMING_DESIGN_RESEARCH.md).
 
@@ -12,7 +12,7 @@ Audience: the project developer and implementation agent, especially `GPT-6 Astr
 
 Canonical project directory: `D:\Project\Nivaro`.
 
-> This document specifies the product, architectural decisions, and implementation plan. A feature described here is not evidence that it exists or has been tested. Delivering or reading this document does not authorize implementation. The next agent must first review this English document and the actual repository state, then wait for an explicit user instruction before coding.
+> This document specifies the product, architectural decisions, and implementation plan. A feature described here is not evidence that it exists or has been tested. The explicit start instruction has now been received. Review this English specification and actual repository state, then continue within the authorized phase; do not ask again for ordinary implementation permission.
 
 ## Contents
 
@@ -42,10 +42,10 @@ Canonical project directory: `D:\Project\Nivaro`.
 
 ### Current user authorization
 
-- The current task is finalizing documentation/instructions, including the three reviewed assembly contract gaps. The owner accepted the blue RGB dark/light design baseline and delegated those technical decisions. Coding is explicitly deferred to the next user instruction.
-- Do not create application services, UI implementation, Docker runtime configuration, installed project dependencies, commits, or pushes as part of this documentation task.
-- The user explicitly clarified that Git and Docker requirements belonged in the roadmap and did not authorize immediate implementation.
-- Following an explicit instruction to start implementation, ordinary work and small commits within the authorized phase become in scope. This document is not a substitute for that instruction.
+- On `2026-10-27`, after finalizing the design and contracts, the owner explicitly authorized phased implementation, local dependencies/execution and the documented private Git workflow. Earlier documentation-only boundaries are historical and superseded.
+- Before coding each distinct page/template, generate and inspect its reference, then record it in `design/PAGE_DESIGNS.md`. The accepted home concept pair satisfies the home gate. Preserve the Blue RGB baseline rather than reopening style selection.
+- Ordinary changes and small verified commits/pushes to the existing private repository are authorized. Preserve existing history and user files.
+- Bound Docker pull attempts. Tell the owner the exact images needed for manual download; explicit Arvan mirror paths are permitted. Do not equate Compose validation with successful container execution.
 - Documentation or local development does not imply authorization to publish the repository, buy services, make real payments, send real SMS, delete data, or deploy publicly.
 
 ### State verified when the roadmap was drafted
@@ -1113,7 +1113,7 @@ Example identifiers are explanatory placeholders; implementation identifiers and
 
 The owner accepted the **Blue RGB** dark/light homepage pair as the visual implementation baseline: a precise gaming-hardware showroom with a distinctive assembly workbench, large product imagery and calm buying/technical surfaces. Match [dark baseline](design/concepts/r2-blue-rgb-fa-dark.png) and [light baseline](design/concepts/r2-blue-rgb-fa-light.png), using the design research for remaining routes and workflow intent. The following tokens translate that direction into an initial design system; exact color/typography/accessibility adjustments require rendered verification, not another overall style selection. Do not copy another store's layout or brand assets.
 
-The initial review displayed four images: three homepage alternatives and a supporting builder/mobile/comparison board. The owner rejected the green-dominant alternative, requested blue-led branding with multicolor RGB on black/white backgrounds, and then accepted the refined theme pair. Red, purple, indigo, green and other RGB hues remain welcome in lighting; green must not dominate the brand. The workflow board supplies structure but adopts the approved blue palette. Implementation still requires the next user instruction. Use descriptive theme labels to avoid ambiguous numbering.
+The initial review displayed four images: three homepage alternatives and a supporting builder/mobile/comparison board. The owner rejected the green-dominant alternative, requested blue-led branding with multicolor RGB on black/white backgrounds, and then accepted the refined theme pair. Red, purple, indigo, green and other RGB hues remain welcome in lighting; green must not dominate the brand. The workflow board supplies structure but adopts the approved blue palette. Implementation is now authorized under the execution-status addendum. Use descriptive theme labels to avoid ambiguous numbering.
 
 | Axis | Decision |
 | --- | --- |
@@ -1708,9 +1708,9 @@ Project recommendation:
 - Both can use coding and execution tools. Successful execution is established by real tool/test output, not the model name.
 - Do not equate application-plan quotas/pricing with API token pricing. This specification makes no promises about runtime, quotas, or numerical model superiority on this project.
 
-### Ready-to-use assessment instruction: do not start implementation
+### Historical assessment instruction — superseded by implementation authorization
 
-The following can be given to the next agent together with this English file:
+The following records the earlier assessment-only boundary; it is not the current handoff:
 
 > Read `D:\Project\Nivaro\docs\NIVARO_ROADMAP_EN.md` completely. It is the canonical project specification. Do not open `docs/NIVARO_ROADMAP.md`, the Persian human reading copy, unless the user explicitly requests work on that copy. Then inspect local instructions and the actual repository state read-only. Implementation has not started; a local repository without commits and a private remote repository already exist. Do not recreate them. Do not create application code, Docker runtime configuration, installed dependencies, commits, or pushes yet. Report definite contradictions or blockers with evidence, but do not unnecessarily reopen routine decisions or the first-release scope. State the exact first implementation step and wait for the user's instruction to start. Communicate in clear desktop-readable Persian, wrapping Latin terms, paths, numbers, and identifiers in inline code.
 
@@ -1721,11 +1721,11 @@ The following can be given to the next agent together with this English file:
 - No further owner preference is required to begin `P00`/`P01`. Schema/contract details may be refined during implementation while preserving these invariants; tests and actual rendering, not this document, establish correctness.
 - `P00` still verifies current package/container versions and environment readiness. This is executable implementation work once authorized, not a claim that today's stack was installed or tested.
 - Real international sale activation still requires destinations, seller/fulfillment, delivery, tax/duty rules, phone delivery and a USD payment provider. Real SMS/payment, hosting and credentials remain launch gates, not blockers to the local simulated release. Physical assembly labor is disabled unless separately configured as specified above.
-- The current turn authorizes only documentation finalization. Start code only on the next explicit implementation instruction; preserve private repository identity and existing files.
+- At final design review only documentation was authorized. The later explicit start instruction supersedes that restriction; preserve private repository identity and existing files.
 
 ### Ready-to-use instruction when the owner actually wants to begin
 
-**Do not execute this now.** The owner may submit it later:
+The owner has now authorized this first-stage execution. Continue from `docs/progress.md`; do not recreate completed work:
 
 > Begin phases `P00` and `P01` under `D:\Project\Nivaro\docs\NIVARO_ROADMAP_EN.md`, the canonical English specification. Do not use the Persian reading copy. This run's goal is a compatible version baseline and the first real storefront page running in Docker. Connecting the existing private repository, making small commits, and pushing those verified changes to that same repository are authorized. Inspect actual state and local instructions before changes, and preserve existing work. Recheck versions; do not force incompatible dependencies. Finally, actually view the Docker-served site at mobile and desktop sizes and report tool results, commits, push outcome, and CI outcome separately. Do not proceed to later phases, real payments/SMS, repository publication, or internet deployment.
 
