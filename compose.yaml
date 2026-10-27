@@ -1,11 +1,12 @@
 name: nivaro
 services:
   web:
+    image: nivaro-web:release
     build:
       context: ./apps/web
       target: release
       args:
-        NODE_IMAGE: ${NODE_IMAGE:-node:24.22.1-bookworm-slim}
+        NODE_IMAGE: ${NODE_IMAGE:-node:24.22.1-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205}
     environment:
       NEXT_TELEMETRY_DISABLED: '1'
     expose:
@@ -19,7 +20,7 @@ services:
       start_period: 30s
       retries: 5
   gateway:
-    image: ${CADDY_IMAGE:-caddy:2.11.7}
+    image: ${CADDY_IMAGE:-caddy:2.11.7@sha256:504a44d7d74bd2bc28a66afc4774912fc21223ca8a67734af1c54ab2f999b489}
     ports:
       - '127.0.0.1:8080:8080'
     volumes:

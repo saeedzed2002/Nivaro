@@ -2,6 +2,8 @@
 
 Verified on 2026-10-27 against the canonical English roadmap and Docker Hub tag API. All seven tags below were reported active with a `linux/amd64` variant. This metadata check did not download layers, validate mirror availability, establish digests of local images or prove runtime compatibility.
 
+Subsequent owner-assisted verification on the same date: all seven images were downloaded through Arvan and inspected locally, including their canonical aliases and repository digests. The current web release and development images built successfully. A frozen/offline install plus production build inside the cached Linux development image passed with `--network none`. This confirms the existing web dependency environment can rebuild offline; it does not establish a fresh-machine build or backend offline readiness. Details are in [progress](progress.md).
+
 ## Base images
 
 | Image | Use |

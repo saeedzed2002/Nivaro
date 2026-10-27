@@ -33,7 +33,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Base Compose builds a non-root standalone web release. Registry access is needed initially. Two official image pulls timed out on this machine; do not repeat indefinite pulls. Until an image builds and runs, Docker and Watch acceptance remain unverified. Release digest pinning follows a successful pull/build.
+Base Compose builds a non-root standalone web release. Release and development images have distinct local tags (`nivaro-web:release` and `nivaro-web:development`). The Node/Caddy defaults are pinned to the verified downloaded digests. Both local Docker release execution and Compose Watch were verified on 2026-10-27; see [progress](docs/progress.md). Initial registry/package access is still needed on a clean machine. For the complete owner-assisted base-image list, see [download preparation](docs/DOWNLOAD_PREPARATION.md).
 
 Only two base images are needed for this phase: `node:24.22.1-bookworm-slim` and `caddy:2.11.7`. The owner can pull these manually. Optional explicit Arvan mirror paths, without changing Docker Desktop globally:
 
@@ -45,7 +45,7 @@ $env:CADDY_IMAGE='docker.arvancloud.ir/caddy:2.11.7'
 docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
 ```
 
-The path convention follows [Arvan's Docker documentation](https://www.arvancloud.ir/fa/dev/docker); availability of these particular mirrored tags has not been verified. Package installation inside the build still needs npm registry access even after base images are available. Keep TLS verification enabled.
+The path convention follows [Arvan's Docker documentation](https://www.arvancloud.ir/fa/dev/docker). The owner successfully downloaded all seven planned base/tool images through this mirror on 2026-10-27 after transient failures. Package installation inside the build still needs npm registry access on a clean cache even after base images are available. Keep TLS verification enabled. Clearing these overrides restores the pinned Compose defaults; the download helper creates the canonical local aliases automatically.
 
 For a host production preview, run `pnpm build` then `pnpm start --port 8080` inside `apps/web`. The launcher copies public/static assets into Next's standalone output and defaults to loopback. Stop that preview before rebuilding on Windows, and before binding Docker's gateway to the same port.
 
@@ -61,6 +61,8 @@ pnpm test:e2e
 ```
 
 Browser tests expect the app at `http://127.0.0.1:8080`; override `TEST_BASE_URL` when needed. `CHROMIUM_EXECUTABLE` can use an already installed browser. Tests cover both locales/themes at 360, 768 and 1440 pixels, filters, empty results, market/language isolation, dialog focus and reduced motion. Screenshots and reports are ignored runtime outputs; curated evidence belongs in `docs/evidence/`.
+
+With development Compose Watch running, `node scripts/verify-watch.mjs` from `apps/web` verifies a reversible footer edit reaches the existing browser document, then restores the source and verifies the restoration. Run it without concurrent footer editing. Loopback `127.0.0.1` is explicitly permitted in Next's development-only origin list so the HMR connection works through Caddy. No wildcard origin allowance is used.
 
 ## Continue implementation
 
