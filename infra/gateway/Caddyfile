@@ -1,0 +1,15 @@
+{
+  auto_https off
+  admin off
+}
+
+:8080 {
+  @private path /internal/* /api/internal/*
+  respond @private 404
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Frame-Options DENY
+  }
+  reverse_proxy web:3000
+}

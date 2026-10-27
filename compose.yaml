@@ -1,0 +1,30 @@
+name: nivaro
+services:
+  web:
+    build:
+      context: ./apps/web
+      target: release
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:24.22.1-bookworm-slim}
+    environment:
+      NEXT_TELEMETRY_DISABLED: '1'
+    expose:
+      - '3000'
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+  gateway:
+    image: ${CADDY_IMAGE:-caddy:2.11.7}
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      - ./infra/gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped

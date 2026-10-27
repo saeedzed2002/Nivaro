@@ -1,0 +1,67 @@
+# Nivaro Gaming
+
+Bilingual Persian/English gaming hardware storefront, following [the canonical roadmap](docs/NIVARO_ROADMAP_EN.md). Blue-led dark and light themes. Private single-vendor project; preserve the existing repository.
+
+## Current delivery
+
+P01 storefront implementation: home, reference product collection, URL-based filters/search, and reference product details. Pages are built from generated references recorded in [the image-first register](docs/design/PAGE_DESIGNS.md). Full six-service commerce implementation is still pending. No purchase, login, stock guarantee, saved-build persistence or payment is simulated as completed by this frontend.
+
+Reference prices have retailer sources, dates, market and packaging metadata. Iran and international prices are independent. Changing language preserves the selected market. Images are conceptual illustrations, not exact SKU photos.
+
+## Local development
+
+Requires Node 24 and pnpm 11.25.0. The project pins pnpm and direct dependencies; do not force peer dependencies.
+
+```powershell
+cd apps/web
+pnpm install --frozen-lockfile
+pnpm dev --port 8080
+```
+
+Open `http://localhost:8080/fa` or `http://localhost:8080/en`. This fallback runs on the host, not in Docker. See [progress](docs/progress.md) for actual verification evidence and container limitations.
+
+## Docker development
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
+```
+
+The gateway binds only to `127.0.0.1:8080`; web is internal. Source/public assets sync via Compose Watch, dependency manifests trigger rebuild. Windows node_modules never enter Linux containers. Do not remove volumes or prune the user's Docker environment.
+
+```powershell
+docker compose up -d --build
+docker compose ps
+```
+
+Base Compose builds a non-root standalone web release. Registry access is needed initially. Two official image pulls timed out on this machine; do not repeat indefinite pulls. Until an image builds and runs, Docker and Watch acceptance remain unverified. Release digest pinning follows a successful pull/build.
+
+Only two base images are needed for this phase: `node:24.22.1-bookworm-slim` and `caddy:2.11.7`. The owner can pull these manually. Optional explicit Arvan mirror paths, without changing Docker Desktop globally:
+
+```powershell
+docker pull docker.arvancloud.ir/node:24.22.1-bookworm-slim
+docker pull docker.arvancloud.ir/caddy:2.11.7
+$env:NODE_IMAGE='docker.arvancloud.ir/node:24.22.1-bookworm-slim'
+$env:CADDY_IMAGE='docker.arvancloud.ir/caddy:2.11.7'
+docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
+```
+
+The path convention follows [Arvan's Docker documentation](https://www.arvancloud.ir/fa/dev/docker); availability of these particular mirrored tags has not been verified. Package installation inside the build still needs npm registry access even after base images are available. Keep TLS verification enabled.
+
+For a host production preview, run `pnpm build` then `pnpm start --port 8080` inside `apps/web`. The launcher copies public/static assets into Next's standalone output and defaults to loopback. Stop that preview before rebuilding on Windows, and before binding Docker's gateway to the same port.
+
+## Checks
+
+```powershell
+cd apps/web
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+Browser tests expect the app at `http://127.0.0.1:8080`; override `TEST_BASE_URL` when needed. `CHROMIUM_EXECUTABLE` can use an already installed browser. Tests cover both locales/themes at 360, 768 and 1440 pixels, filters, empty results, market/language isolation, dialog focus and reduced motion. Screenshots and reports are ignored runtime outputs; curated evidence belongs in `docs/evidence/`.
+
+## Continue implementation
+
+Read `AGENTS.md`, `docs/NIVARO_ROADMAP_EN.md`, `docs/progress.md`, and the image-first register. Do not read the stale Persian roadmap as implementation input. Follow phase dependencies and distinguish local checks, container checks and CI. Do not activate real payments/SMS or public deployment without the required separate inputs and authority.

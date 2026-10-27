@@ -1,0 +1,20 @@
+services:
+  web:
+    build:
+      target: development
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/web/src
+          target: /app/src
+        - action: sync
+          path: ./apps/web/public
+          target: /app/public
+        - action: rebuild
+          path: ./apps/web/package.json
+        - action: rebuild
+          path: ./apps/web/pnpm-lock.yaml
+        - action: rebuild
+          path: ./apps/web/pnpm-workspace.yaml
+        - action: rebuild
+          path: ./apps/web/next.config.ts
