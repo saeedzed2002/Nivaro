@@ -106,3 +106,9 @@ The owner instructed continuation and then explicitly confirmed that internet ac
 ### Next continuation
 
 Restore package access, resolve/freeze and test the selected Linux dependency baseline, then finish catalog image/migration integration and generated frontend contracts. Implement the already pictured comparison/builder pages and connect the existing home/list/detail pages, preserving explicit unavailable/error states. Complete real-source fixtures, responsive/browser checks and private CI before marking P02 verified. See `services/catalog/README.md` for commands and boundaries. No additional base image is currently needed; Python packages and contract-tool dependencies are the missing downloads.
+
+### Local Git checkpoint
+
+- Rechecked local origin (`https://github.com/saeedzed2002/Nivaro.git`) and author (`saeedzed2002`, `saeedzed2002@gmail.com`) before committing; preserved the existing repository and history.
+- Local commits: `acc3730` (comparison/builder image references), `a3ca2d2` (typed hardware and compatibility policies), `93010bd` (PostgreSQL/schema/read APIs and provisional verification evidence). Each staged diff passed whitespace checks. Secrets, diagnostic exports and the Persian roadmap were excluded.
+- No push or new CI run was attempted after the owner confirmed internet is unavailable. These P02 commits are local only; the successful P01 CI run is not evidence for this new backend code.
