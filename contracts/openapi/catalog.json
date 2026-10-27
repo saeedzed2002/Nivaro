@@ -1,0 +1,2370 @@
+{
+  "components": {
+    "schemas": {
+      "CPU": {
+        "additionalProperties": false,
+        "properties": {
+          "cores": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cores"
+          },
+          "included_cooler": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Included Cooler"
+          },
+          "included_cooler_height_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Included Cooler Height Mm"
+          },
+          "integrated_graphics": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Integrated Graphics"
+          },
+          "kind": {
+            "const": "cpu",
+            "default": "cpu",
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_memory_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Memory Gb"
+          },
+          "max_package_power_w": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Package Power W"
+          },
+          "memory_generation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DDR4",
+                  "DDR5"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Generation"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "socket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Socket"
+          },
+          "tdp_w": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tdp W"
+          },
+          "threads": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threads"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "CPU",
+        "type": "object"
+      },
+      "Case": {
+        "additionalProperties": false,
+        "properties": {
+          "drive_bays": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "exclusiveMinimum": 0.0,
+                  "maximum": 1000000.0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drive Bays"
+          },
+          "expansion_slots": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expansion Slots"
+          },
+          "kind": {
+            "const": "case",
+            "default": "case",
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_cooler_height_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Cooler Height Mm"
+          },
+          "max_gpu_height_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Gpu Height Mm"
+          },
+          "max_gpu_length_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Gpu Length Mm"
+          },
+          "max_psu_length_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Psu Length Mm"
+          },
+          "motherboard_forms": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motherboard Forms"
+          },
+          "psu_forms": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Psu Forms"
+          }
+        },
+        "title": "Case",
+        "type": "object"
+      },
+      "Category": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "image": {
+            "title": "Image",
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "image"
+        ],
+        "title": "Category",
+        "type": "object"
+      },
+      "Comparison": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "declares_winner": {
+            "const": false,
+            "default": false,
+            "title": "Declares Winner",
+            "type": "boolean"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "category",
+          "columns",
+          "rows"
+        ],
+        "title": "Comparison",
+        "type": "object"
+      },
+      "ComparisonColumn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Offer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "variant": {
+            "$ref": "#/components/schemas/Variant"
+          }
+        },
+        "required": [
+          "product_id",
+          "slug",
+          "name",
+          "variant",
+          "offer"
+        ],
+        "title": "ComparisonColumn",
+        "type": "object"
+      },
+      "ComparisonRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "variant_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Variant Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "variant_ids"
+        ],
+        "title": "ComparisonRequest",
+        "type": "object"
+      },
+      "ComparisonRow": {
+        "additionalProperties": false,
+        "properties": {
+          "different": {
+            "title": "Different",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "different"
+        ],
+        "title": "ComparisonRow",
+        "type": "object"
+      },
+      "Cooler": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_cpu_models": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved Cpu Models"
+          },
+          "cooling_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "air",
+                  "liquid"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooling Type"
+          },
+          "height_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Mm"
+          },
+          "kind": {
+            "const": "cooler",
+            "default": "cooler",
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_memory_height_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Memory Height Mm"
+          },
+          "sockets": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sockets"
+          }
+        },
+        "title": "Cooler",
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Details",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorEnvelope",
+        "type": "object"
+      },
+      "Evaluation": {
+        "additionalProperties": false,
+        "properties": {
+          "assembly_fee_minor": {
+            "title": "Assembly Fee Minor",
+            "type": "null"
+          },
+          "component_subtotal_minor": {
+            "title": "Component Subtotal Minor",
+            "type": "integer"
+          },
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "estimated_power_w": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Power W"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "complete_build",
+              "parts_only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "peripheral_subtotal_minor": {
+            "title": "Peripheral Subtotal Minor",
+            "type": "integer"
+          },
+          "power_method": {
+            "title": "Power Method",
+            "type": "string"
+          },
+          "price_basis": {
+            "const": "reference_only_not_payable",
+            "default": "reference_only_not_payable",
+            "title": "Price Basis",
+            "type": "string"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          },
+          "ruleset_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Ruleset Version",
+            "type": "string"
+          },
+          "selection_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Selection Hash",
+            "type": "string"
+          },
+          "shipping_minor": {
+            "title": "Shipping Minor",
+            "type": "null"
+          },
+          "spec_versions": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0.0,
+              "maximum": 1000000.0,
+              "type": "integer"
+            },
+            "title": "Spec Versions",
+            "type": "object"
+          },
+          "stale_reasons": {
+            "items": {
+              "enum": [
+                "selection_changed",
+                "specifications_changed",
+                "rules_changed"
+              ],
+              "type": "string"
+            },
+            "title": "Stale Reasons",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "compatible",
+              "incompatible",
+              "needs_review",
+              "incomplete"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tax_minor": {
+            "title": "Tax Minor",
+            "type": "null"
+          },
+          "unavailable_slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable Slots",
+            "type": "array"
+          },
+          "unpriced_slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unpriced Slots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "selection_hash",
+          "spec_versions",
+          "ruleset_version",
+          "mode",
+          "status",
+          "findings",
+          "evaluated_at",
+          "stale_reasons",
+          "estimated_power_w",
+          "power_method",
+          "component_subtotal_minor",
+          "peripheral_subtotal_minor",
+          "unpriced_slots",
+          "unavailable_slots"
+        ],
+        "title": "Evaluation",
+        "type": "object"
+      },
+      "EvaluationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "mode": {
+            "default": "complete_build",
+            "enum": [
+              "complete_build",
+              "parts_only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Revision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requires_dedicated_gpu": {
+            "default": false,
+            "title": "Requires Dedicated Gpu",
+            "type": "boolean"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/Selection"
+            },
+            "maxItems": 32,
+            "title": "Selections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "market",
+          "currency"
+        ],
+        "title": "EvaluationRequest",
+        "type": "object"
+      },
+      "Evidence": {
+        "additionalProperties": false,
+        "properties": {
+          "checked_on": {
+            "format": "date",
+            "title": "Checked On",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "checked_on",
+          "note"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "corrective_action": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "message": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "ruleset_version": {
+            "title": "Ruleset Version",
+            "type": "string"
+          },
+          "slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Slots",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "compatible",
+              "incompatible",
+              "needs_review",
+              "incomplete"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "slots",
+          "message",
+          "corrective_action",
+          "evidence",
+          "ruleset_version"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "GPU": {
+        "additionalProperties": false,
+        "properties": {
+          "board_power_w": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Power W"
+          },
+          "height_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Mm"
+          },
+          "kind": {
+            "const": "gpu",
+            "default": "gpu",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Mm"
+          },
+          "power_connectors": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "exclusiveMinimum": 0.0,
+                  "maximum": 1000000.0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Power Connectors"
+          },
+          "recommended_psu_w": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommended Psu W"
+          },
+          "slots": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slots"
+          },
+          "vram_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vram Gb"
+          }
+        },
+        "title": "GPU",
+        "type": "object"
+      },
+      "Localized": {
+        "additionalProperties": false,
+        "properties": {
+          "en": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "En",
+            "type": "string"
+          },
+          "fa": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Fa",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fa",
+          "en"
+        ],
+        "title": "Localized",
+        "type": "object"
+      },
+      "Memory": {
+        "additionalProperties": false,
+        "properties": {
+          "capacity_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Gb"
+          },
+          "generation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DDR4",
+                  "DDR5"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation"
+          },
+          "height_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Mm"
+          },
+          "kind": {
+            "const": "memory",
+            "default": "memory",
+            "title": "Kind",
+            "type": "string"
+          },
+          "modules": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modules"
+          }
+        },
+        "title": "Memory",
+        "type": "object"
+      },
+      "Motherboard": {
+        "additionalProperties": false,
+        "properties": {
+          "bios_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bios Revision"
+          },
+          "form_factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form Factor"
+          },
+          "kind": {
+            "const": "motherboard",
+            "default": "motherboard",
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_memory_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Memory Gb"
+          },
+          "memory_generation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DDR4",
+                  "DDR5"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Generation"
+          },
+          "memory_slots": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Slots"
+          },
+          "power_connectors": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "exclusiveMinimum": 0.0,
+                  "maximum": 1000000.0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Power Connectors"
+          },
+          "socket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Socket"
+          },
+          "storage_form_factors": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Form Factors"
+          },
+          "storage_interfaces": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "exclusiveMinimum": 0.0,
+                  "maximum": 1000000.0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Interfaces"
+          },
+          "verified_bios_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Bios Revision"
+          },
+          "verified_cpu_models": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Cpu Models"
+          }
+        },
+        "title": "Motherboard",
+        "type": "object"
+      },
+      "Offer": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_minor": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9000000000000.0,
+            "title": "Amount Minor",
+            "type": "integer"
+          },
+          "available_for_sale": {
+            "default": false,
+            "title": "Available For Sale",
+            "type": "boolean"
+          },
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "price_version": {
+            "default": 1,
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Price Version",
+            "type": "integer"
+          },
+          "reference_only": {
+            "default": true,
+            "title": "Reference Only",
+            "type": "boolean"
+          },
+          "seller": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Seller",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Evidence"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "amount_minor",
+          "source",
+          "seller"
+        ],
+        "title": "Offer",
+        "type": "object"
+      },
+      "PSU": {
+        "additionalProperties": false,
+        "properties": {
+          "connectors": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "exclusiveMinimum": 0.0,
+                  "maximum": 1000000.0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connectors"
+          },
+          "form_factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form Factor"
+          },
+          "kind": {
+            "const": "psu",
+            "default": "psu",
+            "title": "Kind",
+            "type": "string"
+          },
+          "length_mm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Mm"
+          },
+          "wattage_w": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wattage W"
+          }
+        },
+        "title": "PSU",
+        "type": "object"
+      },
+      "Peripheral": {
+        "additionalProperties": false,
+        "properties": {
+          "connection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection"
+          },
+          "kind": {
+            "const": "peripheral",
+            "default": "peripheral",
+            "title": "Kind",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "monitor",
+              "keyboard",
+              "mouse",
+              "audio",
+              "chair",
+              "desk",
+              "accessory"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "Peripheral",
+        "type": "object"
+      },
+      "Prebuilt": {
+        "additionalProperties": false,
+        "properties": {
+          "component_descriptions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Component Descriptions",
+            "type": "array"
+          },
+          "cpu_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Model"
+          },
+          "gpu_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Model"
+          },
+          "kind": {
+            "const": "prebuilt",
+            "default": "prebuilt",
+            "title": "Kind",
+            "type": "string"
+          },
+          "memory_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Gb"
+          },
+          "storage_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Gb"
+          }
+        },
+        "title": "Prebuilt",
+        "type": "object"
+      },
+      "Product": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "title": "Brand",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "highlights": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Highlights",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "image": {
+            "title": "Image",
+            "type": "string"
+          },
+          "image_kind": {
+            "default": "illustration",
+            "enum": [
+              "illustration",
+              "exact_sku"
+            ],
+            "title": "Image Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/Variant"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "category",
+          "brand",
+          "image",
+          "variants"
+        ],
+        "title": "Product",
+        "type": "object"
+      },
+      "ProductPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "ProductPage",
+        "type": "object"
+      },
+      "Revision": {
+        "additionalProperties": false,
+        "properties": {
+          "ruleset_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Ruleset Version",
+            "type": "string"
+          },
+          "selection_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Selection Hash",
+            "type": "string"
+          },
+          "spec_versions": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0.0,
+              "maximum": 1000000.0,
+              "type": "integer"
+            },
+            "title": "Spec Versions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "selection_hash",
+          "spec_versions",
+          "ruleset_version"
+        ],
+        "title": "Revision",
+        "type": "object"
+      },
+      "Selection": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "default": 1,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "cpu",
+              "motherboard",
+              "memory",
+              "storage",
+              "case",
+              "psu",
+              "cooler",
+              "gpu",
+              "monitor",
+              "keyboard",
+              "mouse",
+              "audio",
+              "chair",
+              "desk",
+              "accessory"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "slot_key": {
+            "maxLength": 32,
+            "pattern": "^[a-z]+(:[1-9][0-9]?)?$",
+            "title": "Slot Key",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_key",
+          "role",
+          "variant_id"
+        ],
+        "title": "Selection",
+        "type": "object"
+      },
+      "Storage": {
+        "additionalProperties": false,
+        "properties": {
+          "capacity_gb": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Gb"
+          },
+          "form_factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form Factor"
+          },
+          "interface": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interface"
+          },
+          "kind": {
+            "const": "storage",
+            "default": "storage",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "title": "Storage",
+        "type": "object"
+      },
+      "Variant": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "maxItems": 20,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/Offer"
+            },
+            "maxItems": 2,
+            "title": "Offers",
+            "type": "array"
+          },
+          "on_hand": {
+            "default": 0,
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "On Hand",
+            "type": "integer"
+          },
+          "packaging": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "reserved": {
+            "default": 0,
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "sku": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Sku",
+            "type": "string"
+          },
+          "spec_version": {
+            "default": 1,
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Spec Version",
+            "type": "integer"
+          },
+          "specifications": {
+            "discriminator": {
+              "mapping": {
+                "case": "#/components/schemas/Case",
+                "cooler": "#/components/schemas/Cooler",
+                "cpu": "#/components/schemas/CPU",
+                "gpu": "#/components/schemas/GPU",
+                "memory": "#/components/schemas/Memory",
+                "motherboard": "#/components/schemas/Motherboard",
+                "peripheral": "#/components/schemas/Peripheral",
+                "prebuilt": "#/components/schemas/Prebuilt",
+                "psu": "#/components/schemas/PSU",
+                "storage": "#/components/schemas/Storage"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CPU"
+              },
+              {
+                "$ref": "#/components/schemas/Motherboard"
+              },
+              {
+                "$ref": "#/components/schemas/Memory"
+              },
+              {
+                "$ref": "#/components/schemas/Storage"
+              },
+              {
+                "$ref": "#/components/schemas/Case"
+              },
+              {
+                "$ref": "#/components/schemas/PSU"
+              },
+              {
+                "$ref": "#/components/schemas/Cooler"
+              },
+              {
+                "$ref": "#/components/schemas/GPU"
+              },
+              {
+                "$ref": "#/components/schemas/Peripheral"
+              },
+              {
+                "$ref": "#/components/schemas/Prebuilt"
+              }
+            ],
+            "title": "Specifications"
+          },
+          "stock_kind": {
+            "enum": [
+              "component",
+              "accessory",
+              "stocked_prebuilt"
+            ],
+            "title": "Stock Kind",
+            "type": "string"
+          },
+          "stock_verified": {
+            "default": false,
+            "title": "Stock Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "sku",
+          "packaging",
+          "specifications",
+          "stock_kind"
+        ],
+        "title": "Variant",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Nivaro Catalog",
+    "version": "0.2.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/catalog/build-evaluations": {
+      "post": {
+        "operationId": "evaluateBuild",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Build Evaluation",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/catalog/categories": {
+      "get": {
+        "operationId": "listCategories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Category"
+                  },
+                  "title": "Response Listcategories",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Categories",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/catalog/comparisons": {
+      "post": {
+        "operationId": "compareProducts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparison"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Comparison",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/catalog/products": {
+      "get": {
+        "operationId": "listProducts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 80,
+              "title": "Category",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "brand",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 120,
+              "title": "Brand",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "market",
+            "required": false,
+            "schema": {
+              "default": "ir",
+              "enum": [
+                "ir",
+                "international"
+              ],
+              "title": "Market",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "featured",
+              "enum": [
+                "featured",
+                "name",
+                "newest",
+                "price_asc",
+                "price_desc"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_price",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9000000000000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Price"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_price",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9000000000000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Price"
+            }
+          },
+          {
+            "in": "query",
+            "name": "in_stock",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "In Stock",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Products",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/catalog/products/{slug}": {
+      "get": {
+        "operationId": "getProduct",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Product",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/catalog/variants/{variant_id}": {
+      "get": {
+        "operationId": "getVariant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Variant"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Variant",
+        "tags": [
+          "catalog"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+import { text, type Locale } from './content';
+
+const labels: Record<string, [string, string]> = {
+  model:['مدل','Model'], socket:['سوکت','Socket'], memory_generation:['نسل حافظه','Memory generation'], cores:['هسته','Cores'], threads:['رشته','Threads'], tdp_w:['توان حرارتی (وات)','TDP (W)'], max_package_power_w:['حداکثر توان پردازنده (وات)','Maximum package power (W)'], integrated_graphics:['گرافیک داخلی','Integrated graphics'], included_cooler:['خنک‌کنندهٔ همراه','Included cooler'], max_memory_gb:['حداکثر حافظه (گیگابایت)','Maximum memory (GB)'], included_cooler_height_mm:['ارتفاع خنک‌کنندهٔ همراه (میلی‌متر)','Included cooler height (mm)'], vram_gb:['حافظهٔ گرافیک (گیگابایت)','VRAM (GB)'], cpu_model:['پردازنده','Processor'], gpu_model:['گرافیک','Graphics'], memory_gb:['حافظه (گیگابایت)','Memory (GB)'], storage_gb:['ذخیره‌سازی (گیگابایت)','Storage (GB)'], length_mm:['طول (میلی‌متر)','Length (mm)'], height_mm:['ارتفاع (میلی‌متر)','Height (mm)'], slots:['اسلات اشغال‌شده','Slot width'], board_power_w:['توان کارت (وات)','Board power (W)'], recommended_psu_w:['پاور پیشنهادی (وات)','Recommended PSU (W)'], role:['نوع تجهیز','Equipment type'], connection:['اتصال','Connection'], form_factor:['فرم','Form factor'], generation:['نسل','Generation'], modules:['تعداد ماژول در کیت','Modules per kit'], capacity_gb:['ظرفیت (گیگابایت)','Capacity (GB)'], interface:['رابط','Interface'], wattage_w:['توان (وات)','Wattage (W)'], cooling_type:['نوع خنک‌کننده','Cooling type'], max_memory_height_mm:['حداکثر ارتفاع رم (میلی‌متر)','RAM clearance (mm)'], bios_revision:['نسخهٔ بایوس','Installed BIOS'], verified_bios_revision:['بایوس تأییدشده','Verified BIOS'], memory_slots:['اسلات حافظه','Memory slots'], max_psu_length_mm:['فضای پاور (میلی‌متر)','PSU clearance (mm)'], max_gpu_length_mm:['فضای طول گرافیک (میلی‌متر)','GPU length clearance (mm)'], max_gpu_height_mm:['فضای ارتفاع گرافیک (میلی‌متر)','GPU height clearance (mm)'], expansion_slots:['اسلات توسعه','Expansion slots'], max_cooler_height_mm:['فضای خنک‌کننده (میلی‌متر)','Cooler clearance (mm)'],
+};
+export const specLabel = (key: string, locale: Locale) => labels[key]?.[locale === 'fa' ? 0 : 1] ?? key.replaceAll('_',' ');
+export function specValue(value: unknown, locale: Locale): string {
+  if (value === null || value === undefined) return text(locale,'نامشخص','Unknown');
+  if (typeof value === 'boolean') return value ? text(locale,'دارد','Yes') : text(locale,'ندارد','No');
+  if (typeof value === 'number') return new Intl.NumberFormat(locale).format(value);
+  const terms: Record<string, [string, string]> = { air:['بادی','Air'], liquid:['مایع','Liquid'], keyboard:['کیبورد','Keyboard'], mouse:['ماوس','Mouse'], monitor:['مانیتور','Monitor'], audio:['صدا','Audio'], chair:['صندلی','Chair'], desk:['میز','Desk'], accessory:['لوازم جانبی','Accessory'] };
+  if (typeof value === 'string' && terms[value]) return terms[value][locale === 'fa' ? 0 : 1];
+  return String(value);
+}

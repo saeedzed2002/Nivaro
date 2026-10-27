@@ -9,8 +9,8 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Home | [Dark](concepts/r2-blue-rgb-fa-dark.png), [light](concepts/r2-blue-rgb-fa-light.png) | P01 implemented; local container/browser/Watch and private CI verified |
 | Products / category / search results | [Products](pages/products.png) | Generated and inspected before coding; reference-only collection for P01, API integration in P02 |
 | Product details, including reviews section | [Details](pages/product-details.png) | Generated and inspected before coding; no fabricated review counts or live purchase action |
-| Product comparison | [Comparison](pages/product-comparison.png) | Generated and inspected 2026-10-27, before page code; implementation pending |
-| PC builder | [Workspace](pages/build-workspace.png) | Generated and inspected 2026-10-27, before page code; dark desktop/light mobile reference; implementation pending |
+| Product comparison | [Comparison](pages/product-comparison.png) | Generated and inspected 2026-10-27, before page code; API-backed implementation in P02 checkpoint |
+| PC builder | [Workspace](pages/build-workspace.png) | Generated and inspected 2026-10-27, before page code; dark desktop/light mobile reference; temporary selection/evaluation UI implemented |
 
 ## Design plan applied
 

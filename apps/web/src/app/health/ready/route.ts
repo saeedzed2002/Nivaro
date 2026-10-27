@@ -1,1 +1,1 @@
-export function GET() { return Response.json({ status: 'ok', service: 'web', dataMode: 'reference-preview' }); }
+export function GET() { return Response.json({ status: 'ok', service: 'web', dataMode: 'catalog-api-research' }); }

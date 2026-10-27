@@ -9,7 +9,7 @@ for (const locale of ['fa', 'en']) {
         const errors: string[] = [];
         page.on('pageerror',e=>errors.push(e.message));
         page.on('console',message=>{if(message.type()==='error') errors.push(message.text());});
-        for (const path of ['', '/products', '/products/amd-ryzen-7-9800x3d']) {
+        for (const path of ['', '/products', '/products/amd-ryzen-7-9800x3d', '/compare', '/build']) {
           await page.goto(`/${locale}${path}`);
           await expect(page.locator('html')).toHaveAttribute('dir',locale==='fa'?'rtl':'ltr');
           await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
@@ -24,7 +24,7 @@ for (const locale of ['fa', 'en']) {
           }))).toBe(true);
           expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
           await expect(page.getByRole('main')).toBeVisible();
-          await page.screenshot({path:test.info().outputPath(`${locale}-${theme}-${width}-${path ? path.includes('amd')?'detail':'products':'home'}.png`),fullPage:true,animations:'disabled'});
+          await page.screenshot({path:test.info().outputPath(`${locale}-${theme}-${width}-${path ? path.includes('amd')?'detail':path.slice(1):'home'}.png`),fullPage:true,animations:'disabled'});
         }
         expect(errors).toEqual([]);
       });
@@ -43,7 +43,7 @@ test('filters are in the URL, empty results recover, and product links work', as
   await page.goto('/en/products?q=does-not-exist');
   await expect(page.getByRole('heading',{name:'No matching products yet'})).toBeVisible();
   await page.getByRole('link',{name:'View all products',exact:true}).click();
-  await expect(page.locator('.product-card')).toHaveCount(5);
+  await expect(page.locator('.product-card')).toHaveCount(12);
 });
 
 test('language preserves market and route; explicit market changes prices',async({page})=>{

@@ -1,4 +1,4 @@
-name: Web checks
+name: Catalog and web checks
 on:
   push:
     branches: [main]
@@ -10,8 +10,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   web:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: apps/web
@@ -22,13 +22,36 @@ jobs:
           node-version: '24.22.1'
       - run: npm install --global pnpm@11.25.0
       - run: pnpm install --frozen-lockfile
+      - run: pnpm contracts:check
       - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm build
+      - name: Initialize isolated CI secrets
+        shell: pwsh
+        working-directory: .
+        run: ./scripts/Initialize-LocalSecrets.ps1
+      - name: Build and start release containers with fresh schema
+        working-directory: .
+        run: |
+          docker compose -f compose.yaml -f compose.dev.yaml config --quiet
+          docker compose build catalog-init web
+          docker compose up -d --wait --wait-timeout 120
+          curl --fail --silent http://127.0.0.1:8080/health/ready
+      - name: Catalog checks and canonical OpenAPI drift
+        working-directory: .
+        run: |
+          docker build --target test -t nivaro-catalog:test services/catalog
+          docker run --rm --network nivaro_default -e CATALOG_DB_HOST=postgres \
+            -v "$PWD/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro" \
+            -v "$PWD/contracts:/contracts:ro" nivaro-catalog:test \
+            sh -c 'ruff check . && ruff format --check . && mypy src && pytest -q && alembic check && python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check'
+      - name: Build host preview against catalog gateway
+        env:
+          CATALOG_URL: http://127.0.0.1:8080
+        run: pnpm build && pnpm typecheck
       - run: pnpm exec playwright install --with-deps chromium
-      - name: Browser verification
+      - name: Host browser verification
         env:
           TEST_BASE_URL: http://127.0.0.1:8081
+          CATALOG_URL: http://127.0.0.1:8080
         run: |
           pnpm start --port 8081 > /tmp/nivaro-web.log 2>&1 &
           for attempt in $(seq 1 30); do
@@ -36,13 +59,6 @@ jobs:
             sleep 2
           done
           pnpm test:e2e
-      - name: Validate Compose and run release containers
-        working-directory: .
-        run: |
-          docker compose -f compose.yaml -f compose.dev.yaml config --quiet
-          docker compose build web
-          docker compose up -d --wait --wait-timeout 120
-          curl --fail --silent http://127.0.0.1:8080/health/ready
       - name: Verify container-served storefront
         run: pnpm test:e2e
       - name: Verify development file sync and hot reload

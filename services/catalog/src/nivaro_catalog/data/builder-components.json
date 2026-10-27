@@ -1,0 +1,44 @@
+[
+  {
+    "slug": "msi-mag-b650-tomahawk-wifi", "name": "MSI MAG B650 TOMAHAWK WIFI", "category": "motherboard", "brand": "MSI", "image": "schematic-motherboard",
+    "description": {"fa": "مادربرد AM5 با چهار شکاف DDR5؛ نسخهٔ بایوس کالای موجود هنوز تأیید نشده است.", "en": "AM5 motherboard with four DDR5 slots. The BIOS of an actual stocked unit is not verified."},
+    "highlights": ["AM5", "DDR5", "4 DIMM"], "offers": {},
+    "specifications": {"kind": "motherboard", "socket": "AM5", "form_factor": "ATX", "memory_generation": "DDR5", "memory_slots": 4, "max_memory_gb": 256, "storage_interfaces": {"NVMe": 3, "SATA": 6}, "storage_form_factors": ["M.2-2280", "M.2-2260", "M.2-22110"]},
+    "evidence": [{"url": "https://www.msi.com/Motherboard/MAG-B650-TOMAHAWK-WIFI/Specification", "checked_on": "2026-10-27", "note": "Manufacturer specification. M.2 resources depend on CPU and slot sharing; BIOS support is deliberately unverified."}]
+  },
+  {
+    "slug": "kingston-fury-beast-rgb-kf560c36bbeak2-32", "name": "Kingston FURY Beast RGB KF560C36BBEAK2-32", "category": "memory", "brand": "Kingston", "image": "memory",
+    "description": {"fa": "کیت حافظهٔ ۳۲ گیگابایتی شامل دو ماژول؛ سرعت اورکلاک تضمین سازگاری نیست.", "en": "32 GB kit with two modules. An overclocking profile is not a compatibility guarantee."},
+    "highlights": ["DDR5", "2 × 16 GB", "RGB"], "offers": {},
+    "specifications": {"kind": "memory", "generation": "DDR5", "modules": 2, "capacity_gb": 32},
+    "evidence": [{"url": "https://www.kingston.com/datasheets/KF560C36BBEAK2-32.pdf", "checked_on": "2026-10-27", "note": "Manufacturer datasheet. Module height is 42.23 mm; left unknown in the integer-mm contract rather than rounded down for clearance."}]
+  },
+  {
+    "slug": "samsung-990-pro-1tb-mz-v9p1t0bw", "name": "Samsung 990 PRO 1TB MZ-V9P1T0BW", "category": "storage", "brand": "Samsung", "image": "schematic-storage",
+    "description": {"fa": "درایو NVMe یک ترابایتی، مدل بدون هیت‌سینک؛ قیمت این بازار ثبت نشده است.", "en": "1 TB NVMe drive, model without heatsink. No market price is recorded."},
+    "highlights": ["1 TB", "NVMe", "M.2 2280"], "offers": {},
+    "specifications": {"kind": "storage", "interface": "NVMe", "form_factor": "M.2-2280", "capacity_gb": 1000},
+    "evidence": [{"url": "https://download.semiconductor.samsung.com/resources/brochure/990_PRO_Series_Brouchure_Web_Version_4.0_250523.pdf", "checked_on": "2026-10-27", "note": "Indexed manufacturer brochure excerpt (full PDF fetch exceeded size limit), 1 TB non-heatsink model; decimal capacity, not usable formatted capacity."}]
+  },
+  {
+    "slug": "corsair-4000d-airflow-cc-9011200-ww", "name": "Corsair 4000D AIRFLOW CC-9011200-WW", "category": "case", "brand": "Corsair", "image": "schematic-case",
+    "description": {"fa": "کیس مشکی؛ فضای قطعات به چیدمان فن و رادیاتور وابسته است.", "en": "Black case. Component clearance depends on fan and radiator placement."},
+    "highlights": ["ATX", "Airflow", "Black"], "offers": {},
+    "specifications": {"kind": "case", "motherboard_forms": ["ATX", "Micro-ATX", "Mini-ITX"], "psu_forms": ["ATX"], "max_cooler_height_mm": 170, "expansion_slots": 7},
+    "evidence": [{"url": "https://www.corsair.com/ww/en/p/pc-cases/cc-9011200-ww/40", "checked_on": "2026-10-27", "note": "Manufacturer specifications. GPU/PSU clearance and drive mounting depend on internal layout, left unverified."}, {"url": "https://forum.corsair.com/blog/cases/4000-5000-series-case-comparison/", "checked_on": "2026-10-27", "note": "Manufacturer case comparison confirms motherboard forms; conditional E-ATX omitted."}]
+  },
+  {
+    "slug": "seasonic-focus-gx-850-atx-31", "name": "Seasonic FOCUS GX-850 ATX 3.1", "category": "psu", "brand": "Seasonic", "image": "schematic-psu",
+    "description": {"fa": "پاور ۸۵۰ واتی از سری ATX 3.1؛ کابل‌های نسخهٔ قابل فروش هنوز بررسی نشده‌اند.", "en": "850 W ATX 3.1 series power supply. Cables of a saleable unit are not yet verified."},
+    "highlights": ["850 W", "ATX 3.1", "140 mm"], "offers": {},
+    "specifications": {"kind": "psu", "wattage_w": 850, "form_factor": "ATX", "length_mm": 140},
+    "evidence": [{"url": "https://seasonic.com/focus-gx-atx-3/", "checked_on": "2026-10-27", "note": "Manufacturer FOCUS GX ATX 3.1 page, 850 W model. Connector inventory not inferred from another revision."}]
+  },
+  {
+    "slug": "noctua-nh-u12s", "name": "Noctua NH-U12S", "category": "cooler", "brand": "Noctua", "image": "schematic-cooler",
+    "description": {"fa": "خنک‌کنندهٔ بادی تک‌برج؛ توان دفع حرارت و کیت نصب نسخهٔ موجود نیازمند تأیید است.", "en": "Single-tower air cooler. CPU thermal suitability and the stocked mounting kit need verification."},
+    "highlights": ["Air cooling", "158 mm", "AM5"], "offers": {},
+    "specifications": {"kind": "cooler", "cooling_type": "air", "sockets": ["AM5", "AM4"], "height_mm": 158},
+    "evidence": [{"url": "https://www.noctua.at/en/products/nh-u12s/specifications", "checked_on": "2026-10-27", "note": "Current manufacturer specification. Socket fit does not establish CPU thermal suitability or legacy-box kit contents."}]
+  }
+]

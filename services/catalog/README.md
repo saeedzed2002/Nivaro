@@ -1,10 +1,10 @@
 # Catalog — P02 foundation, not release-verified
 
-Catalog owns product facts, physical variants, independent market offers and compatibility evaluations. It has no cart/order database access and no reservation or payment endpoint. The running storefront still uses its P01 research fixtures; this service has not been wired to the gateway or web pages yet.
+Catalog owns product facts, physical variants, independent market offers and compatibility evaluations. It has no cart/order database access and no reservation or payment endpoint. The P02 checkpoint routes this service through the gateway and connects the home, collection, details, comparison and temporary builder pages. Full phase acceptance is still pending.
 
 ## Verification boundary
 
-The owner-assisted retry on 2026-10-27 successfully installed uv 0.13.5, resolved the selected dependencies, created `uv.lock` and completed `uv sync --frozen`, including the catalog package build. Subsequent execution inside the existing Linux/Python 3.13.18 image passed Ruff, strict mypy, all 66 tests against PostgreSQL 18.6, and `alembic check`. SQLAlchemy 2.1's updated Select typing and two variable/translation typing issues were corrected without changing the selected versions. **A dedicated non-root backend application image, clean offline rebuild, canonical frontend contracts, web integration and P02 acceptance are still pending.** The dependency gate has advanced; the whole phase is not complete. The following Windows results are historical provisional evidence, superseded by these Linux checks.
+The owner-assisted retry on 2026-10-27 successfully installed uv 0.13.5, resolved the selected dependencies, created `uv.lock` and completed `uv sync --frozen`, including the catalog package build. Subsequent execution inside the existing Linux/Python 3.13.18 image passed Ruff, strict mypy, all 66 tests against PostgreSQL 18.6, and `alembic check`. SQLAlchemy 2.1's updated Select typing and two variable/translation typing issues were corrected without changing the selected versions. **The checkpoint now includes a non-root image, offline frozen backend build, canonical contracts and frontend integration. Full P02 acceptance and private CI remain pending; the latest evidence is in docs/progress.md.** The dependency gate has advanced; the whole phase is not complete. The following Windows results are historical provisional evidence, superseded by these Linux checks.
 
 Offline checks used the already installed Windows Python 3.12.3 environment without modifying it: FastAPI 0.115.0, Pydantic 2.9.2, pydantic-settings 2.5.2, SQLAlchemy 2.0.35, Alembic 1.13.2, psycopg/psycopg-binary 3.3.4, HTTPX 0.27.2, pytest 9.1.1, pytest-asyncio 0.24.0 and Ruff 0.16.3. These are **provisional validation tools**, not selected production versions. PostgreSQL tests used the actual pinned 18.6 Linux image.
 
@@ -21,7 +21,7 @@ Secrets are generated once into ignored `work/secrets/`; existing values are pre
 
 The init script runs automatically only for a fresh volume. For an already initialized volume requiring this first database, explicitly run `sh /docker-entrypoint-initdb.d/10-catalog.sh` inside the PostgreSQL container; the script preserves existing databases and roles. It deliberately does not rotate an existing role password when a secret file is changed. Do not regenerate secrets independently of a deliberate credential rotation.
 
-## Complete after connectivity returns
+## Baseline procedure and remaining acceptance (see latest progress)
 
 1. The selected dependency resolution/install and Linux checks now pass. Preserve `uv.lock`; use `uv sync --frozen` for subsequent installs and verify a fresh/offline application-image build rather than claiming that the mounted development environment proves it.
 2. Add and verify the non-root catalog image and a one-shot migration/seed job. API workers must not race to apply migrations at startup.
@@ -44,8 +44,23 @@ Request bodies are capped at 64 KiB including chunked requests. Errors carry a b
 
 ## Data and policy limits
 
-Research seed: six products, seven physical variants, six independently sourced offer observations. The 9800X3D tray and boxed variants deliberately have separate Iran/USD observations; these do not represent the same packaging. The 9700X has no invented price. All stock is unverified and all research offers are unavailable for sale. Generic existing images remain labeled illustrations.
+Research seed: twelve products, thirteen physical variants, six independently sourced offer observations. Six additional core parts have manufacturer evidence and no invented market offers. The 9800X3D tray and boxed variants deliberately have separate Iran/USD observations; these do not represent the same packaging. The 9700X has no invented price. All stock is unverified and all research offers are unavailable for sale. Generic existing images remain labeled illustrations.
 
 Typed specifications reject arbitrary unknown attributes. Specification/offer revisions are guarded by PostgreSQL triggers; changed technical facts/evidence require a newer specification revision, and changed price/eligibility requires a newer offer revision. Physical stock invariants, currency/toman rules, variant/market uniqueness and category depth are also database-enforced.
 
 See [compatibility policy](../../docs/catalog/COMPATIBILITY_RULES.md) for sources, limitations and the power estimate. Synthetic complete-build fixtures demonstrate rule behavior, not a verified real retail configuration. Liquid radiator layouts deliberately remain `needs_review`. Saved drafts, two-system comparison, cart transfers, checkout quotes and atomic reservations belong to subsequent phase work.
+
+## Bounded-download local recovery
+
+The normal Dockerfile is the clean-machine/CI build. On the owner machine, the existing download cache can supply a new frozen backend environment without network:
+
+```powershell
+./scripts/Prepare-CatalogCache.ps1
+docker build --pull=false --network=none --build-context dependency-cache=./work/python-cache -f services/catalog/Dockerfile.offline -t nivaro-catalog:release services/catalog
+docker build --pull=false -f apps/web/Dockerfile.cached -t nivaro-web:release apps/web
+docker compose up -d --no-build --pull never --wait
+```
+
+Run from the repository root. The frontend recovery requires the already populated `nivaro-web:development` Linux image; missing dependencies get a bounded fetch. This is not an offline bootstrap on an empty machine. Never remove the database volume or regenerate existing secrets.
+
+Canonical contract check: run `python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check` in the frozen catalog environment with contracts mounted, then `pnpm contracts:check` in apps/web. Regenerate using the export command without `--check` and `pnpm contracts:generate`. Type artifacts stay inside the frontend build context.

@@ -37,10 +37,10 @@ export function Header({ locale }: { locale: Locale }) {
     </div>
     <nav className="container main-nav" aria-label={text(locale, 'ناوبری اصلی', 'Main navigation')}>
       <Link className={pathname.includes('/products') ? 'active' : ''} href={`/${locale}/products`}><Cpu size={17}/>{text(locale, 'قطعات کامپیوتر', 'Components')}</Link>
-      <AvailabilityDialog locale={locale} title={text(locale, 'اسمبل سیستم', 'Build your PC')}>{text(locale, 'اسمبل سیستم', 'Build your PC')}<span className="nav-tag">{text(locale, 'به‌زودی', 'SOON')}</span></AvailabilityDialog>
+      <Link href={`/${locale}/build`} className={pathname.includes("/build") ? "active" : ""}>{text(locale, "اسمبل سیستم", "Build your PC")}</Link>
       <Link href={`/${locale}/products?category=pc`}>{text(locale, 'سیستم‌های آماده', 'Gaming PCs')}</Link>
       <Link href={`/${locale}/products?category=keyboard`}>{text(locale, 'تجهیزات گیمینگ', 'Peripherals')}</Link>
-      <AvailabilityDialog locale={locale} title={text(locale, 'مقایسهٔ محصول و سیستم', 'Compare products & systems')}><SlidersHorizontal size={16}/>{text(locale, 'مقایسه', 'Compare')}</AvailabilityDialog>
+      <Link href={`/${locale}/compare`} className={pathname.includes("/compare") ? "active" : ""}><SlidersHorizontal size={16}/>{text(locale, "مقایسه", "Compare")}</Link>
     </nav>
   </header>;
 }

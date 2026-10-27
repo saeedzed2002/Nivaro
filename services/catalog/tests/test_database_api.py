@@ -53,8 +53,8 @@ async def test_readiness_and_seed_repeatability(api):
     before = await session.scalar(select(func.count()).select_from(ProductRow))
     await session.run_sync(seed)
     await session.run_sync(seed)
-    assert await session.scalar(select(func.count()).select_from(ProductRow)) == before == 6
-    assert await session.scalar(select(func.count()).select_from(VariantRow)) == 7
+    assert await session.scalar(select(func.count()).select_from(ProductRow)) == before == 12
+    assert await session.scalar(select(func.count()).select_from(VariantRow)) == 13
 
 
 async def test_restricted_database_role(api):
@@ -132,7 +132,29 @@ async def test_database_change_is_visible_and_drafts_are_hidden(api):
         update(ProductRow).where(ProductRow.slug == "amd-ryzen-7-9700x").values(status="draft")
     )
     assert (await client.get("/api/v1/catalog/products/amd-ryzen-7-9700x")).status_code == 404
-    assert (await client.get("/api/v1/catalog/products")).json()["total"] == 5
+    assert (await client.get("/api/v1/catalog/products")).json()["total"] == 11
+
+
+async def test_documented_core_build_is_selectable_but_not_falsely_certified(api):
+    client, _ = api
+    products = (await client.get("/api/v1/catalog/products?page_size=100")).json()["items"]
+    selections = []
+    for role in ("cpu", "motherboard", "memory", "storage", "case", "psu", "cooler"):
+        product = next(item for item in products if item["category"] == role)
+        variant = product["variants"][0]
+        assert variant["evidence"]
+        selections.append({"slot_key": role, "role": role, "variant_id": variant["id"]})
+    response = await client.post(
+        "/api/v1/catalog/build-evaluations",
+        json={
+            "market": "ir",
+            "currency": "IRR",
+            "selections": selections,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "needs_review"
+    assert len(response.json()["unpriced_slots"]) >= 6
 
 
 async def test_product_comparison_and_same_category_guard(api):

@@ -12,7 +12,9 @@
     "start": "node scripts/start.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "contracts:generate": "node scripts/catalog-types.mjs",
+    "contracts:check": "node scripts/catalog-types.mjs --check"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.2.8",

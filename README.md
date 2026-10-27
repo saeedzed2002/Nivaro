@@ -4,11 +4,9 @@ Bilingual Persian/English gaming hardware storefront, following [the canonical r
 
 ## Current delivery
 
-P01 storefront implementation: home, reference product collection, URL-based filters/search, and reference product details. Pages are built from generated references recorded in [the image-first register](docs/design/PAGE_DESIGNS.md). Full six-service commerce implementation is still pending. No purchase, login, stock guarantee, saved-build persistence or payment is simulated as completed by this frontend.
+P02 checkpoint: home, product collection/details, same-category product comparison and temporary PC assembly selections now use the catalog API. PostgreSQL owns products, physical variants and independent market offers. Pages follow the references in [the image-first register](docs/design/PAGE_DESIGNS.md).
 
-Reference prices have retailer sources, dates, market and packaging metadata. Iran and international prices are independent. Changing language preserves the selected market. Images are conceptual illustrations, not exact SKU photos.
-
-P02 catalog foundation is now implemented separately: independent PostgreSQL schema/role, repeatable research seed, read-only catalog APIs, typed specifications, product comparison and versioned compatibility evaluation. Owner-assisted dependency installation and checks with the selected Linux versions now pass against real PostgreSQL. Dedicated backend application-image execution, generated frontend contracts and API-to-storefront integration remain pending. See [catalog status and continuation](services/catalog/README.md) and [progress](docs/progress.md). This does not change the running P01 storefront into an API-backed store yet.
+The seed contains 12 documented products and 13 variants; reference prices remain unavailable for sale and stock remains unverified. Missing prices and technical facts stay unknown. No durable saved builds, checkout, authentication or payment are claimed. P02 is still in progress; see [progress and exact continuation](docs/progress.md).
 
 ## Local development
 
@@ -17,14 +15,16 @@ Requires Node 24 and pnpm 11.25.0. The project pins pnpm and direct dependencies
 ```powershell
 cd apps/web
 pnpm install --frozen-lockfile
-pnpm dev --port 8080
+$env:CATALOG_URL='http://127.0.0.1:8080'
+pnpm dev --port 8081
 ```
 
-Open `http://localhost:8080/fa` or `http://localhost:8080/en`. This fallback runs on the host, not in Docker. See [progress](docs/progress.md) for actual verification evidence and container limitations.
+Start the Compose catalog/gateway first, then open `http://localhost:8081/fa` or `http://localhost:8081/en`. This fallback runs on the host, not in Docker. See [progress](docs/progress.md) for actual verification evidence and container limitations.
 
 ## Docker development
 
 ```powershell
+./scripts/Initialize-LocalSecrets.ps1
 docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
 ```
 
@@ -37,7 +37,7 @@ docker compose ps
 
 Base Compose builds a non-root standalone web release. Release and development images have distinct local tags (`nivaro-web:release` and `nivaro-web:development`). The Node/Caddy defaults are pinned to the verified downloaded digests. Both local Docker release execution and Compose Watch were verified on 2026-10-27; see [progress](docs/progress.md). Initial registry/package access is still needed on a clean machine. For the complete owner-assisted base-image list, see [download preparation](docs/DOWNLOAD_PREPARATION.md).
 
-Only two base images are needed for this phase: `node:24.22.1-bookworm-slim` and `caddy:2.11.7`. The owner can pull these manually. Optional explicit Arvan mirror paths, without changing Docker Desktop globally:
+This phase uses the pinned Node, Caddy, Python 3.13.18 and PostgreSQL 18.6 images already present locally. The owner can pull these manually. Optional explicit Arvan mirror paths, without changing Docker Desktop globally:
 
 ```powershell
 docker pull docker.arvancloud.ir/node:24.22.1-bookworm-slim
@@ -49,7 +49,7 @@ docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
 
 The path convention follows [Arvan's Docker documentation](https://www.arvancloud.ir/fa/dev/docker). The owner successfully downloaded all seven planned base/tool images through this mirror on 2026-10-27 after transient failures. Package installation inside the build still needs npm registry access on a clean cache even after base images are available. Keep TLS verification enabled. Clearing these overrides restores the pinned Compose defaults; the download helper creates the canonical local aliases automatically.
 
-For a host production preview, run `pnpm build` then `pnpm start --port 8080` inside `apps/web`. The launcher copies public/static assets into Next's standalone output and defaults to loopback. Stop that preview before rebuilding on Windows, and before binding Docker's gateway to the same port.
+For a host production preview, set `CATALOG_URL=http://127.0.0.1:8080` for both build and start, then run `pnpm build` and `pnpm start --port 8081` inside `apps/web`. The launcher copies public/static assets into Next's standalone output and defaults to loopback. Stop that preview before rebuilding on Windows, and before binding Docker's gateway to the same port.
 
 ## Checks
 

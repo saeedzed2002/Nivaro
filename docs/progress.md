@@ -127,3 +127,32 @@ Restore package access, resolve/freeze and test the selected Linux dependency ba
 - Verified with Corepack/pnpm 11.25.0: frozen offline installation, ESLint, TypeScript and the Next 16.4.3 production build all passed on the host. This supersedes the preceding note that these two installations were outstanding.
 - The package-manager update notice is not an instruction to change the selected pnpm baseline. The existing ESLint 9 deprecation notice remains maintenance work; no forced peer-dependency upgrade was applied.
 - These checks establish the current Windows dependency tree/build, not a newly rebuilt Linux application image, an offline clean bootstrap, browser acceptance or new CI. Canonical API/type generation, catalog application-image integration and the remaining P02 storefront work are still pending. No additional owner-operated download is requested at this checkpoint.
+
+## 2026-10-27 — P02 API storefront checkpoint; owner-requested stop
+
+The owner requested a concrete local commit and a pause until the next session. This checkpoint supersedes earlier notes that the storefront is still static or contracts/images are unimplemented. **P02 remains in progress**, not phase-complete.
+
+### Delivered
+
+- Home, collection, details, comparison and temporary PC builder read the actual catalog API. Removed frontend product fixtures. Caddy routes the public catalog API on the same origin. Backend errors remain visible instead of reverting to fake data.
+- Comparison requires two distinct same-category variants, displays unknowns, independent-market references and differences. Builder has stable temporary selection rows, quantities, component/peripheral partial totals, explicit unknown prices, conservative evaluation, revision invalidation, and retry preserving selections. No durable saves, system comparison, cart or payment is implemented here.
+- Six additional core parts use manufacturer-backed facts (MSI, Kingston, Samsung, Corsair, Seasonic, Noctua); totals are 12 products / 13 variants / 6 research offers. Samsung evidence is an indexed manufacturer brochure excerpt; full PDF exceeded the retrieval size limit. No new prices or stock were invented. Missing exact photographs use category symbols; existing artwork remains labeled conceptual. Real complete selections correctly remain `needs_review` where BIOS, cable, thermal or layout facts are missing.
+- Canonical OpenAPI and generated TypeScript contracts committed with repeatable generation/drift commands. CI workflow now includes catalog startup, fresh schema, backend checks and both host/container browser gates; **this workflow has not been run remotely yet**.
+- Base Compose now includes Postgres, one-shot catalog migrations/seed, non-root catalog and web, and gateway. `compose.catalog.yaml` remains a compatibility no-op. Existing volume/secrets preserved; no host database port.
+
+### Verification at the stop
+
+- Selected Linux Python 3.13.18 environment: Ruff lint/format, strict mypy (16 source files), **67 tests passed in 5.22s**, Alembic no schema drift, canonical OpenAPI check passed. One existing non-failing pytest-asyncio event-loop-policy deprecation remains.
+- Frontend contract drift, lint and TypeScript checks passed. Final Linux release build is verified from the existing cached Linux dependency image. Normal uncached frontend attempt was stopped after slow large-package downloads; cached recovery fetched only missing packages. Python release rebuilt with frozen dependencies and network disabled from the exported Linux cache. These are not cold offline-machine bootstrap claims.
+- Updated release containers started successfully with `docker compose up -d --no-build --pull never --wait`. Catalog init exited 0; catalog/web/Postgres/gateway healthy. Main local URL remains `http://127.0.0.1:8080/fa` (English `/en`), comparison `/fa/compare`, builder `/fa/build`.
+- Final **19 browser tests passed in 42.3s** against Docker port 8080 using installed Edge: 60 template/locale/theme/width captures, no horizontal overflow or console errors, filters/empty recovery, independent market/language, comparison, builder stale results and failed-evaluation retry. Evidence directory: `C:/Users/S/.codex/visualizations/2026/10/26/01a179d7-c6c8-70b0-8191-257446c60022/nivaro-p02-checkpoint/`.
+
+### Exact next-session work
+
+1. Review the final generated screenshots and refine any remaining UX issues, including invalid min/max filter feedback, comparison retry and long specification tables. Add a browser journey selecting the newly sourced complete core build; backend equivalent already passes without false compatibility.
+2. Verify a deliberate database change visibly affects the storefront and restore it in `finally`; test actual catalog outage/recovery. Current evidence covers DB-to-API and API-to-browser separately.
+3. Verify migrations from a separate fresh database/volume without deleting the existing one; verify the normal Dockerfiles/test target, latest Compose Watch, and cache-preparation helper. Those newer paths are implemented but not all executed locally.
+4. Review and run the updated private CI workflow after a bounded private push; do not reuse P01 CI success as P02 evidence. P02 acceptance and P03 start wait for the remaining gates.
+5. Read `docs/NIVARO_ROADMAP_EN.md`, this latest progress entry and the checkpoint commit. Preserve ignored `work/` cache/secrets, the catalog volume and mounted Linux `.venv`. The untracked Persian roadmap was not read, edited or staged. No new base image is needed for this checkpoint.
+
+The checkpoint is local only; no push, public deployment, real payment/SMS or scheduled automation was performed. Continue when the owner returns; no background project work is scheduled.

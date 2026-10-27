@@ -4,7 +4,7 @@ import json
 from importlib.resources import files
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from pydantic import HttpUrl
+from pydantic import HttpUrl, TypeAdapter
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -73,12 +73,22 @@ def seed(session: Session) -> None:
             "offers": {},
         }
     )
+    data["products"].extend(
+        json.loads(
+            files("nivaro_catalog")
+            .joinpath("data/builder-components.json")
+            .read_text(encoding="utf-8")
+        )
+    )
     for product in data["products"]:
         product_id = stable_id("product/" + product["slug"])
         category = next(c for c in categories if c["id"] == product["category"])
         cpu_model = "9700X" if product["slug"].endswith("9700x") else "9800X3D"
         specs: Specifications
-        if product["category"] == "cpu":
+        if "specifications" in product:
+            specs = TypeAdapter(Specifications).validate_python(product["specifications"])
+            evidence = [Evidence.model_validate(item) for item in product["evidence"]]
+        elif product["category"] == "cpu":
             source = f"https://www.amd.com/en/products/processors/desktops/ryzen/9000-series/amd-ryzen-7-{cpu_model.lower()}.html"
             evidence = [
                 Evidence(
