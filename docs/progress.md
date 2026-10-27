@@ -120,3 +120,10 @@ Restore package access, resolve/freeze and test the selected Linux dependency ba
 - Ruff lint and formatting passed; mypy 2.4.0 reports **no issues in 16 source files**. **66 tests passed in 7.40 seconds** with the selected FastAPI/Pydantic/SQLAlchemy/psycopg versions. `alembic check` reports no new upgrade operations. These supersede the earlier provisional Windows-only verification boundary.
 - One non-failing pytest-asyncio warning remains: the legacy `event_loop_policy` fixture used for provisional Windows checks is deprecated. Update the test-loop customization during test-environment maintenance; it does not indicate a failed test.
 - The current web manifest still lacks `openapi-typescript` and `openapi-fetch`; their owner-operated installation commands remain outstanding. No new base Docker image is requested. Backend application-image integration, a clean/offline rebuild, canonical generated contracts, frontend integration and P02 browser/CI checks remain open. This is not P02 completion.
+
+## 2026-10-27 — Frontend contract tools installed and checked
+
+- Owner successfully installed `openapi-typescript 7.13.0` and `openapi-fetch 0.17.0`; the interrupted first client-install attempt was followed by a successful retry. Both exact versions are present in `apps/web/package.json` and the updated lockfile.
+- Verified with Corepack/pnpm 11.25.0: frozen offline installation, ESLint, TypeScript and the Next 16.4.3 production build all passed on the host. This supersedes the preceding note that these two installations were outstanding.
+- The package-manager update notice is not an instruction to change the selected pnpm baseline. The existing ESLint 9 deprecation notice remains maintenance work; no forced peer-dependency upgrade was applied.
+- These checks establish the current Windows dependency tree/build, not a newly rebuilt Linux application image, an offline clean bootstrap, browser acceptance or new CI. Canonical API/type generation, catalog application-image integration and the remaining P02 storefront work are still pending. No additional owner-operated download is requested at this checkpoint.
