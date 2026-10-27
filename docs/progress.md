@@ -1,5 +1,7 @@
 # Implementation progress
 
+Current status, 2026-10-27: **P01 verified** (local Docker release, Compose Watch and private CI). Next: P02 catalog/API work after backend dependency compatibility probes. This is not completion of the six-service store or all P00 backend checks. Earlier sections are chronological evidence, superseded where explicitly updated below.
+
 ## 2026-10-27 — P00/P01 in progress
 
 The owner authorized implementation of the roadmap and required a generated image reference before each page is coded. See `design/PAGE_DESIGNS.md`. Earlier documentation-only restrictions describe previous turns and are superseded by this instruction; scope, private repository and live-provider restrictions remain.
@@ -68,3 +70,12 @@ The owner authorized implementation of the roadmap and required a generated imag
 - Node and Caddy defaults are pinned to actual repository digests. Separate release/development tags prevent switching modes from accidentally using a development image as the release. Lint, TypeScript and merged Compose configuration pass after these changes.
 - `docker run --rm --pull never --network none ... nivaro-web:development` with frozen/offline installation and `pnpm build` passed. This is a rebuild inside the already populated Linux web image, not a network-free bootstrap. Changing dependency manifests may still require downloads; backend locks/wheels and backend runtime compatibility remain pending.
 - P01 local acceptance gates are now satisfied. Final private push and CI for the new digest/Watch changes must still be recorded before marking the updated phase verified. P02 has not started; complete its Python/catalog baseline before introducing APIs, persistence or comparisons.
+- Offline disposable-container binary probes confirm Python `3.13.18`, PostgreSQL `18.6`, Redis `8.10.3`, RabbitMQ `4.4.0` and Mailpit `1.32.0`. Mailpit uses `version --no-release-check`, not the generic `--version` flag. These version commands did not initialize persistent databases or start the full backend. Installed backend Python dependencies and cross-service behavior are still unverified.
+
+### P01 final acceptance
+
+- Changes committed as `2fa59af` (loopback HMR correction and regression check) and `42c9b3a` (pinned base images and separate development/release tags); private push succeeded.
+- [CI run 40508570582](https://github.com/saeedzed2002/Nivaro/actions/runs/40508570582) for `42c9b3a50760d297c52730aaa662e900224feb63` **passed in 4m36s**: frozen installation, lint, types, production build, host browser tests, release containers, container browser tests, and development file synchronization/hot reload. Cleanup also passed.
+- P01 is **verified**. Local runtime is left on `nivaro-web:release` behind pinned Caddy; only `127.0.0.1:8080` is published. Final readiness response is successful. Release image was rebuilt after the configuration correction; no temporary probe text remains.
+- CI non-blocking maintenance notices: the pinned checkout/setup-node actions declare Node 20 and were forced onto the runner's Node 24; `ubuntu-latest` is undergoing a platform migration. Current run passed, but update/test the action runtime pins and consider an explicit runner image during CI maintenance. These are distinct from the project's selected Node 24 runtime.
+- Next stage remains P02: resolve/test the backend dependency baseline, implement the catalog database/API and connect existing reference pages. Product comparison needs its own generated/inspected image before implementation. Celery remains the selected task runner for its later job-processing phase; no extra task-runner service has been added.
