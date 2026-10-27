@@ -6,9 +6,11 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 
 | Page | Image produced before code | Status |
 | --- | --- | --- |
-| Home | [Dark](concepts/r2-blue-rgb-fa-dark.png), [light](concepts/r2-blue-rgb-fa-light.png) | Implemented; local browser matrix passed, container verification pending |
+| Home | [Dark](concepts/r2-blue-rgb-fa-dark.png), [light](concepts/r2-blue-rgb-fa-light.png) | P01 implemented; local container/browser/Watch and private CI verified |
 | Products / category / search results | [Products](pages/products.png) | Generated and inspected before coding; reference-only collection for P01, API integration in P02 |
 | Product details, including reviews section | [Details](pages/product-details.png) | Generated and inspected before coding; no fabricated review counts or live purchase action |
+| Product comparison | [Comparison](pages/product-comparison.png) | Generated and inspected 2026-10-27, before page code; implementation pending |
+| PC builder | [Workspace](pages/build-workspace.png) | Generated and inspected 2026-10-27, before page code; dark desktop/light mobile reference; implementation pending |
 
 ## Design plan applied
 
@@ -25,9 +27,9 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 
 | Page/template | Phase | Image status |
 | --- | --- | --- |
-| PC builder | P02/P05 | Earlier workflow board is background only; generate dedicated Blue RGB page |
+| PC builder | P02/P05 | Reference completed above; durable saved builds remain P05 |
 | Saved builds | P05 | Pending |
-| Product comparison | P02 | Pending |
+| Product comparison | P02 | Reference completed above |
 | System comparison | P05 | Pending |
 | Gaming PCs landing | P02 | Pending; current nav opens the pictured products template with PC filter |
 | Guides | P10 | Pending |
@@ -53,5 +55,11 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Support inbox | P09 | Pending |
 
 Record reference creation and inspection before starting each template. Carry empty, loading, error, keyboard, mobile and localized variations into implementation QA. Dialogs explaining inactive P01 features do not pretend to implement those pages.
+
+### P02 reference inspection
+
+- Comparison: two product columns, sticky specification labels, same-category selection and differences toggle. Correct the generated mockup's false emphasis on identical core counts, invented dates/prices, and generic CPU packaging. Unknown facts render as unknown, never zero; no overall winner.
+- Builder: readable component rows, a sticky price/evaluation summary, optional peripherals separated below and a light mobile layout. Correct the mockup's unconditional dedicated-GPU requirement: it depends on CPU graphics and the requested workflow. Generated cache counts and external guide labels are not technical evidence. No durable save, physical assembly service or payable total is promised by P02.
+- Both references preserve the approved blue/RGB system. Their images are layout references, not exact-SKU photographs, verified facts, accessibility checks or functioning animations.
 
 Prompts and provenance: [Implementation prompts](IMPLEMENTATION_IMAGE_PROMPTS.md). Static image approval is not runtime verification; see [progress](../progress.md).
