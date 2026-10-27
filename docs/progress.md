@@ -1,6 +1,6 @@
 # Implementation progress
 
-Current status, 2026-10-27: **P01 verified; P02 in progress**. Catalog/domain/database foundation and provisional offline checks are implemented. Final backend dependency installation is blocked by confirmed lack of internet; catalog Docker runtime, generated frontend contracts and storefront integration remain unfinished. This is not completion of P02, the six-service store or all P00 backend checks. Earlier sections are chronological evidence, superseded where explicitly updated below.
+Current status, 2026-10-27: **P01 verified; P02 in progress**. Owner-assisted backend package installation succeeded; the selected Linux/Python 3.13.18 environment now passes lint, strict types, 66 tests and schema checks. Dedicated catalog application-image execution, generated frontend contracts and storefront integration remain unfinished. This is not completion of P02, the six-service store or all P00 backend checks. Earlier sections are chronological evidence, superseded where explicitly updated below.
 
 ## 2026-10-27 — P00/P01 in progress
 
@@ -112,3 +112,11 @@ Restore package access, resolve/freeze and test the selected Linux dependency ba
 - Rechecked local origin (`https://github.com/saeedzed2002/Nivaro.git`) and author (`saeedzed2002`, `saeedzed2002@gmail.com`) before committing; preserved the existing repository and history.
 - Local commits: `acc3730` (comparison/builder image references), `a3ca2d2` (typed hardware and compatibility policies), `93010bd` (PostgreSQL/schema/read APIs and provisional verification evidence). Each staged diff passed whitespace checks. Secrets, diagnostic exports and the Persian roadmap were excluded.
 - No push or new CI run was attempted after the owner confirmed internet is unavailable. These P02 commits are local only; the successful P01 CI run is not evidence for this new backend code.
+
+## 2026-10-27 — Selected Linux backend dependency baseline verified
+
+- The owner supplied a successful retry after a PyPI timeout: uv 0.13.5 installed, 44 packages resolved, the catalog package built, and 42 packages installed with `uv sync --frozen`. The resulting `services/catalog/uv.lock` and mounted Linux `.venv` were inspected. Root-pip and cross-filesystem hardlink warnings did not fail that installation; the application release still needs its own non-root image.
+- Executed checks using the existing pinned Python 3.13.18 Linux image, mounted catalog environment and the actual catalog PostgreSQL container. No download was performed for these checks. Corrected strict typing of Persian translation mappings, reused evaluator local variables and SQLAlchemy 2.1's `Select[ProductRow]` return type. No version downgrade or suppressed type errors.
+- Ruff lint and formatting passed; mypy 2.4.0 reports **no issues in 16 source files**. **66 tests passed in 7.40 seconds** with the selected FastAPI/Pydantic/SQLAlchemy/psycopg versions. `alembic check` reports no new upgrade operations. These supersede the earlier provisional Windows-only verification boundary.
+- One non-failing pytest-asyncio warning remains: the legacy `event_loop_policy` fixture used for provisional Windows checks is deprecated. Update the test-loop customization during test-environment maintenance; it does not indicate a failed test.
+- The current web manifest still lacks `openapi-typescript` and `openapi-fetch`; their owner-operated installation commands remain outstanding. No new base Docker image is requested. Backend application-image integration, a clean/offline rebuild, canonical generated contracts, frontend integration and P02 browser/CI checks remain open. This is not P02 completion.

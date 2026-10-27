@@ -19,7 +19,7 @@ from nivaro_catalog.infrastructure.models import CategoryRow, OfferRow, ProductR
 Sort = Literal["featured", "name", "newest", "price_asc", "price_desc"]
 
 
-def public_products() -> Select[tuple[ProductRow]]:
+def public_products() -> Select[ProductRow]:
     return (
         select(ProductRow)
         .where(

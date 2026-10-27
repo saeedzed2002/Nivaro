@@ -4,7 +4,7 @@ Catalog owns product facts, physical variants, independent market offers and com
 
 ## Verification boundary
 
-The selected runtime remains Linux/Python 3.13.18 with the direct dependency pins in `pyproject.toml`. The bounded package bootstrap failed on PyPI connectivity, and the owner confirmed internet is unavailable. **No `uv.lock`, frozen backend installation, backend image, strict mypy result or canonical generated frontend contract is established.** Do not present this slice as a completed P02 or downgrade the declared dependencies to make the checks appear green. The supplemental Hatchling 1.32.4 pin is from existing cached package metadata and remains subject to the same installation/compatibility probe.
+The owner-assisted retry on 2026-10-27 successfully installed uv 0.13.5, resolved the selected dependencies, created `uv.lock` and completed `uv sync --frozen`, including the catalog package build. Subsequent execution inside the existing Linux/Python 3.13.18 image passed Ruff, strict mypy, all 66 tests against PostgreSQL 18.6, and `alembic check`. SQLAlchemy 2.1's updated Select typing and two variable/translation typing issues were corrected without changing the selected versions. **A dedicated non-root backend application image, clean offline rebuild, canonical frontend contracts, web integration and P02 acceptance are still pending.** The dependency gate has advanced; the whole phase is not complete. The following Windows results are historical provisional evidence, superseded by these Linux checks.
 
 Offline checks used the already installed Windows Python 3.12.3 environment without modifying it: FastAPI 0.115.0, Pydantic 2.9.2, pydantic-settings 2.5.2, SQLAlchemy 2.0.35, Alembic 1.13.2, psycopg/psycopg-binary 3.3.4, HTTPX 0.27.2, pytest 9.1.1, pytest-asyncio 0.24.0 and Ruff 0.16.3. These are **provisional validation tools**, not selected production versions. PostgreSQL tests used the actual pinned 18.6 Linux image.
 
@@ -23,7 +23,7 @@ The init script runs automatically only for a fresh volume. For an already initi
 
 ## Complete after connectivity returns
 
-1. Resolve the selected backend dependencies using `uv 0.13.5` and the existing Python 3.13.18 base image; produce `uv.lock`, verify a frozen install and run Ruff/mypy/tests in that environment. Test the package/build-backend combination before treating the pins as accepted.
+1. The selected dependency resolution/install and Linux checks now pass. Preserve `uv.lock`; use `uv sync --frozen` for subsequent installs and verify a fresh/offline application-image build rather than claiming that the mounted development environment proves it.
 2. Add and verify the non-root catalog image and a one-shot migration/seed job. API workers must not race to apply migrations at startup.
 3. Set `CATALOG_DB_HOST`, `CATALOG_DB_PORT`, `CATALOG_DB_NAME`, `CATALOG_DB_USER` and `CATALOG_DB_PASSWORD_FILE` for the intended catalog instance. Defaults target the Compose network and `/run/secrets/catalog_db_password`. Never print password values or database URLs containing them.
 4. Run `uv run alembic upgrade head`, then `uv run python -m nivaro_catalog.infrastructure.seed`. The seed is insert-only and repeatable; it never overwrites an existing offer, stock counter or technical fact. Updating existing facts needs a newer `spec_version`, not another seed run.

@@ -63,8 +63,8 @@ def evaluate(
         if variant is None:
             raise SelectionError("Selected variant is unavailable")
         spec = variant.specifications
-        role = spec.role if isinstance(spec, Peripheral) else spec.kind
-        if role != line.role:
+        variant_role = spec.role if isinstance(spec, Peripheral) else spec.kind
+        if variant_role != line.role:
             raise SelectionError("Variant does not belong to the requested component role")
         selected.setdefault(line.role, []).append((line, variant))
 
@@ -432,9 +432,9 @@ def evaluate(
             )
     if isinstance(psu, PSU):
         required_connectors: Counter[str] = Counter()
-        for role, spec in (("motherboard", board), ("gpu", gpu)):
-            if isinstance(spec, (Motherboard, GPU)):
-                if spec.power_connectors is None:
+        for role, component_spec in (("motherboard", board), ("gpu", gpu)):
+            if isinstance(component_spec, (Motherboard, GPU)):
+                if component_spec.power_connectors is None:
                     record(
                         "power.connectors_unknown",
                         "needs_review",
@@ -443,7 +443,7 @@ def evaluate(
                         "Required power connectors are unknown.",
                     )
                 else:
-                    required_connectors.update(spec.power_connectors)
+                    required_connectors.update(component_spec.power_connectors)
         if interfaces.get("SATA"):
             required_connectors["SATA"] += interfaces["SATA"]
         for connector, count in required_connectors.items():

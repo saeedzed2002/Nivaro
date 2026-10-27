@@ -3,9 +3,8 @@ import unicodedata
 
 
 def normalize_search(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value).translate(
-        str.maketrans({"ي": "ی", "ك": "ک", "\u200c": " "})
-    )
+    replacements: dict[str, str | int | None] = {"ي": "ی", "ك": "ک", "\u200c": " "}
+    normalized = unicodedata.normalize("NFKC", value).translate(str.maketrans(replacements))
     return re.sub(r"\s+", " ", normalized).strip().casefold()
 
 

@@ -8,7 +8,7 @@ P01 storefront implementation: home, reference product collection, URL-based fil
 
 Reference prices have retailer sources, dates, market and packaging metadata. Iran and international prices are independent. Changing language preserves the selected market. Images are conceptual illustrations, not exact SKU photos.
 
-P02 catalog foundation is now implemented separately: independent PostgreSQL schema/role, repeatable research seed, read-only catalog APIs, typed specifications, product comparison and versioned compatibility evaluation. Offline checks passed against real PostgreSQL; final backend dependency installation and Docker/API-to-storefront integration remain pending because internet access is unavailable. See [catalog status and continuation](services/catalog/README.md) and [progress](docs/progress.md). This does not change the running P01 storefront into an API-backed store yet.
+P02 catalog foundation is now implemented separately: independent PostgreSQL schema/role, repeatable research seed, read-only catalog APIs, typed specifications, product comparison and versioned compatibility evaluation. Owner-assisted dependency installation and checks with the selected Linux versions now pass against real PostgreSQL. Dedicated backend application-image execution, generated frontend contracts and API-to-storefront integration remain pending. See [catalog status and continuation](services/catalog/README.md) and [progress](docs/progress.md). This does not change the running P01 storefront into an API-backed store yet.
 
 ## Local development
 
