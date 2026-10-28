@@ -89,7 +89,7 @@ Build a single-vendor gaming hardware and equipment store with a complete purcha
 | Development payments | Deterministic, testable simulator; no real financial transactions |
 | Target real-payment adapter | `Zarinpal` for Iran only, subject to current official documentation/account/authorization; a USD provider is not yet selected and needs separate verification and authorization |
 | Development SMS | Local mock adapter restricted to development |
-| Target real-SMS adapter | `Kavenegar`, only with the owner's real account and credit, and after checking current official documentation |
+| Target real-SMS adapter | `SMS.ir`, selected by the owner on `2026-10-28`; integrate later when the owner supplies their API key and sender/account configuration, after checking current official documentation. Keep local mock delivery until then; the provider choice does not authorize live messages. |
 | Shipping | Iran: configurable flat fee/free-shipping threshold. International: destination-specific eligibility, shipping and tax/duty presentation must be defined before live checkout; no invented free worldwide shipping |
 | Discounts | One percentage or fixed-amount coupon per order; no stacking |
 | Reviews | Product ratings and comments, approved or rejected by catalog management |

@@ -45,13 +45,15 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Customer support | P09 | Pending |
 | Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Administrator dashboard | P10 | Pending |
-| Administrator products | P04 | Pending |
-| Product editor / images | P04 | Pending |
+| Administrator products | P04 | [Products](pages/admin-products.png), generated/inspected 2026-10-28; page implementation pending |
+| Product editor / images | P04 | [Editor](pages/admin-product-editor.png), generated/inspected 2026-10-28; page implementation pending |
 | Review moderation | P08 | Pending |
 | Administrator orders | P07 | Pending |
 | Administrator order detail | P07 | Pending |
 | Payments / reconciliation | P07 | Pending |
 | Users / permissions | P10 | Pending |
+| Administrator categories | P04 | Pending; generate before implementing its page |
+| Administrator profile / avatar | P04 | Pending; customer profile reference does not cover a distinct staff page |
 | Support inbox | P09 | Pending |
 
 Record reference creation and inspection before starting each template. Carry empty, loading, error, keyboard, mobile and localized variations into implementation QA. Dialogs explaining inactive P01 features do not pretend to implement those pages.

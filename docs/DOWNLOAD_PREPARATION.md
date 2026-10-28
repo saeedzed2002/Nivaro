@@ -1,5 +1,32 @@
 # Download preparation for the planned local stack
 
+## P04 preflight — 2026-10-28 (current)
+
+The local image inventory was checked before starting P04. All seven base images listed below are already present, including `rabbitmq:4.4.0-management`; no additional base-image pull is currently required. APIs and Linux workers reuse the Python base. A separate `redis-cache` process will reuse the existing Redis image. No new host Python, database, generic FastAPI/Celery image, npm package, broker image or native compiler is requested for this phase's initial implementation.
+
+New direct Python packages: `celery==5.6.3`, `Pillow==13.0.0`, `python-multipart==0.0.32`, plus their resolved dependencies. Catalog will also need the already selected/cached token, cryptography, HTTP and Redis libraries; these are included in the combined preparation check. Exact release metadata was checked against [Celery](https://pypi.org/pypi/celery/5.6.3/json), [Pillow](https://pypi.org/pypi/Pillow/13.0.0/json) and [python-multipart](https://pypi.org/pypi/python-multipart/0.0.32/json). `aio-pika` is deferred to domain-event work; Celery supplies its own Kombu/AMQP dependency chain. S3/Boto3 and an SMS provider SDK are not needed for local storage/mock delivery.
+
+Run this owner-operated preparation in PowerShell, with Docker Desktop's Linux engine running:
+
+```powershell
+cd D:\Project\Nivaro
+.\scripts\Prepare-P04Dependencies.ps1 -IndexUrl https://mirror-pypi.runflare.com/simple
+```
+
+Then verify without any container networking:
+
+```powershell
+.\scripts\Prepare-P04Dependencies.ps1 -Offline -IndexUrl https://mirror-pypi.runflare.com/simple
+```
+
+For official PyPI, omit `-IndexUrl` on both commands. Keep the same index when checking its cache; cache entries and the resulting lockfile retain registry source information. Do not run commands concurrently against the same preparation directory. The helper validates HTTPS, never pulls a base image, uses a 20-second HTTP timeout with zero retries, reuses the pinned uv seed wheel where present and requires binary wheels rather than downloading a compiler. Failed downloads remain incomplete; no network or TLS settings are changed.
+
+The helper creates an isolated Linux environment and lockfile under ignored `work/p04-dependencies/`, using `nivaro-python-download-cache`. It combines existing direct dependencies and constrains their current locked transitive versions, rejecting any existing lock disagreement. Neither service's manifest, lockfile, environment nor running container is changed. Success prints `P04_DEPENDENCIES_READY` after dependency consistency, imports and a WebP encode/decode check. It also writes `ready.json` bound to the generated lock hash; this is preparation evidence, not broker/worker/application acceptance. Final service-specific locks and integration checks still follow during implementation.
+
+Current result: initial offline probes found missing packages. After the owner-facing commands were provided, a successful preparation marker and lock appeared on disk. The agent then independently reran the mirror-source helper with `--network none`: **72 packages resolved, 70 installed packages checked, consistency/imports/WebP roundtrip passed**. The download is now present and the P04 preparation gate is satisfied; no further owner download is currently needed. Existing P03 service environments are preserved. This does not establish service integration, a clean-machine offline install or future package requirements.
+
+## Historical baseline inventory
+
 Verified on 2026-10-27 against the canonical English roadmap and Docker Hub tag API. All seven tags below were reported active with a `linux/amd64` variant. This metadata check did not download layers, validate mirror availability, establish digests of local images or prove runtime compatibility.
 
 Subsequent owner-assisted verification on the same date: all seven images were downloaded through Arvan and inspected locally, including their canonical aliases and repository digests. The current web release and development images built successfully. A frozen/offline install plus production build inside the cached Linux development image passed with `--network none`. This confirms the existing web dependency environment can rebuild offline; it does not establish a fresh-machine build or backend offline readiness. Details are in [progress](progress.md).
