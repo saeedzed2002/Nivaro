@@ -31,12 +31,12 @@ export function BuildWorkspace({ products, locale }: {products:Product[];locale:
   const selections: Selection[] = rows.filter(r=>r.id).map(r=>({slot_key:r.key,role:r.role,variant_id:r.id,quantity:r.quantity}));
   const key = JSON.stringify([market,mode,dedicated,selections]);
   const result = response?.key===key ? response : null;
-  let parts = 0, peripherals = 0, unpriced = 0;
+  let parts = 0, peripherals = 0, unpriced = 0, pricedParts = 0, pricedPeripherals = 0;
   for(const row of rows.filter(r=>r.id)) {
     const offer=choices.find(c=>c.v.id===row.id)?.v.offers?.find(o=>o.market===market);
     if(!offer) unpriced++;
-    else if(extra.includes(row.role)) peripherals+=offer.amount_minor*row.quantity;
-    else parts+=offer.amount_minor*row.quantity;
+    else if(extra.includes(row.role)) { peripherals+=offer.amount_minor*row.quantity; pricedPeripherals++; }
+    else { parts+=offer.amount_minor*row.quantity; pricedParts++; }
   }
   const money = (value:number) => market==='ir'?`${new Intl.NumberFormat(locale).format(value/10)} ${text(locale,'تومان','toman')}`:new Intl.NumberFormat(locale,{style:'currency',currency:'USD'}).format(value/100);
   const label = (role:Role) => names[role][locale==='fa'?0:1];
@@ -47,7 +47,7 @@ export function BuildWorkspace({ products, locale }: {products:Product[];locale:
     setPending(key);
     const prior = response?.data;
     try {
-      const {data,error}=await api.POST('/api/v1/catalog/build-evaluations',{body:{market,currency:market==='ir'?'IRR':'USD',mode,requires_dedicated_gpu:dedicated,selections,previous:prior?{selection_hash:prior.selection_hash,spec_versions:prior.spec_versions,ruleset_version:prior.ruleset_version}:null},signal:controller.signal});
+      const {data,error}=await api.POST('/api/v1/catalog/build-evaluations',{body:{market,currency:market==='ir'?'IRR':'USD',mode,requires_dedicated_gpu:dedicated,selections,previous:prior?{selection_hash:prior.selection_hash,spec_versions:prior.spec_versions,ruleset_version:prior.ruleset_version}:null},signal:AbortSignal.any([controller.signal,AbortSignal.timeout(8000)])});
       if(!controller.signal.aborted) setResponse({key,data,failed:Boolean(error)});
     } catch { if(!controller.signal.aborted) setResponse({key,failed:true}); }
     finally { if(!controller.signal.aborted) setPending(null); }
@@ -70,7 +70,7 @@ export function BuildWorkspace({ products, locale }: {products:Product[];locale:
       <details className="workspace-panel optional-equipment"><summary>{text(locale,'تجهیزات جانبی اختیاری','Optional setup equipment')}</summary>{rows.filter(r=>extra.includes(r.role)).map(renderRow)}</details>
       <section className="workspace-panel build-intent"><h2>{text(locale,'نوع انتخاب','Build intent')}</h2><label className="radio-option"><input type="checkbox" checked={dedicated} onChange={e=>setDedicated(e.target.checked)}/>{text(locale,'برای کاربرد من کارت گرافیک مجزا لازم است','My workflow requires a dedicated graphics card')}</label><label className="field"><span>{text(locale,'حالت بررسی','Evaluation mode')}</span><select value={mode} onChange={e=>setMode(e.target.value as typeof mode)}><option value="complete_build">{text(locale,'سیستم کامل','Complete build')}</option><option value="parts_only">{text(locale,'فقط قطعات جداگانه','Parts only')}</option></select></label>{mode==='parts_only'&&<p>{text(locale,'انتخاب قطعات جداگانه، سازگار بودن یک سیستم کامل را تأیید نمی‌کند.','Choosing parts individually does not certify a compatible complete system.')}</p>}</section>
     </div><aside className="build-summary"><div className="build-summary-art"><Image src="/images/showroom.webp" alt={text(locale,'تصویر مفهومی؛ نمای دقیق انتخاب شما نیست','Concept illustration; not a render of your selected build')} fill sizes="(max-width:900px) 100vw, 30vw"/><span>{text(locale,'سیستم تو، انتخاب تو','YOUR BUILD. YOUR RULES.')}</span></div><div className="workspace-panel">
-      <h2>{text(locale,'خلاصهٔ پیکربندی','Your configuration')}</h2><dl className="build-totals"><div><dt>{text(locale,'قطعات اصلی','Components')}</dt><dd><bdi>{selections.length?money(parts):'—'}</bdi></dd></div><div><dt>{text(locale,'تجهیزات جانبی','Setup equipment')}</dt><dd><bdi>{selections.length?money(peripherals):'—'}</bdi></dd></div><div className="partial-total"><dt>{text(locale,'جمع جزئی مرجع','Partial reference total')}</dt><dd><bdi>{selections.length?money(parts+peripherals):'—'}</bdi></dd></div></dl>
+      <h2>{text(locale,'خلاصهٔ پیکربندی','Your configuration')}</h2><dl className="build-totals"><div><dt>{text(locale,'قطعات اصلی','Components')}</dt><dd><bdi>{pricedParts?money(parts):'—'}</bdi></dd></div><div><dt>{text(locale,'تجهیزات جانبی','Setup equipment')}</dt><dd><bdi>{pricedPeripherals?money(peripherals):'—'}</bdi></dd></div><div className="partial-total"><dt>{text(locale,'جمع جزئی مرجع','Partial reference total')}</dt><dd><bdi>{pricedParts+pricedPeripherals?money(parts+peripherals):'—'}</bdi></dd></div></dl>
       {unpriced>0&&<p className="build-warning">{new Intl.NumberFormat(locale).format(unpriced)} {text(locale,'انتخاب قیمت ندارد؛ جمع جزئی کامل نیست.','selections have no price; this subtotal is incomplete.')}</p>}
       <p className="summary-note">{text(locale,'این مبلغ قابل پرداخت نیست. موجودی، ارسال و مالیات هنگام خرید بررسی می‌شوند؛ خدمات اسمبل ارائه نمی‌شود.','This is not a payable quote. Stock, delivery and tax need checkout verification; assembly labor is not offered.')}</p>
       <button type="button" className="button primary evaluate-button" disabled={pending===key} onClick={evaluate}><ShieldQuestion size={20}/>{pending===key?text(locale,'در حال بررسی…','Evaluating…'):text(locale,'بررسی سازگاری','Check compatibility')}</button>

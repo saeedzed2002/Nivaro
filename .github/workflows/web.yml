@@ -61,6 +61,10 @@ jobs:
           pnpm test:e2e
       - name: Verify container-served storefront
         run: pnpm test:e2e
+      - name: Verify database visibility and catalog outage recovery
+        env:
+          NIVARO_DEMO_RUNTIME_CHECK: '1'
+        run: node scripts/verify-catalog-runtime.mjs
       - name: Verify development file sync and hot reload
         working-directory: .
         run: |

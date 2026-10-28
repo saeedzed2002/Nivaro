@@ -1,6 +1,6 @@
 # Implementation progress
 
-Current status, 2026-10-27: **P01 verified; P02 in progress**. Owner-assisted backend package installation succeeded; the selected Linux/Python 3.13.18 environment now passes lint, strict types, 66 tests and schema checks. Dedicated catalog application-image execution, generated frontend contracts and storefront integration remain unfinished. This is not completion of P02, the six-service store or all P00 backend checks. Earlier sections are chronological evidence, superseded where explicitly updated below.
+Current status, 2026-10-28: **P01 verified; P02 acceptance in progress**. API-backed home/list/detail, product comparison and temporary builder run locally. Fresh database migrations, repeatable seed, 67 Linux backend tests, contract drift checks, database-to-browser visibility and actual catalog outage/recovery pass. UI follow-up checks pass after the accessible comparison-label correction. Private CI and the final development Watch check remain to be recorded. Older entries are chronological evidence, not the current status.
 
 ## 2026-10-27 — P00/P01 in progress
 
@@ -156,3 +156,15 @@ The owner requested a concrete local commit and a pause until the next session. 
 5. Read `docs/NIVARO_ROADMAP_EN.md`, this latest progress entry and the checkpoint commit. Preserve ignored `work/` cache/secrets, the catalog volume and mounted Linux `.venv`. The untracked Persian roadmap was not read, edited or staged. No new base image is needed for this checkpoint.
 
 The checkpoint is local only; no push, public deployment, real payment/SMS or scheduled automation was performed. Continue when the owner returns; no background project work is scheduled.
+
+
+## 2026-10-28 — P02 acceptance follow-up
+
+- Resumed from local checkpoint `05a12e7`; the Persian roadmap remains untouched/untracked. Started the installed Docker Desktop using its CLI without downloading base images.
+- Corrected invalid price-range handling: actionable localized validation replaces the misleading service-unavailable message. Market changes clear incompatible price filters and reset form values. Comparison now has an explicit retry button, bounded requests and accurate accessible product labels. Builder unknown-only totals display a dash rather than zero; partial totals still disclose missing prices.
+- `scripts/Verify-CatalogFresh.ps1` passed: a separate tmpfs PostgreSQL instance, release-image migrations from zero, seed twice, schema drift check and **67 tests passed in 3.65s**. Its temporary container was stopped; the original persistent volume and secrets were preserved.
+- `apps/web/scripts/verify-catalog-runtime.mjs` passed against the actual Compose stack: a guarded name edit appeared in collection/detail without rebuilding web; the name was restored; catalog was stopped, all five templates displayed unavailable states, and service/UI recovery passed. This opt-in local-demo check now runs in CI as well.
+- Cache preparation helper passed offline. A normal backend test-image build encountered a bounded PyPI timeout; no version downgrade or TLS/policy bypass. Network-disabled frontend dependency installation correctly failed because the old development cache lacks new-package metadata; ordinary cached build reused existing successful layers and completed without new package downloads. Do not claim cold offline readiness.
+- Browser follow-up: 21/22 passed initially; the additional retry test exposed an ambiguous implicit select label. Added explicit accessible labels; targeted retry passed (1.9s), lint passed. New complete-core build browser test correctly returns `needs_review`, with seven unknown prices and no zero total. Earlier 60-capture responsive matrix still passes. Browser plugin is absent; installed Edge through the existing Playwright workflow was used.
+- Inspected generated build reference, current desktop build, complete-build findings and Persian light mobile comparison. Preserved blue/RGB, spacing, responsive columns and honest illustration labels. Deliberate departures: no fake generated prices/benchmarks, native accessible selectors, omitted speculative exact-model photography. Longer findings remain scrollable with ordinary page navigation.
+- Private repository visibility and local author identity reverified. Remote CI for this work has not yet been observed; record its exact revision/result below before marking P02 complete.
