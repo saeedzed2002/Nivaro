@@ -9,6 +9,15 @@ concurrency:
   group: web-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  image-processing:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Build frozen image-processing test image
+        run: docker build --target test -t nivaro-image-processing:test packages/python/image_processing
+      - name: Verify image validation and transformations without network
+        run: docker run --rm --network none nivaro-image-processing:test
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
