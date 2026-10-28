@@ -1,4 +1,4 @@
-name: Catalog and web checks
+name: Catalog identity and web checks
 on:
   push:
     branches: [main]
@@ -32,7 +32,7 @@ jobs:
         working-directory: .
         run: |
           docker compose -f compose.yaml -f compose.dev.yaml config --quiet
-          docker compose build catalog-init web
+          docker compose build catalog-init identity-init web
           docker compose up -d --wait --wait-timeout 120
           curl --fail --silent http://127.0.0.1:8080/health/ready
       - name: Catalog checks and canonical OpenAPI drift
@@ -43,6 +43,13 @@ jobs:
             -v "$PWD/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro" \
             -v "$PWD/contracts:/contracts:ro" nivaro-catalog:test \
             sh -c 'ruff check . && ruff format --check . && mypy src && pytest -q && alembic check && python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check'
+      - name: Build identity test image
+        working-directory: .
+        run: docker build --target test -t nivaro-identity:test services/identity
+      - name: Identity database isolation sessions and OpenAPI
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-IdentityService.ps1 -TestImage 'nivaro-identity:test'
       - name: Build host preview against catalog gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080
@@ -61,6 +68,10 @@ jobs:
           pnpm test:e2e
       - name: Verify container-served storefront
         run: pnpm test:e2e
+      - name: Identity browser journeys on a disposable stack
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-IdentityBrowser.ps1
       - name: Verify database visibility and catalog outage recovery
         env:
           NIVARO_DEMO_RUNTIME_CHECK: '1'

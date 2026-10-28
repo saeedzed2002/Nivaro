@@ -1,0 +1,20 @@
+# Use only with a new nivaro-p03-qa-* project. All test data lives in tmpfs.
+services:
+  postgres:
+    volumes: !override
+      - ./infra/postgres/10-catalog.sh:/docker-entrypoint-initdb.d/10-catalog.sh:ro
+      - ./infra/postgres/20-identity.sh:/docker-entrypoint-initdb.d/20-identity.sh:ro
+    tmpfs:
+      - /var/lib/postgresql
+  redis-state:
+    volumes: !override
+      - ./infra/redis/start-state.sh:/etc/redis/start-state.sh:ro
+    tmpfs:
+      - /data:uid=999,gid=999,mode=0700
+  identity:
+    environment:
+      IDENTITY_ENVIRONMENT: test
+      IDENTITY_ALLOWED_ORIGINS: '["http://127.0.0.1:8082"]'
+  gateway:
+    ports: !override
+      - '127.0.0.1:8082:8080'
