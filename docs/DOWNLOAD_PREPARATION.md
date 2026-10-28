@@ -25,6 +25,8 @@ The helper creates an isolated Linux environment and lockfile under ignored `wor
 
 Current result: initial offline probes found missing packages. After the owner-facing commands were provided, a successful preparation marker and lock appeared on disk. The agent then independently reran the mirror-source helper with `--network none`: **72 packages resolved, 70 installed packages checked, consistency/imports/WebP roundtrip passed**. The download is now present and the P04 preparation gate is satisfied; no further owner download is currently needed. Existing P03 service environments are preserved. This does not establish service integration, a clean-machine offline install or future package requirements.
 
+A further independent check used a brand-new `/tmp/p04-fresh` environment in a disposable container, the frozen preparation lock and existing download cache with `--network none`. All 70 packages installed successfully, consistency checks passed and the WebP roundtrip printed `FRESH_OFFLINE_P04_OK`. The existing `.venv` was not reused. Preserve the named cache; this is still not an empty-cache/clean-machine guarantee.
+
 ## Historical baseline inventory
 
 Verified on 2026-10-27 against the canonical English roadmap and Docker Hub tag API. All seven tags below were reported active with a `linux/amd64` variant. This metadata check did not download layers, validate mirror availability, establish digests of local images or prove runtime compatibility.
