@@ -44,15 +44,20 @@ def _normalize(image: Image.Image) -> Image.Image:
     if icc:
         try:
             profile = ImageCms.ImageCmsProfile(io.BytesIO(icc))
-            # Preserve original mode for CMYK/LAB source-profile conversion.
-            base = oriented.convert("RGBA") if has_alpha else oriented
-            if base.mode == "P":
+            # Expand grayscale/palette pixels for RGB profiles, while preserving
+            # CMYK/LAB or gray source modes for their matching ICC transforms.
+            base = oriented
+            if profile.profile.xcolor_space.strip() == "RGB":
                 base = base.convert("RGB")
+            elif base.mode == "LA":
+                base = base.getchannel("L")
             converted = ImageCms.profileToProfile(
-                base, profile, ImageCms.createProfile("sRGB"), outputMode=mode
+                base, profile, ImageCms.createProfile("sRGB"), outputMode="RGB"
             )
             if converted is None:
                 raise InvalidImage("invalid_color_profile")
+            if has_alpha:
+                converted.putalpha(oriented.convert("RGBA").getchannel("A"))
         except (ImageCms.PyCMSError, TypeError, ValueError, OSError) as exc:
             raise InvalidImage("invalid_color_profile") from exc
     else:

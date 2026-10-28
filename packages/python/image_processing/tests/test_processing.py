@@ -120,6 +120,29 @@ def test_alpha_survives_color_conversion():
         assert decoded.getpixel((10, 10))[3] == 90
 
 
+def test_grayscale_with_rgb_profile_is_normalized_for_color_conversion():
+    output = io.BytesIO()
+    icc = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+    with Image.new("L", (40, 20), 100) as grayscale:
+        grayscale.save(output, format="PNG", icc_profile=icc)
+    result = process_image(output.getvalue(), purpose="product")[0]
+    with Image.open(io.BytesIO(result.content)) as decoded:
+        assert decoded.mode == "RGB"
+        assert all(abs(channel - 100) < 5 for channel in decoded.getpixel((10, 10)))
+
+
+def test_palette_transparency_survives_rgb_profile_conversion():
+    output = io.BytesIO()
+    icc = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+    with Image.new("P", (40, 20), 0) as palette:
+        palette.putpalette([20, 80, 200] + [0] * 765)
+        palette.save(output, format="PNG", icc_profile=icc, transparency=0)
+    result = process_image(output.getvalue(), purpose="product")[0]
+    with Image.open(io.BytesIO(result.content)) as decoded:
+        assert decoded.mode == "RGBA"
+        assert decoded.getpixel((10, 10))[3] == 0
+
+
 def test_avatar_has_fixed_square_variants_and_center_crop():
     output = io.BytesIO()
     with Image.new("RGB", (600, 300), "red") as image:
