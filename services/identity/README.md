@@ -1,43 +1,68 @@
-# Identity — P03 foundation, not a running service
+# Identity — P03 local accounts and separate staff sessions
 
-P03 has started. This package currently contains phone normalization, strict asymmetric token primitives, public-key overlap handling and atomic Redis OTP policies. It has **no public API, database migration, persisted session, administrator password flow or frontend integration yet**. It is not connected to the gateway and must not be presented as working authentication. P02 continues serving the store unchanged.
+The identity API now runs behind the same-origin gateway. PostgreSQL owns accounts, credentials, session families, consumed refresh hashes, addresses and minimal audit events. Redis owns atomic OTP/rate-limit state. Five image-first pages are connected: customer login, account overview, profile, addresses and staff login. Full administrative workspaces, processed avatars and real SMS are later phases.
 
-## Selected Linux dependency baseline
+## Run and inspect
 
-Direct dependencies are pinned in `pyproject.toml`, and `uv.lock` now records the selected transitive versions, artifact URLs and hashes. Direct PyPI downloads failed on the owner's connection. On 2026-10-28, the provider-documented [Runflare HTTPS mirror](https://runflare.com/mirrors/pypi-mirror/) resolved and installed the selected Linux dependencies successfully without a VPN or changing global proxy/DNS/TLS settings. This lock records Runflare URLs; a future switch to another source requires a deliberate lock refresh and verification, not a hand-edited URL replacement.
+From the repository root (existing volumes and secret values are preserved):
 
-To prepare or verify the environment from the repository root:
+```powershell
+./scripts/Initialize-LocalSecrets.ps1
+docker compose up -d --build --wait
+./scripts/Verify-IdentityService.ps1
+./scripts/Verify-IdentityBrowser.ps1
+```
+
+Open `/fa/login` or `/en/login` on `http://127.0.0.1:8080`. Local mock login accepts only `+12025550100` and `+12025550101`; its random code is shown explicitly as a local test code. No real SMS is sent. Account pages are `/[locale]/account`, `/account/profile` and `/account/addresses`. Staff login is `/[locale]/admin/login`; customer login never grants staff permissions.
+
+There is **no seeded administrator**. The owner must enter their own phone, email and password interactively to create the first administrator:
+
+```powershell
+docker compose exec identity python -m nivaro_identity.manage bootstrap-admin
+```
+
+The command refuses a second bootstrap. Other operator commands are `change-admin-password`, `disable-user`, and `prune-expired`. Password entry is hidden and never passed on the command line. Password changes revoke staff sessions; disabling an account revokes both kinds. Pruning removes sessions seven days after their absolute expiry and audit events after ninety days; scheduling/backup/operational monitoring remain deployment work. Do not run pruning against another environment accidentally.
+
+## Dependency recovery and builds
+
+Direct dependencies are pinned in `pyproject.toml`; `uv.lock` includes resolved versions, artifact URLs and hashes. The selected baseline is Python 3.13.18 and uv 0.13.5. Direct PyPI downloads timed out on the owner's connection. The provider-documented [Runflare HTTPS mirror](https://runflare.com/mirrors/pypi-mirror/) supplied the locked Linux packages without changing global DNS/proxy/TLS settings:
 
 ```powershell
 ./scripts/Prepare-IdentityDependencies.ps1 -IndexUrl 'https://mirror-pypi.runflare.com/simple'
 ./scripts/Verify-IdentityFoundation.ps1
 ```
 
-The download helper uses the already downloaded `python:3.13.18-slim-bookworm` image, reuses `nivaro-python-download-cache`, and installs the cached uv wheel when present. It creates the initial lock only if missing, then syncs frozen. Requests have a 20-second timeout with no retries; the helper does not pull base images. `-IndexUrl` sets `UV_DEFAULT_INDEX` and `PIP_INDEX_URL` only inside this disposable container; its default remains official PyPI. An existing lock keeps its recorded artifact sources even when this argument changes. Embedded credentials and non-HTTPS URLs are rejected. No extra index or trusted-host/TLS bypass is used.
+`-IndexUrl` is container-scoped, HTTPS-only, with bounded requests. Existing lockfiles retain their recorded Runflare artifact URLs; changing the helper option does not rewrite a lock. A different source requires a deliberate lock refresh and verification. No extra index, trusted-host setting or TLS bypass is used.
 
-New direct dependencies beyond catalog are Redis client 8.1.0, PyJWT 2.15.1, cryptography 50.0.2, pwdlib 0.3.1, argon2-cffi 25.1.0 and email-validator 2.3.0. A successful helper run is installation evidence, not service acceptance. The verification helper refuses to run without that environment, uses its own internal network/disposable Redis with no host port, and cleans up only resources created by that invocation.
+The normal Dockerfile has `test` and non-root `release` targets. For the existing populated Linux download cache only:
 
-## Current evidence
+```powershell
+./scripts/Prepare-CatalogCache.ps1
+docker build --pull=false --network=none --build-context dependency-cache=./work/python-cache -f services/identity/Dockerfile.offline -t nivaro-identity:release services/identity
+docker build --pull=false --network=none --build-context dependency-cache=./work/python-cache -f services/identity/Dockerfile.offline --target test -t nivaro-identity:test services/identity
+./scripts/Verify-IdentityService.ps1 -TestImage nivaro-identity:test
+```
 
-- Selected Python 3.13.18 Linux environment: Ruff 0.17.2 lint/format pass; strict mypy 2.4.0 passes all 7 source files; **27 tests pass in 15.83s** against disposable Redis 8.10.3. An irrelevant warning from the intentional forged-token test's short HMAC key was removed by lengthening that test key; the focused test then passed without warnings. No production algorithm or key policy changed.
-- A new temporary environment also installed all 52 locked packages using `uv sync --frozen --offline` with Docker networking disabled. This verifies reuse of the populated named cache, not cold offline installation on another machine.
-- Preliminary Windows Python 3.12.3 checks: 26 tests pass against an actual disposable Redis 8.10.3 container. Existing host tools were not changed: PyJWT 2.10.1, cryptography 50.0.0, redis client 5.0.8, pydantic-settings 2.5.2, pytest 9.1.1. These differ from the selected runtime and do **not** establish Linux dependency compatibility, strict type checks or release acceptance.
-- The earlier provisional Windows results above are historical and are superseded by the selected Linux foundation checks. Running API/session/browser and full P03 acceptance are still pending.
-- Redis tests require `IDENTITY_TEST_REDIS_URL` pointing to a disposable instance. They use random per-test HMAC namespaces, no `FLUSHDB`, and do not inspect production secrets. The temporary local test container is removed after the check; no persistent store data is involved.
+These offline builds reuse downloaded artifacts; they do not establish cold offline installation on a new machine. Normal uncached build evidence belongs to the matching CI run, not an earlier phase's run.
 
-## Security boundaries
+## Security contract
 
-- Codes have six cryptographically generated digits, 120-second TTL, five attempts and 60-second resend cooldown. Anchored fixed windows enforce five accepted sends/hour, thirty/day and configurable source-IP request limits. Rate limits and replacement are atomic Lua operations; parallel verification consumes at most once. Replacing a challenge invalidates the previous ID. Invalid challenge IDs cannot consume a newer challenge's attempts.
-- Redis holds HMAC-bound code values and HMAC-derived phone/IP keys, not raw codes or identifiers. Raw codes exist only transiently for delivery; challenge repr hides them. The caller must normalize phones first, enforce the development test-number allowlist, and obtain source IP only through a trusted gateway. Redis errors must become controlled unavailable responses; never bypass limits.
-- Scripts target standalone Redis with `noeviction`, bounded memory, authentication and internal-only network access. They do not support Redis Cluster. Integration coverage of OOM behavior and production Redis configuration remains pending.
-- Access tokens enforce RS256, known `kid`, issuer, strict audience, required claims, expiration and session kind. Customer tokens cannot carry administrator permissions. Public-only overlap keys allow rotation; remove a retired key after the token overlap period. Token verification alone does **not** verify database revocation/account status. No protected route may rely on it alone.
-- Release configuration rejects mock login and non-HTTPS origins. This is a startup-settings guard, not a complete deployment or CSRF implementation.
+- Independent database and non-superuser role; PUBLIC database access is revoked. Both catalog-to-identity and identity-to-catalog connection attempts are tested and denied. An idempotent init job adds identity to an existing PostgreSQL volume without resetting catalog.
+- OTP: six random digits, 120 seconds, five verification attempts, 60-second resend interval, five sends/hour and thirty/day per normalized phone, thirty source-IP requests/hour. HMAC-bound codes and HMAC identifiers, atomic Lua replacement/consumption/limits, fail closed on Redis failure. Caddy overwrites the trusted client-IP header; identity has no host-published port. Future reverse proxies require explicit trusted-proxy configuration, not arbitrary forwarded-header trust.
+- Mock delivery works only in development/test for explicit test numbers. Release settings reject mock mode and non-HTTPS origins. Compose intentionally runs development-mode identity inside the release application image for local HTTP tests.
+- RS256 access JWTs with strict issuer/audience/kind/expiry/kid and public JWKS; five-minute access, thirty-day absolute customer and twelve-hour staff limits. Only identity holds the signing key. Previous public keys can overlap during rotation; no private key is shared with web/catalog.
+- Each protected identity request reads authoritative database state and current permissions. No positive session cache is used yet; Redis loss does not grant access or erase persisted revocation. Remote service introspection/cache adapters will be added with their actual consumers.
+- Separate HttpOnly access/refresh cookies per session kind. Secure in release; refresh cookies restricted to the corresponding refresh path. Synchronizer CSRF and exact allowed Origin checks protect mutations. Same-origin custom-header retrieval recovers CSRF after access expiry. Tokens are never stored in JavaScript persistence or URLs.
+- Opaque refresh values are stored only as hashes. User-then-session locks serialize refresh/revocation. Reuse within five seconds yields a retryable conflict without another token or revocation; later reuse revokes the family before the error response. Web Locks coordinate tabs; fallback conflict handling and auth retries are bounded. Network-loss replay of an older refresh after the grace window deliberately requires fresh login.
+- Argon2id administrator credentials, generic invalid-login errors, per-email/IP limits, no public administrator signup or client role assignment. Staff access shown in the login screen derives from validated permissions; future operational admin pages remain absent.
+- Address ownership and optimistic versions; concurrent address changes return conflicts. Profile accepts only the display name. Postal validation is country-aware for Iran; other countries currently receive bounded text validation, not postal deliverability verification. Saving an address is not a fulfillment promise.
+- Minimal audit entries contain user ID, event and time, never codes, tokens, passwords or address bodies. Access logs are disabled. Database/Redis errors are sanitized; request bodies are bounded to 16 KiB.
+- Pepper rotation invalidates outstanding OTP/CSRF state and requires reauthentication. Preserve local secrets and the Redis persistence volume; document deliberate production rotation/backup separately.
 
-## Next implementation
+## Verification
 
-1. Preserve the verified lock and repeat selected Linux checks after changes. Add identity's database/limited role and migrations, then prove catalog cannot access identity data and vice versa.
-2. Implement database-backed session families and consumed refresh hashes, locking rotation, bounded duplicate-refresh handling, per-device/all-device revocation, disabled accounts, administrator password changes and minimal redacted audit records. Store refresh/CSRF hashes only. Coordinate browser refresh across tabs; a bounded equivalent concurrent request can return a retryable conflict without issuing another token or revoking the family. Test late reuse separately.
-3. Add mock-only allowlisted OTP routes, administrator Argon2id credentials/bootstrap, permissions, secure separate cookies, same-origin checks and session-bound synchronizer CSRF. Fail closed on unavailable authoritative state. No default administrator password or real SMS adapter.
-4. Export canonical contracts, integrate the already pictured five page templates, and verify both languages/themes, mobile/desktop and complete browser login/refresh/logout/ownership journeys. Do not invent a dashboard or pending commerce features.
+`Verify-IdentityService.ps1` creates its own internal network, tmpfs PostgreSQL and authenticated Redis. Integration tests refuse destructive reset unless the database host has the helper's dedicated test prefix. It checks migrations from zero, repeated upgrade, drift, lint/format, strict types, API concurrency/security and canonical OpenAPI. `-TestImage` verifies the packaged image instead of a mounted environment.
 
-Sources consulted for the implementation primitives: [PyJWT usage](https://pyjwt.readthedocs.io/en/stable/usage.html), [atomic Redis Lua semantics](https://redis.io/docs/latest/develop/programmability/eval-intro/), and [FastAPI token/password guidance](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/). The canonical roadmap controls Nivaro's stricter session/cookie contracts.
+`Verify-IdentityBrowser.ps1` creates a unique `nivaro-p03-qa-*` Compose project with tmpfs data and loopback port 8082. It bootstraps a random test-only administrator via stdin, performs real browser login/profile/address/refresh/logout journeys, and destroys only that temporary stack. The main stack's accounts and OTP counters remain unchanged. Browser tests skip without this explicit disposable-project marker.
+
+Current local evidence: 41 backend tests; strict typing for 17 source files; 15 identity browser tests including 60 template/locale/theme/width captures. The browser suite includes actual two-tab recovery, separate staff/customer sessions and role changes, and an injected API-unavailable response preserving the profile draft. Browser plugin was unavailable; existing Playwright with installed Edge was used. It is not an actual network outage test. See `docs/progress.md` for final commit/CI and outstanding phase gates.

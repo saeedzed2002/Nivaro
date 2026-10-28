@@ -36,14 +36,14 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Cart | P05 | Pending |
 | Checkout | P06 | Pending |
 | Payment result / pending / failure | P07 | Pending |
-| Customer login / OTP | P03 | [Login](pages/customer-login.png), generated/inspected 2026-10-28; implementation pending |
-| Account overview | P03 | [Overview](pages/account-overview.png), generated/inspected 2026-10-28; implementation pending |
-| Profile / avatar | P03/P04 | [Profile](pages/account-profile.png), generated/inspected 2026-10-28; profile implementation pending, processed avatar remains P04 |
-| Addresses | P03 | [Addresses](pages/account-addresses.png), generated/inspected 2026-10-28; implementation pending |
+| Customer login / OTP | P03 | [Login](pages/customer-login.png), generated/inspected 2026-10-28; implemented and locally verified |
+| Account overview | P03 | [Overview](pages/account-overview.png), generated/inspected 2026-10-28; implemented and locally verified |
+| Profile / avatar | P03/P04 | [Profile](pages/account-profile.png), generated/inspected 2026-10-28; profile locally verified, processed avatar remains P04 |
+| Addresses | P03 | [Addresses](pages/account-addresses.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Order history | P07 | Pending |
 | Order detail / timeline | P07 | Pending |
 | Customer support | P09 | Pending |
-| Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implementation pending |
+| Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Administrator dashboard | P10 | Pending |
 | Administrator products | P04 | Pending |
 | Product editor / images | P04 | Pending |
@@ -80,3 +80,11 @@ Generation briefs and output provenance: [P03 identity references](P03_IDENTITY_
 - Addresses: retain empty state and clear add/edit form; generated country/city menus and ten-digit postal rule are not universal address policy. Use country-aware fields without implying enabled international fulfillment. Show validation after interaction, not an initially all-red form. Confirm deletion, enforce ownership server-side and avoid unsupported extra navigation.
 - Admin login: retain the separate restrained credential panel, generic error, show-password control and storefront link. Generated email/hidden password are placeholders, never bootstrap credentials. Omit shopping cart navigation on this staff authentication screen.
 - Keep the existing Nivaro wordmark/header components; small logo variations in generated images do not authorize a rebrand. No speculative social links or nonexistent legal/support pages are introduced by these mockups. References provide layout, not tested accessibility, animations, working authentication or an English-language review.
+
+### P03 runtime review — 2026-10-28
+
+Five references were implemented before browser verification, preserving the established header/wordmark, blue accents, RGB hardware and both themes. Existing generated showroom artwork is reused for the login split scene and overview banner; it is decorative, not a new product photograph. Staff login is a restrained separate form without shopping controls; its signed-in state shows only server-validated permissions, with no invented operational dashboard.
+
+The isolated browser suite passed 15 tests, including 60 page/locale/theme/viewport captures at 360/768/1440 widths, image readiness and no page errors or horizontal overflow. Visual inspection covered dark Persian desktop login/overview, English light mobile profile, Persian light mobile empty addresses and English dark staff login. Corrected implicit field names that included helper text, increased identity body-copy size, and removed inherited excessive field margins. Image readiness is awaited before capture; an earlier overview capture preceded lazy-image completion and is not the final visual evidence.
+
+Evidence directory: `C:/Users/S/.codex/visualizations/2026/10/26/01a179d7-c6c8-70b0-8191-257446c60022/nivaro-p03-visual-final/`. Real local flows cover OTP, profile persistence, address CRUD, two-tab session recovery, customer/staff separation, role-change visibility and logout. An injected unavailable response preserves the profile draft. This is not an actual network-outage test or a full assistive-technology audit. Processed avatar, order history and operational administrator pages remain later gates.

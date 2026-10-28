@@ -15,7 +15,7 @@ export function AvailabilityDialog({ locale, title, children, className = '', la
         <Wrench className="accent" size={32} />
         <p className="eyebrow">{text(locale, 'در حال ساخت', 'IN DEVELOPMENT')}</p>
         <h2 id={titleId}>{title}</h2>
-        <p>{text(locale, 'این بخش هنوز فعال نشده است. در نسخهٔ فعلی می‌توانی محصولات مرجع و مشخصات ثبت‌شده را ببینی؛ خرید، ورود و ذخیرهٔ سیستم هنوز در دسترس نیست.', 'This feature is not active yet. You can explore reference products and recorded specifications in this version; purchasing, sign-in and saved builds are not available yet.')}</p>
+        <p>{text(locale, 'این بخش هنوز فعال نشده است. در نسخهٔ فعلی می‌توانی محصولات مرجع و مشخصات ثبت‌شده را ببینی؛ خرید و ذخیرهٔ سیستم هنوز در دسترس نیست.', 'This feature is not active yet. You can explore reference products and recorded specifications in this version; purchasing and saved builds are not available yet.')}</p>
         <form method="dialog"><button className="button primary">{text(locale, 'ادامهٔ بررسی محصولات', 'Keep exploring')}</button></form>
       </div>
     </dialog>
