@@ -1,5 +1,13 @@
 # Uses the existing Python image; one bounded attempt, no base-image pulls.
+param(
+    [uri]$IndexUrl = 'https://pypi.org/simple'
+)
+
 $ErrorActionPreference = 'Stop'
+if (-not $IndexUrl.IsAbsoluteUri -or $IndexUrl.Scheme -ne 'https' -or
+    $IndexUrl.UserInfo -or $IndexUrl.Query -or $IndexUrl.Fragment) {
+    throw 'Use an absolute HTTPS package index URL without embedded credentials, query or fragment.'
+}
 $root = Split-Path $PSScriptRoot -Parent
 $source = Join-Path $root 'services/identity'
 $cache = Join-Path $root 'work/python-cache'
@@ -18,9 +26,10 @@ uv sync --frozen
 docker run --rm --pull never `
     -v "${source}:/app" -v "${cache}:/seed:ro" `
     -v 'nivaro-python-download-cache:/root/.cache' `
+    -e "UV_DEFAULT_INDEX=$($IndexUrl.AbsoluteUri)" -e "PIP_INDEX_URL=$($IndexUrl.AbsoluteUri)" `
     -e UV_HTTP_TIMEOUT=20 -e UV_HTTP_RETRIES=0 -e UV_LINK_MODE=copy `
     -w /app python:3.13.18-slim-bookworm sh -c $install
 if ($LASTEXITCODE -ne 0) {
-    throw 'Identity dependencies remain incomplete. Restore package connectivity, then run this helper again; do not change TLS or dependency pins.'
+    throw 'Identity dependencies remain incomplete. Do not run Verify-IdentityFoundation.ps1 yet. Restore package connectivity or use the documented HTTPS mirror via -IndexUrl; do not change TLS or dependency pins. Existing lockfiles keep their recorded download URLs.'
 }
 Write-Output 'Identity lockfile and frozen Linux environment prepared. This does not verify the service or complete P03.'

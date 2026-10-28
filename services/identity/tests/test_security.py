@@ -76,7 +76,10 @@ def test_tokens_are_asymmetric_kind_scoped_and_public_only(tokens: Tokens) -> No
     jwk = tokens.public_keys()["keys"][0]
     assert jwk["alg"] == "RS256" and "d" not in jwk and "p" not in jwk
     forged = jwt.encode(
-        claims.model_dump(mode="json"), "attacker", algorithm="HS256", headers={"kid": tokens.kid}
+        claims.model_dump(mode="json"),
+        "attacker" * 8,
+        algorithm="HS256",
+        headers={"kid": tokens.kid},
     )
     with pytest.raises(jwt.InvalidTokenError):
         tokens.verify(forged, "customer")
