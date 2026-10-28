@@ -45,6 +45,7 @@ for (const locale of ['fa', 'en']) for (const theme of ['dark', 'light']) for (c
       await page.goto(`/${locale}${route}`);
       await expect(page.locator('h1')).toBeVisible();
       if (route.startsWith('/account')) await expect(page.locator('.account-sidebar')).toBeVisible();
+      if (route.startsWith('/account')) await expect(page.getByRole('link', { name: locale === 'fa' ? 'حساب کاربری' : 'Your account', exact: true })).toBeVisible();
       if (route === '/account/addresses') await expect(page.locator('.address-empty')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       await expect.poll(() => page.locator('main img').evaluateAll(images => images.every(image => {

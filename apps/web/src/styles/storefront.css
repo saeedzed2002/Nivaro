@@ -332,7 +332,7 @@ dd { margin:0; overflow-wrap:anywhere; }
   .brand small { font-size:7px; }
   .header-main { gap:10px; }
   .header-actions { gap:1px; }
-  .account-action { display:none; }
+  .account-action { display:inline-flex; }
   .select-control select { max-width:110px; font-size:10px; }
   .main-nav { overflow:auto; scrollbar-width:thin; gap:25px; justify-content:flex-start; }
   .main-nav>a,.main-nav>button { font-size:11px; }
