@@ -13,7 +13,11 @@ try {
     $env:COREPACK_ENABLE_NETWORK = '0'
     Push-Location "$root/apps/web"
     try {
-        corepack pnpm exec playwright test tests/identity.spec.ts
+        if (Get-Command pnpm -ErrorAction SilentlyContinue) {
+            pnpm exec playwright test tests/identity.spec.ts
+        } else {
+            corepack pnpm exec playwright test tests/identity.spec.ts
+        }
         if ($LASTEXITCODE -ne 0) { throw 'Identity browser checks failed.' }
     } finally { Pop-Location }
 } finally {
