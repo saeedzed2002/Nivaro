@@ -45,10 +45,12 @@ class ProductRow(Timestamps, Base):
     __tablename__ = "products"
     __table_args__ = (
         CheckConstraint("status IN ('draft','published','archived')", name="product_status"),
+        CheckConstraint("version > 0", name="product_version"),
         Index("ix_products_search_tokens", "search_tokens", postgresql_using="gin"),
         Index("ix_products_status_category", "status", "category_id"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     slug: Mapped[str] = mapped_column(String(160), unique=True)
     name: Mapped[str] = mapped_column(String(240))
     description: Mapped[dict[str, str]] = mapped_column(JSONB)
@@ -137,3 +139,18 @@ class OfferRow(Timestamps, Base):
     reference_only: Mapped[bool] = mapped_column(Boolean, default=True)
     source: Mapped[dict[str, Any]] = mapped_column(JSONB)
     seller: Mapped[str] = mapped_column(String(120))
+
+
+class AuditRow(Base):
+    __tablename__ = "catalog_audit_entries"
+    __table_args__ = (Index("ix_catalog_audit_product_created", "product_id", "created_at", "id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"))
+    actor_id: Mapped[UUID] = mapped_column()
+    action: Mapped[str] = mapped_column(String(60))
+    target_id: Mapped[UUID] = mapped_column()
+    before: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    after: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    reason: Mapped[str] = mapped_column(String(500))
+    request_id: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

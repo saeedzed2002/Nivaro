@@ -20,20 +20,13 @@ from nivaro_catalog.domain.contracts import (
     Specifications,
     Variant,
 )
-from nivaro_catalog.domain.search import normalize_search
+from nivaro_catalog.domain.search import search_index
 from nivaro_catalog.infrastructure.models import CategoryRow, OfferRow, ProductRow, VariantRow
 from nivaro_catalog.settings import Settings
 
 
 def stable_id(key: str) -> UUID:
     return uuid5(NAMESPACE_URL, "https://nivaro.local/seed/" + key)
-
-
-def search_index(value: str) -> list[str]:
-    # Literal token prefixes support a GIN @> query, including Persian terms.
-    # Unlike approximate search, this needs neither pg_trgm nor an extra service.
-    words = normalize_search(value).split()
-    return sorted({word[:length] for word in words for length in range(1, min(len(word), 100) + 1)})
 
 
 def seed(session: Session) -> None:

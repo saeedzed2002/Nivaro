@@ -25,6 +25,7 @@ from nivaro_catalog.api.schemas import (
     ErrorEnvelope,
     ProductPage,
 )
+from nivaro_catalog.domain.administration import AdministrationError
 from nivaro_catalog.domain.contracts import (
     Category,
     Evaluation,
@@ -142,6 +143,11 @@ async def invalid_catalog_data(request: Request, exc: ValidationError) -> JSONRe
     return error(request, 503, "catalog.invalid_data", "Catalog data requires correction")
 
 
+@app.exception_handler(AdministrationError)
+async def administration_error(request: Request, exc: AdministrationError) -> JSONResponse:
+    return error(request, exc.status, exc.code, exc.message)
+
+
 async def session(request: Request) -> AsyncIterator[AsyncSession]:
     async for connection in request.app.state.database.session():
         yield connection
@@ -167,7 +173,7 @@ async def live() -> dict[str, str]:
 @app.get("/health/ready", include_in_schema=False)
 async def ready(db: SessionDep) -> dict[str, str]:
     revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-    if revision != "0002_revision_guards":
+    if revision != "0003_admin_mutations":
         raise HTTPException(503, "Catalog schema revision is not ready")
     return {"status": "ok", "service": "catalog", "schema": revision}
 

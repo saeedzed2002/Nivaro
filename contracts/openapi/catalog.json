@@ -49,10 +49,15 @@
           "variant_count": {
             "title": "Variant Count",
             "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
           "id",
+          "version",
           "slug",
           "name",
           "category_id",
@@ -127,14 +132,19 @@
           },
           "variants": {
             "items": {
-              "$ref": "#/components/schemas/Variant"
+              "$ref": "#/components/schemas/AdminVariant"
             },
             "title": "Variants",
             "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
           "id",
+          "version",
           "slug",
           "name",
           "category_id",
@@ -180,6 +190,234 @@
           "page_size"
         ],
         "title": "AdminProductPage",
+        "type": "object"
+      },
+      "AdminVariant": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "maxItems": 20,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/Offer"
+            },
+            "maxItems": 2,
+            "title": "Offers",
+            "type": "array"
+          },
+          "on_hand": {
+            "default": 0,
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "On Hand",
+            "type": "integer"
+          },
+          "packaging": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "reserved": {
+            "default": 0,
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "sku": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Sku",
+            "type": "string"
+          },
+          "spec_version": {
+            "default": 1,
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000.0,
+            "title": "Spec Version",
+            "type": "integer"
+          },
+          "specifications": {
+            "discriminator": {
+              "mapping": {
+                "case": "#/components/schemas/Case",
+                "cooler": "#/components/schemas/Cooler",
+                "cpu": "#/components/schemas/CPU",
+                "gpu": "#/components/schemas/GPU",
+                "memory": "#/components/schemas/Memory",
+                "motherboard": "#/components/schemas/Motherboard",
+                "peripheral": "#/components/schemas/Peripheral",
+                "prebuilt": "#/components/schemas/Prebuilt",
+                "psu": "#/components/schemas/PSU",
+                "storage": "#/components/schemas/Storage"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CPU"
+              },
+              {
+                "$ref": "#/components/schemas/Motherboard"
+              },
+              {
+                "$ref": "#/components/schemas/Memory"
+              },
+              {
+                "$ref": "#/components/schemas/Storage"
+              },
+              {
+                "$ref": "#/components/schemas/Case"
+              },
+              {
+                "$ref": "#/components/schemas/PSU"
+              },
+              {
+                "$ref": "#/components/schemas/Cooler"
+              },
+              {
+                "$ref": "#/components/schemas/GPU"
+              },
+              {
+                "$ref": "#/components/schemas/Peripheral"
+              },
+              {
+                "$ref": "#/components/schemas/Prebuilt"
+              }
+            ],
+            "title": "Specifications"
+          },
+          "stock_kind": {
+            "enum": [
+              "component",
+              "accessory",
+              "stocked_prebuilt"
+            ],
+            "title": "Stock Kind",
+            "type": "string"
+          },
+          "stock_verified": {
+            "default": false,
+            "title": "Stock Verified",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "sku",
+          "packaging",
+          "specifications",
+          "stock_kind",
+          "version"
+        ],
+        "title": "AdminVariant",
+        "type": "object"
+      },
+      "AuditEntry": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_id": {
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "after": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "After",
+            "type": "object"
+          },
+          "before": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Before",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "target_id": {
+            "format": "uuid",
+            "title": "Target Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "actor_id",
+          "action",
+          "target_id",
+          "before",
+          "after",
+          "reason",
+          "request_id",
+          "created_at"
+        ],
+        "title": "AuditEntry",
+        "type": "object"
+      },
+      "AuditPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "AuditPage",
         "type": "object"
       },
       "CPU": {
@@ -1203,6 +1441,7 @@
         "title": "GPU",
         "type": "object"
       },
+      "JsonValue": {},
       "Localized": {
         "additionalProperties": false,
         "properties": {
@@ -1513,6 +1752,82 @@
         "title": "Offer",
         "type": "object"
       },
+      "OfferChange": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_minor": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9000000000000.0,
+            "title": "Amount Minor",
+            "type": "integer"
+          },
+          "available_for_sale": {
+            "title": "Available For Sale",
+            "type": "boolean"
+          },
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "expected_price_version": {
+            "maximum": 2000000000.0,
+            "minimum": 0.0,
+            "title": "Expected Price Version",
+            "type": "integer"
+          },
+          "expected_version": {
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reference_only": {
+            "title": "Reference Only",
+            "type": "boolean"
+          },
+          "seller": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Seller",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Evidence"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "expected_version",
+          "expected_price_version",
+          "amount_minor",
+          "available_for_sale",
+          "reference_only",
+          "source",
+          "seller",
+          "reason"
+        ],
+        "title": "OfferChange",
+        "type": "object"
+      },
       "PSU": {
         "additionalProperties": false,
         "properties": {
@@ -1758,6 +2073,111 @@
         "title": "Product",
         "type": "object"
       },
+      "ProductContent": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Brand",
+            "type": "string"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "description": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "highlights": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Highlights",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 160,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "description",
+          "category_id"
+        ],
+        "title": "ProductContent",
+        "type": "object"
+      },
+      "ProductEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Brand",
+            "type": "string"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "description": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "expected_version": {
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "highlights": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Highlights",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 160,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "description",
+          "category_id",
+          "expected_version"
+        ],
+        "title": "ProductEdit",
+        "type": "object"
+      },
       "ProductPage": {
         "additionalProperties": false,
         "properties": {
@@ -1871,6 +2291,74 @@
           "variant_id"
         ],
         "title": "Selection",
+        "type": "object"
+      },
+      "StatusChange": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "published",
+              "archived"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "status"
+        ],
+        "title": "StatusChange",
+        "type": "object"
+      },
+      "StockChange": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_stock_version": {
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Expected Stock Version",
+            "type": "integer"
+          },
+          "expected_version": {
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "on_hand": {
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "On Hand",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "stock_verified": {
+            "title": "Stock Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_version",
+          "expected_stock_version",
+          "on_hand",
+          "stock_verified",
+          "reason"
+        ],
+        "title": "StockChange",
         "type": "object"
       },
       "Storage": {
@@ -2049,6 +2537,92 @@
         ],
         "title": "Variant",
         "type": "object"
+      },
+      "VariantContent": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "maxItems": 20,
+            "title": "Evidence",
+            "type": "array"
+          },
+          "expected_version": {
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "packaging": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "sku": {
+            "maxLength": 100,
+            "pattern": "^[A-Z0-9][A-Z0-9._-]*$",
+            "title": "Sku",
+            "type": "string"
+          },
+          "specifications": {
+            "discriminator": {
+              "mapping": {
+                "case": "#/components/schemas/Case",
+                "cooler": "#/components/schemas/Cooler",
+                "cpu": "#/components/schemas/CPU",
+                "gpu": "#/components/schemas/GPU",
+                "memory": "#/components/schemas/Memory",
+                "motherboard": "#/components/schemas/Motherboard",
+                "peripheral": "#/components/schemas/Peripheral",
+                "prebuilt": "#/components/schemas/Prebuilt",
+                "psu": "#/components/schemas/PSU",
+                "storage": "#/components/schemas/Storage"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CPU"
+              },
+              {
+                "$ref": "#/components/schemas/Motherboard"
+              },
+              {
+                "$ref": "#/components/schemas/Memory"
+              },
+              {
+                "$ref": "#/components/schemas/Storage"
+              },
+              {
+                "$ref": "#/components/schemas/Case"
+              },
+              {
+                "$ref": "#/components/schemas/PSU"
+              },
+              {
+                "$ref": "#/components/schemas/Cooler"
+              },
+              {
+                "$ref": "#/components/schemas/GPU"
+              },
+              {
+                "$ref": "#/components/schemas/Peripheral"
+              },
+              {
+                "$ref": "#/components/schemas/Prebuilt"
+              }
+            ],
+            "title": "Specifications"
+          }
+        },
+        "required": [
+          "expected_version",
+          "sku",
+          "packaging",
+          "specifications"
+        ],
+        "title": "VariantContent",
+        "type": "object"
       }
     }
   },
@@ -2177,6 +2751,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2199,6 +2783,95 @@
           }
         },
         "summary": "Products",
+        "tags": [
+          "catalog-administration"
+        ]
+      },
+      "post": {
+        "operationId": "createAdminProduct",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProductDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Create",
         "tags": [
           "catalog-administration"
         ]
@@ -2260,6 +2933,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2282,6 +2965,769 @@
           }
         },
         "summary": "Detail",
+        "tags": [
+          "catalog-administration"
+        ]
+      },
+      "put": {
+        "operationId": "updateAdminProduct",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProductDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Edit",
+        "tags": [
+          "catalog-administration"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/products/{product_id}/audit": {
+      "get": {
+        "operationId": "listAdminProductAudit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Audit",
+        "tags": [
+          "catalog-administration"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/products/{product_id}/status": {
+      "put": {
+        "operationId": "setAdminProductStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProductDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "catalog-administration"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/products/{product_id}/variants": {
+      "post": {
+        "operationId": "createAdminVariant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariantContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProductDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Create Variant",
+        "tags": [
+          "catalog-administration"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}": {
+      "put": {
+        "operationId": "updateAdminVariant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariantContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProductDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Edit Variant",
+        "tags": [
+          "catalog-administration"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}/offers": {
+      "put": {
+        "operationId": "setAdminOffer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProductDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Offer",
+        "tags": [
+          "catalog-administration"
+        ]
+      }
+    },
+    "/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}/stock": {
+      "put": {
+        "operationId": "setAdminStock",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProductDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Stock",
         "tags": [
           "catalog-administration"
         ]

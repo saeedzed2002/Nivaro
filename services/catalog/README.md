@@ -1,22 +1,39 @@
-# Catalog — P02 service
+# Catalog — storefront and administration
 
 Catalog owns product facts, physical variants, independent market offers and compatibility evaluations. It has no cart/order database access and no reservation or payment endpoint. The gateway connects this service to the home, collection, details, comparison and temporary builder pages. See [progress](../../docs/progress.md) for exact verified revisions and acceptance evidence.
 
-## P04 protected administration reads
+## P04 protected administration
 
-`GET /api/v1/admin/catalog/products` supports bounded pagination, publication status, category UUID and normalized name/exact case-insensitive SKU search. `GET /api/v1/admin/catalog/products/{product_id}` returns the selected product, including drafts/archives, only to an authorized catalog manager. These are read endpoints; editing, publication mutations, image uploads and the staff product pages are not implemented by this slice. Public read rules remain unchanged.
+`GET /api/v1/admin/catalog/products` supports bounded pagination, publication status, category UUID and normalized name/exact case-insensitive SKU search. `GET /api/v1/admin/catalog/products/{product_id}` returns the selected product, including drafts/archives, only to an authorized catalog manager. Staff responses include the product edit revision and each variant's stock revision. Public read rules remain unchanged.
 
 Catalog accepts only `nivaro_admin_access`, verifies RS256 with public JWKS, strict issuer/audience/kind/session identifiers and `catalog.write`, then calls identity for fresh authoritative authorization on every request. Customer tokens never grant staff access. Public keys cache for 60 seconds with a bounded unknown-key refresh; permissions/session status do not cache. Calls use a shared bounded HTTP client, a four-second total budget, bounded response bodies and no redirects/environment proxy. An unavailable or invalid authority response denies access; public catalog reads do not depend on identity availability.
 
-`CATALOG_IDENTITY_URL` defaults to `http://identity:8000`. Compose mounts the dedicated caller secret through `CATALOG_IDENTITY_SERVICE_KEY_FILE`; no identity database credential or private browser-signing key is shared. Mutating endpoints must use the same dependency, which checks allowed origins and forwards session CSRF for authoritative validation. No mutation endpoint exists yet. See [identity boundary](../identity/README.md#catalog-authorization-boundary--p04).
+`CATALOG_IDENTITY_URL` defaults to `http://identity:8000`. Compose mounts the dedicated caller secret through `CATALOG_IDENTITY_SERVICE_KEY_FILE`; no identity database credential or private browser-signing key is shared. Every mutation uses the same dependency, which checks allowed origins and forwards session CSRF for authoritative validation. See [identity boundary](../identity/README.md#catalog-authorization-boundary--p04).
+
+All routes below are relative to `/api/v1/admin/catalog/products`:
+
+| Method/path | Contract |
+| --- | --- |
+| `POST /` | Create a draft with bilingual descriptions; server assigns UUID/revision and an unready empty image. Unique slug makes repeated creation conflict rather than duplicate. |
+| `PUT /{product_id}` | Replace the explicitly writable content fields, with `expected_version`. No status, readiness, image path or counters accepted. |
+| `PUT /{product_id}/status` | Set draft/published/archived using `expected_version`. Publication requires complete content, a ready image and valid variants. No deletion route. |
+| `POST /{product_id}/variants` | Add a unique uppercase SKU and typed specifications, with product `expected_version`; initial stock is zero/unverified, no offers. |
+| `PUT /{product_id}/variants/{variant_id}` | Replace variant metadata/specifications with product `expected_version`; technical and stock revisions advance. Hardware kind cannot change in place. |
+| `PUT /{product_id}/variants/{variant_id}/stock` | Set absolute `on_hand` and `stock_verified`, requiring product `expected_version`, `expected_stock_version` and reason. Cannot edit reserved units or reduce on-hand below reservations. |
+| `PUT /{product_id}/variants/{variant_id}/offers` | Set one explicit market/currency offer, with product `expected_version`, `expected_price_version` (zero for create), source and reason. IRR amounts are whole tomans in rials; USD is independent cents. Reference observations cannot be sold. Sale eligibility requires published/ready product and verified stock. |
+| `GET /{product_id}/audit` | Bounded history of actor, before/after values, reason, request ID and timestamp; same staff authorization as mutations. |
+
+The application opens one transaction after authorization, locks product before variant/offer, checks the expected revisions, and commits the mutation and audit together. A competing or repeated stale write returns `409`; reload before retrying, never silently rebase an absolute stock count. Unchanged commands do not advance revisions or add audit entries. `catalog_audit_entries` rejects UPDATE/DELETE through a trigger. Prices and stock changes cannot commit without their audit entry. Technical and price revision triggers remain active. Future reservation writers must lock variants in identifier order and advance their stock revision, without taking a product lock after a variant lock. See [PostgreSQL row locks](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS) and [SQLAlchemy transaction boundaries](https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#managing-transactions).
+
+No new dependency was needed for mutations. Category administration, private media jobs/upload readiness, operational staff pages, and cache integration remain P04 work. A newly created draft cannot be published until the trusted image pipeline exists and produces its ready image; there is deliberately no manual readiness override. These APIs do not activate checkout, real provider delivery or live international fulfillment.
 
 The catalog lock was regenerated from the existing regional cache for PyJWT/cryptography/HTTPX runtime dependencies; all prior package versions were verified unchanged. The normal Dockerfile exports frozen versions/hashes and installs from explicit `PYTHON_INDEX_URL` (official PyPI by default), matching identity's portable build approach. The offline Dockerfile keeps using the lock's mirror cache. No new base image or download was required locally.
 
 ## Verification boundary
 
-The selected baseline is Python 3.13.18, uv 0.13.5 and the committed `uv.lock`, tested against PostgreSQL 18.6. Linux checks cover Ruff, formatting, strict mypy, 67 tests, Alembic and canonical OpenAPI drift. The release image runs as a non-root user; the one-shot init service applies migrations and the repeatable seed before API readiness. Earlier provisional Windows checks are historical evidence in the progress log, not the release baseline.
+The selected baseline is Python 3.13.18, uv 0.13.5 and the committed `uv.lock`, tested against PostgreSQL 18.6. Linux checks cover Ruff, formatting, strict mypy, backend tests, Alembic and canonical OpenAPI drift; exact run counts and revisions are in the progress log. The release image runs as a non-root user; the one-shot init service applies migrations and the repeatable seed before API readiness. Earlier provisional Windows checks are historical evidence in the progress log, not the release baseline.
 
-The local acceptance helpers verify migrations from zero in a separate disposable database, database changes reaching the browser without a web rebuild, and actual API outage/recovery. These checks do not establish live inventory, sellable prices, checkout reservations or cross-service identity isolation; those require later phases.
+The local acceptance helpers verify migrations from zero in a separate disposable database, database changes reaching the browser without a web rebuild, and actual API outage/recovery. `CATALOG_DISPOSABLE_TESTS=1` enables a committed two-session stock-race probe only in the fresh local test database and isolated CI database. Other API tests use an outer rollback transaction with per-request savepoints. Never set that flag against owner/live commerce data. These checks do not establish real inventory, approved store prices, checkout reservations or live market readiness.
 
 ## Database foundation
 

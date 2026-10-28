@@ -137,11 +137,33 @@ test('admin credentials are separate; customer login never grants staff access',
   expect(catalog.status()).toBe(200);
   const products = await catalog.json();
   expect(products.total).toBe(12);
-  expect((await context.request.get(`${base}/api/v1/admin/catalog/products/${products.items[0].id}`)).status()).toBe(200);
+  const productUrl = `${base}/api/v1/admin/catalog/products/${products.items[0].id}`;
+  const productResponse = await context.request.get(productUrl);
+  expect(productResponse.status()).toBe(200);
+  const product = await productResponse.json();
+  const { slug, name, description, category_id, brand, highlights } = product;
+  const content = { slug, name, description, category_id, brand, highlights };
+  const csrfResponse = await context.request.get(`${base}/api/v1/admin/auth/csrf`, { headers: { Origin: base, 'X-CSRF-Request': '1' } });
+  expect(csrfResponse.status()).toBe(200);
+  const { csrf_token: csrf } = await csrfResponse.json();
+  const edit = { ...content, expected_version: product.version, name: `${name} QA` };
+  expect((await context.request.put(productUrl, { headers: { Origin: base }, data: edit })).status()).toBe(403);
+  expect((await context.request.put(productUrl, { headers: { Origin: 'https://untrusted.test', 'X-CSRF-Token': csrf }, data: edit })).status()).toBe(403);
+  const headers = { Origin: base, 'X-CSRF-Token': csrf };
+  const changed = await context.request.put(productUrl, { headers, data: edit });
+  expect(changed.status()).toBe(200);
+  expect((await changed.json()).version).toBe(product.version + 1);
+  expect((await context.request.put(productUrl, { headers, data: edit })).status()).toBe(409);
+  const restored = await context.request.put(productUrl, { headers, data: { ...content, expected_version: product.version + 1 } });
+  expect(restored.status()).toBe(200);
+  const audit = await context.request.get(`${productUrl}/audit`);
+  expect(audit.status()).toBe(200);
+  expect((await audit.json()).total).toBe(2);
   // Real outage in the disposable stack: a cached public key must not grant access.
   try {
     identityService('stop');
     expect((await context.request.get(`${base}/api/v1/admin/catalog/products`)).status()).toBe(503);
+    expect((await context.request.put(productUrl, { headers, data: { ...content, expected_version: product.version + 2 } })).status()).toBe(503);
     expect((await context.request.get(`${base}/api/v1/catalog/products`)).status()).toBe(200);
   } finally {
     identityService('start');
