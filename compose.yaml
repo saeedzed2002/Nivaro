@@ -10,8 +10,12 @@ services:
     environment:
       NEXT_TELEMETRY_DISABLED: '1'
       CATALOG_URL: http://catalog:8000
+      IDENTITY_URL: http://identity:8000
+      IDENTITY_LOCAL_MOCK: 'true'
     depends_on:
       catalog:
+        condition: service_healthy
+      identity:
         condition: service_healthy
     expose:
       - '3000'
@@ -42,9 +46,11 @@ services:
     secrets:
       - postgres_admin_password
       - catalog_db_password
+      - identity_db_password
     volumes:
       - catalog_postgres:/var/lib/postgresql
       - ./infra/postgres/10-catalog.sh:/docker-entrypoint-initdb.d/10-catalog.sh:ro
+      - ./infra/postgres/20-identity.sh:/docker-entrypoint-initdb.d/20-identity.sh:ro
     healthcheck:
       test: [CMD-SHELL, 'pg_isready -U postgres -d postgres']
       interval: 5s
@@ -83,10 +89,87 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 6
+  redis-state:
+    image: redis:8.10.3@sha256:0c257ce8b2f31f9f7595f587edf8ac259a248ba3ced82badc8c7aa826a85224f
+    user: redis
+    command: [sh, /etc/redis/start-state.sh]
+    secrets:
+      - redis_state_password
+    volumes:
+      - identity_redis:/data
+      - ./infra/redis/start-state.sh:/etc/redis/start-state.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH=$$(cat /run/secrets/redis_state_password) redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  identity-db-init:
+    image: ${POSTGRES_IMAGE:-postgres:18.6-bookworm@sha256:bbf83594798e144bff365a9c191c5d779f181fb3135902064ab8ff11918020fc}
+    environment:
+      PGHOST: postgres
+      POSTGRES_USER: postgres
+    secrets:
+      - postgres_admin_password
+      - identity_db_password
+    volumes:
+      - ./infra/postgres/20-identity.sh:/init-identity.sh:ro
+    command: [sh, /init-identity.sh]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+  identity-init:
+    image: nivaro-identity:release
+    build:
+      context: ./services/identity
+    secrets:
+      - identity_db_password
+    depends_on:
+      identity-db-init:
+        condition: service_completed_successfully
+    command: [alembic, upgrade, head]
+    restart: 'no'
+  identity:
+    image: nivaro-identity:release
+    environment:
+      IDENTITY_ENVIRONMENT: development
+      IDENTITY_OTP_PROVIDER: mock
+      IDENTITY_MOCK_PHONES: '["+12025550100","+12025550101"]'
+      IDENTITY_TRUST_GATEWAY_CLIENT_IP: 'true'
+    secrets:
+      - identity_db_password
+      - redis_state_password
+      - otp_pepper
+      - identity_signing_key
+    depends_on:
+      identity-init:
+        condition: service_completed_successfully
+      redis-state:
+        condition: service_healthy
+    expose:
+      - '8000'
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 6
 volumes:
   catalog_postgres:
+  identity_redis:
 secrets:
   postgres_admin_password:
     file: ./work/secrets/postgres_admin_password.txt
   catalog_db_password:
     file: ./work/secrets/catalog_db_password.txt
+  identity_db_password:
+    file: ./work/secrets/identity_db_password.txt
+  redis_state_password:
+    file: ./work/secrets/redis_state_password.txt
+  otp_pepper:
+    file: ./work/secrets/otp_pepper.txt
+  identity_signing_key:
+    file: ./work/secrets/identity_signing_key.pem

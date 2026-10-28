@@ -7,6 +7,7 @@ Each test uses a random HMAC pepper and only touches its own derived keys.
 import asyncio
 import os
 import secrets
+from pathlib import Path
 
 import pytest
 from redis.asyncio import Redis
@@ -26,6 +27,9 @@ IP = "192.0.2.1"
 async def otp():
     client = Redis.from_url(
         os.environ["IDENTITY_TEST_REDIS_URL"],
+        password=Path(os.environ["IDENTITY_TEST_REDIS_PASSWORD_FILE"]).read_text().strip()
+        if os.getenv("IDENTITY_TEST_REDIS_PASSWORD_FILE")
+        else None,
         decode_responses=True,
         socket_connect_timeout=1,
         socket_timeout=1,
