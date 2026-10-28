@@ -1,12 +1,12 @@
-# Catalog — P02 foundation, not release-verified
+# Catalog — P02 service
 
-Catalog owns product facts, physical variants, independent market offers and compatibility evaluations. It has no cart/order database access and no reservation or payment endpoint. The P02 checkpoint routes this service through the gateway and connects the home, collection, details, comparison and temporary builder pages. Full phase acceptance is still pending.
+Catalog owns product facts, physical variants, independent market offers and compatibility evaluations. It has no cart/order database access and no reservation or payment endpoint. The gateway connects this service to the home, collection, details, comparison and temporary builder pages. See [progress](../../docs/progress.md) for exact verified revisions and acceptance evidence.
 
 ## Verification boundary
 
-The owner-assisted retry on 2026-10-27 successfully installed uv 0.13.5, resolved the selected dependencies, created `uv.lock` and completed `uv sync --frozen`, including the catalog package build. Subsequent execution inside the existing Linux/Python 3.13.18 image passed Ruff, strict mypy, all 66 tests against PostgreSQL 18.6, and `alembic check`. SQLAlchemy 2.1's updated Select typing and two variable/translation typing issues were corrected without changing the selected versions. **The checkpoint now includes a non-root image, offline frozen backend build, canonical contracts and frontend integration. Full P02 acceptance and private CI remain pending; the latest evidence is in docs/progress.md.** The dependency gate has advanced; the whole phase is not complete. The following Windows results are historical provisional evidence, superseded by these Linux checks.
+The selected baseline is Python 3.13.18, uv 0.13.5 and the committed `uv.lock`, tested against PostgreSQL 18.6. Linux checks cover Ruff, formatting, strict mypy, 67 tests, Alembic and canonical OpenAPI drift. The release image runs as a non-root user; the one-shot init service applies migrations and the repeatable seed before API readiness. Earlier provisional Windows checks are historical evidence in the progress log, not the release baseline.
 
-Offline checks used the already installed Windows Python 3.12.3 environment without modifying it: FastAPI 0.115.0, Pydantic 2.9.2, pydantic-settings 2.5.2, SQLAlchemy 2.0.35, Alembic 1.13.2, psycopg/psycopg-binary 3.3.4, HTTPX 0.27.2, pytest 9.1.1, pytest-asyncio 0.24.0 and Ruff 0.16.3. These are **provisional validation tools**, not selected production versions. PostgreSQL tests used the actual pinned 18.6 Linux image.
+The local acceptance helpers verify migrations from zero in a separate disposable database, database changes reaching the browser without a web rebuild, and actual API outage/recovery. These checks do not establish live inventory, sellable prices, checkout reservations or cross-service identity isolation; those require later phases.
 
 ## Database foundation
 
@@ -14,22 +14,22 @@ From the repository root:
 
 ```powershell
 ./scripts/Initialize-LocalSecrets.ps1
-docker compose -f compose.yaml -f compose.catalog.yaml up -d --pull never postgres
+docker compose up -d --build --wait
 ```
 
-Secrets are generated once into ignored `work/secrets/`; existing values are preserved. Do not commit them. The application role `nivaro_catalog` owns only its catalog database and has no superuser, role-creation, replication or database-creation privilege. The overlay publishes no database port. PostgreSQL 18 uses a persistent volume mounted at `/var/lib/postgresql`; never delete that volume to rerun a migration or seed.
+Secrets are generated once into ignored `work/secrets/`; existing values are preserved. Do not commit them. The application role `nivaro_catalog` owns only its catalog database and has no superuser, role-creation, replication or database-creation privilege. Base Compose includes the catalog and publishes no database port; `compose.catalog.yaml` is retained only as a compatibility no-op. PostgreSQL 18 uses a persistent volume mounted at `/var/lib/postgresql`; never delete that volume to rerun a migration or seed.
 
 The init script runs automatically only for a fresh volume. For an already initialized volume requiring this first database, explicitly run `sh /docker-entrypoint-initdb.d/10-catalog.sh` inside the PostgreSQL container; the script preserves existing databases and roles. It deliberately does not rotate an existing role password when a secret file is changed. Do not regenerate secrets independently of a deliberate credential rotation.
 
-## Baseline procedure and remaining acceptance (see latest progress)
+## Maintenance and verification
 
-1. The selected dependency resolution/install and Linux checks now pass. Preserve `uv.lock`; use `uv sync --frozen` for subsequent installs and verify a fresh/offline application-image build rather than claiming that the mounted development environment proves it.
-2. Add and verify the non-root catalog image and a one-shot migration/seed job. API workers must not race to apply migrations at startup.
+1. Preserve `uv.lock`; use `uv sync --frozen` for subsequent installs. A mounted development environment is not evidence of a clean application-image build.
+2. Keep migrations in the one-shot `catalog-init` service. API workers must not race to apply migrations at startup.
 3. Set `CATALOG_DB_HOST`, `CATALOG_DB_PORT`, `CATALOG_DB_NAME`, `CATALOG_DB_USER` and `CATALOG_DB_PASSWORD_FILE` for the intended catalog instance. Defaults target the Compose network and `/run/secrets/catalog_db_password`. Never print password values or database URLs containing them.
 4. Run `uv run alembic upgrade head`, then `uv run python -m nivaro_catalog.infrastructure.seed`. The seed is insert-only and repeatable; it never overwrites an existing offer, stock counter or technical fact. Updating existing facts needs a newer `spec_version`, not another seed run.
 5. Run `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy src`, and `uv run alembic check`. Database/API tests skip unless `CATALOG_DB_HOST` is explicitly set; a unit-only pass is not integration evidence. Test against a dedicated instance or the known local demo database, not live commerce data. Tests roll back their fixture mutations.
 6. Export `uv run python -m nivaro_catalog.export_openapi ../../contracts/openapi/catalog.json`, generate frontend types with the selected `openapi-typescript`, and verify regeneration produces no diff. Offline diagnostic exports under `work/` are not release contracts.
-7. Connect the existing pages and implement the already pictured comparison/builder templates, including both themes/locales and unavailable/error states. Add real source-backed component records before demonstrating a complete real system. Complete Docker/browser/CI gates and record evidence before marking P02 verified.
+7. Run frontend browser checks against the gateway in both languages/themes. `scripts/Verify-CatalogFresh.ps1` exercises a separate tmpfs database using the existing local release image and mounted Linux test environment. It never resets the persistent catalog volume. From `apps/web`, run `NIVARO_DEMO_RUNTIME_CHECK=1 node scripts/verify-catalog-runtime.mjs` using your shell's environment-variable syntax for the guarded local-demo database/UI and outage/recovery check. Do not run it against live commerce data.
 
 ## Implemented public contracts
 

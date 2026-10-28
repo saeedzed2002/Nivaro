@@ -4,9 +4,9 @@ Bilingual Persian/English gaming hardware storefront, following [the canonical r
 
 ## Current delivery
 
-P02 checkpoint: home, product collection/details, same-category product comparison and temporary PC assembly selections now use the catalog API. PostgreSQL owns products, physical variants and independent market offers. Pages follow the references in [the image-first register](docs/design/PAGE_DESIGNS.md).
+P02 verified: home, product collection/details, same-category product comparison and temporary PC assembly selections use the catalog API. PostgreSQL owns products, physical variants and independent market offers. Pages follow the references in [the image-first register](docs/design/PAGE_DESIGNS.md).
 
-The seed contains 12 documented products and 13 variants; reference prices remain unavailable for sale and stock remains unverified. Missing prices and technical facts stay unknown. No durable saved builds, checkout, authentication or payment are claimed. P02 is still in progress; see [progress and exact continuation](docs/progress.md).
+The seed contains 12 documented products and 13 variants; reference prices remain unavailable for sale and stock remains unverified. Missing prices and technical facts stay unknown. Durable saved builds, checkout, authentication and payment are not implemented. Next is P03 customer/administrator identity; see [progress and exact continuation](docs/progress.md).
 
 ## Local development
 
@@ -35,7 +35,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Base Compose builds a non-root standalone web release. Release and development images have distinct local tags (`nivaro-web:release` and `nivaro-web:development`). The Node/Caddy defaults are pinned to the verified downloaded digests. Both local Docker release execution and Compose Watch were verified on 2026-10-27; see [progress](docs/progress.md). Initial registry/package access is still needed on a clean machine. For the complete owner-assisted base-image list, see [download preparation](docs/DOWNLOAD_PREPARATION.md).
+Base Compose builds non-root web/catalog releases and runs migrations/seed in a one-shot init service. Release and development web images have distinct local tags (`nivaro-web:release` and `nivaro-web:development`). Base images are pinned in Compose. Local release execution and Compose Watch were reverified on 2026-10-28; clean builds also passed in private CI. See [progress](docs/progress.md). Initial registry/package access is still needed on a clean machine. For the complete owner-assisted base-image list, see [download preparation](docs/DOWNLOAD_PREPARATION.md), and for bounded-download recovery see [catalog operations](services/catalog/README.md#bounded-download-local-recovery).
 
 This phase uses the pinned Node, Caddy, Python 3.13.18 and PostgreSQL 18.6 images already present locally. The owner can pull these manually. Optional explicit Arvan mirror paths, without changing Docker Desktop globally:
 
@@ -57,12 +57,15 @@ For a host production preview, set `CATALOG_URL=http://127.0.0.1:8080` for both 
 cd apps/web
 pnpm lint
 pnpm typecheck
+$env:CATALOG_URL='http://127.0.0.1:8080'
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-Browser tests expect the app at `http://127.0.0.1:8080`; override `TEST_BASE_URL` when needed. `CHROMIUM_EXECUTABLE` can use an already installed browser. Tests cover both locales/themes at 360, 768 and 1440 pixels, filters, empty results, market/language isolation, dialog focus and reduced motion. Screenshots and reports are ignored runtime outputs; curated evidence belongs in `docs/evidence/`.
+Browser tests expect the app at `http://127.0.0.1:8080`; override `TEST_BASE_URL` when needed. `CHROMIUM_EXECUTABLE` can use an already installed browser. Tests cover both locales/themes at 360, 768 and 1440 pixels, filters and validation, empty results, market/language isolation, comparison retry, conservative assembly findings, dialog focus and reduced motion. Screenshots and reports are ignored runtime outputs; curated evidence belongs in `docs/evidence/`.
+
+For backend checks, contract regeneration and disposable fresh-database verification, follow [catalog operations](services/catalog/README.md). Private CI also tests database changes reaching the rendered storefront and actual catalog outage/recovery.
 
 With development Compose Watch running, `node scripts/verify-watch.mjs` from `apps/web` verifies a reversible footer edit reaches the existing browser document, then restores the source and verifies the restoration. Run it without concurrent footer editing. Loopback `127.0.0.1` is explicitly permitted in Next's development-only origin list so the HMR connection works through Caddy. No wildcard origin allowance is used.
 
