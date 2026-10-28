@@ -36,14 +36,14 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Cart | P05 | Pending |
 | Checkout | P06 | Pending |
 | Payment result / pending / failure | P07 | Pending |
-| Customer login / OTP | P03 | Pending |
-| Account overview | P03 | Pending |
-| Profile / avatar | P03/P04 | Pending |
-| Addresses | P03 | Pending |
+| Customer login / OTP | P03 | [Login](pages/customer-login.png), generated/inspected 2026-10-28; implementation pending |
+| Account overview | P03 | [Overview](pages/account-overview.png), generated/inspected 2026-10-28; implementation pending |
+| Profile / avatar | P03/P04 | [Profile](pages/account-profile.png), generated/inspected 2026-10-28; profile implementation pending, processed avatar remains P04 |
+| Addresses | P03 | [Addresses](pages/account-addresses.png), generated/inspected 2026-10-28; implementation pending |
 | Order history | P07 | Pending |
 | Order detail / timeline | P07 | Pending |
 | Customer support | P09 | Pending |
-| Administrator login | P03 | Pending |
+| Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implementation pending |
 | Administrator dashboard | P10 | Pending |
 | Administrator products | P04 | Pending |
 | Product editor / images | P04 | Pending |
@@ -67,3 +67,16 @@ Prompts and provenance: [Implementation prompts](IMPLEMENTATION_IMAGE_PROMPTS.md
 ### P02 runtime acceptance — 2026-10-28
 
 The five implemented templates passed the responsive browser matrix in Persian/English, dark/light and 360/768/1440 widths, plus interaction/error checks. Actual database edits appeared in the storefront, and catalog outage/recovery was verified. Private CI for `abd42b3` passed clean release builds, backend/contract checks, host/container browser suites and development Watch. Representative visual review covered the desktop builder, complete-build findings and Persian light mobile comparison. Unknown-only totals show a dash; longer compatibility findings remain ordinary scrollable content. These results validate the delivered slice, not pending pages or live commerce. Exact evidence is in the progress log.
+
+### P03 reference inspection — 2026-10-28
+
+All five images above were generated and visually inspected before any identity page code. Each combines a dark Persian desktop and a light mobile state; English/LTR and remaining viewport variants must be verified in implementation, not inferred from the image.
+
+Generation briefs and output provenance: [P03 identity references](P03_IDENTITY_IMAGE_PROMPTS.md).
+
+- Customer login: retain the split hardware/form composition, clear phone field, country context, resend state and explicit local-mock disclosure. Correct the generated claim that an actual SMS was sent. Use one accessible OTP input with paste/autocomplete support rather than six independently focused inputs shown in the image. Test numbers are development-only; do not reuse the generated phone number as an approved fixture.
+- Overview: retain sidebar, profile/address shortcuts, hardware banner and session safety action. No invented order/saved-build/reward counts. All-device logout includes the current device; correct the generated dialog's contradictory exception.
+- Profile: retain name editor, read-only verified number and explicit save feedback. Use actual user data, not the generated person's name. Omit generated orders/favorites/support links until those flows exist. Avatar processing remains P04; no pretend upload or unimplemented phone-change support promise.
+- Addresses: retain empty state and clear add/edit form; generated country/city menus and ten-digit postal rule are not universal address policy. Use country-aware fields without implying enabled international fulfillment. Show validation after interaction, not an initially all-red form. Confirm deletion, enforce ownership server-side and avoid unsupported extra navigation.
+- Admin login: retain the separate restrained credential panel, generic error, show-password control and storefront link. Generated email/hidden password are placeholders, never bootstrap credentials. Omit shopping cart navigation on this staff authentication screen.
+- Keep the existing Nivaro wordmark/header components; small logo variations in generated images do not authorize a rebrand. No speculative social links or nonexistent legal/support pages are introduced by these mockups. References provide layout, not tested accessibility, animations, working authentication or an English-language review.
