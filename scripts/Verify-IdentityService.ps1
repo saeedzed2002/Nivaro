@@ -39,6 +39,7 @@ try {
     $runtime = if ($TestImage) { $TestImage } else { 'python:3.13.18-slim-bookworm' }
     $sourceMount = if ($TestImage) { @() } else { @('-v',"${source}:/app") }
     docker run --rm --pull never --network $network @secretMounts @sourceMount `
+        -v "${root}/services/catalog/src:/catalog/src:ro" -e PYTHONPATH=/app/src:/catalog/src `
         -v "${root}/contracts:/contracts:ro" -w /app `
         -e "IDENTITY_DB_HOST=$postgres" -e "IDENTITY_REDIS_HOST=$redis" `
         -e IDENTITY_SERVICE_TESTS=1 -e "IDENTITY_TEST_REDIS_URL=redis://${redis}:6379/0" `

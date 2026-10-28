@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import UUID, uuid4
 
+import httpx
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -14,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import Response
 
+from nivaro_catalog.api.admin import router as admin_router
+from nivaro_catalog.api.authorization import AuthorizationError, IdentityAuthorization
 from nivaro_catalog.api.limits import BoundedBody
 from nivaro_catalog.api.schemas import (
     Comparison,
@@ -38,12 +41,21 @@ from nivaro_catalog.settings import Settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    database = Database(Settings())
+    settings = Settings()
+    database = Database(settings)
     app.state.database = database
-    try:
-        yield
-    finally:
-        await database.engine.dispose()
+    async with httpx.AsyncClient(
+        base_url=settings.identity_url,
+        timeout=httpx.Timeout(2, pool=1),
+        limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        trust_env=False,
+        follow_redirects=False,
+    ) as client:
+        app.state.authorization = IdentityAuthorization(settings, client)
+        try:
+            yield
+        finally:
+            await database.engine.dispose()
 
 
 app = FastAPI(
@@ -115,6 +127,13 @@ async def http_error(request: Request, exc: StarletteHTTPException) -> JSONRespo
 @app.exception_handler(SQLAlchemyError)
 async def database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
     return error(request, 503, "catalog.unavailable", "Catalog is temporarily unavailable")
+
+
+@app.exception_handler(AuthorizationError)
+async def authorization_error(request: Request, exc: AuthorizationError) -> JSONResponse:
+    return error(
+        request, exc.status, exc.code, "Administrator authorization could not be established"
+    )
 
 
 @app.exception_handler(ValidationError)
@@ -227,4 +246,5 @@ async def variant(variant_id: UUID, db: SessionDep) -> Variant:
 
 
 app.include_router(router)
+app.include_router(admin_router)
 app.add_middleware(BoundedBody)

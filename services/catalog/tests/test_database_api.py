@@ -37,6 +37,9 @@ async def api():
                 yield session
 
             app.dependency_overrides[session_dependency] = override
+            from nivaro_catalog.api.admin import database as admin_database
+
+            app.dependency_overrides[admin_database] = override
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app), base_url="http://catalog.test"
             ) as client:
@@ -68,6 +71,42 @@ async def test_restricted_database_role(api):
     ).one()
     assert tuple(role) == (False, False, False, False)
     assert await session.scalar(text("SELECT current_database()")) == "nivaro_catalog"
+
+
+async def test_staff_catalog_reads_include_drafts_only_after_authorization(api):
+    from nivaro_catalog.api.authorization import AdminPrincipal, AuthorizationError, catalog_admin
+
+    client, session = api
+    url = "/api/v1/admin/catalog/products"
+    assert (await client.get(url)).status_code == 401
+
+    async def forbidden():
+        raise AuthorizationError("auth.forbidden", 403)
+
+    app.dependency_overrides[catalog_admin] = forbidden
+    assert (await client.get(url)).status_code == 403
+
+    async def permitted():
+        return AdminPrincipal(
+            user_id=uuid4(), session_id=uuid4(), kind="admin", permissions=["catalog.write"]
+        )
+
+    app.dependency_overrides[catalog_admin] = permitted
+    product = await session.scalar(select(ProductRow).order_by(ProductRow.id))
+    product.status = "draft"
+    await session.flush()
+    public = await client.get(f"/api/v1/catalog/products/{product.slug}")
+    assert public.status_code == 404
+    listing = (await client.get(url + "?status=draft")).json()
+    assert listing["total"] == 1 and listing["items"][0]["id"] == str(product.id)
+    assert (await client.get(url + f"/{product.id}")).json()["status"] == "draft"
+    variant = await session.scalar(select(VariantRow).where(VariantRow.product_id == product.id))
+    by_sku = (await client.get(url, params={"q": variant.sku.lower()})).json()
+    assert by_sku["total"] == 1 and by_sku["items"][0]["variant_count"] >= 1
+    assert (await client.get(url + "?status=invalid")).status_code == 422
+    assert (await client.get(url + "?page_size=101")).status_code == 422
+    assert (await client.get(url + f"/{uuid4()}")).status_code == 404
+    assert (await client.get(url + "?page_size=1")).json()["page_size"] == 1
 
 
 async def test_api_search_filter_pagination_and_request_id(api):

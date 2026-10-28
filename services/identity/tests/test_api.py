@@ -45,6 +45,8 @@ async def api(tmp_path):
     )
     settings.otp_pepper_file = tmp_path / "test-pepper"
     settings.otp_pepper_file.write_text(secrets.token_hex(48))
+    settings.catalog_service_key_file = tmp_path / "catalog-service-key"
+    settings.catalog_service_key_file.write_text(secrets.token_hex(48))
     db = Database(settings)
     async with db.engine.begin() as conn:
         await conn.execute(text("TRUNCATE users CASCADE"))
@@ -88,6 +90,164 @@ async def admin_account(db, role="super_admin"):
             )
         )
         return user.id, raw_password
+
+
+@pytest.mark.parametrize("change", ["logout", "role", "disable"])
+async def test_catalog_bridge_uses_current_identity_state_and_session_csrf(api, change):
+    from nivaro_catalog.api.authorization import AuthorizationError, IdentityAuthorization
+    from nivaro_catalog.settings import Settings as CatalogSettings
+
+    client, app, db = api
+    user_id, password = await admin_account(db)
+    response = await client.post(
+        "/api/v1/admin/auth/login", json={"email": "owner@example.com", "password": password}
+    )
+    assert response.status_code == 200
+    csrf = response.json()["csrf_token"]
+    access = client.cookies.get("nivaro_admin_access")
+    settings = CatalogSettings(
+        identity_service_key_file=app.state.settings.catalog_service_key_file
+    )
+    # Real identity ASGI/SQL/Redis, through the actual catalog authorization client.
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://identity.test"
+    ) as internal:
+        bridge = IdentityAuthorization(settings, internal)
+        checked = await bridge.check(access, mutating=True, origin=ORIGIN, csrf=csrf)
+        assert checked.user_id == user_id
+        with pytest.raises(AuthorizationError) as error:
+            await bridge.check(access, mutating=True, origin=ORIGIN, csrf="wrong-csrf")
+        assert error.value.status == 403
+        customer = await login(client)
+        with pytest.raises(AuthorizationError) as error:
+            await bridge.check(
+                client.cookies.get("nivaro_customer_access"), mutating=False, origin="", csrf=""
+            )
+        assert error.value.status == 401
+        if change == "logout":
+            assert (
+                await client.post(
+                    "/api/v1/admin/auth/logout",
+                    json={"all_devices": False},
+                    headers={"X-CSRF-Token": csrf},
+                )
+            ).status_code == 200
+        else:
+            async with db.sessions() as session, session.begin():
+                if change == "role":
+                    await session.execute(
+                        update(Administrator)
+                        .where(Administrator.user_id == user_id)
+                        .values(role="support_agent")
+                    )
+                else:
+                    await session.execute(
+                        update(User).where(User.id == user_id).values(disabled=True)
+                    )
+        with pytest.raises(AuthorizationError) as error:
+            await bridge.check(access, mutating=False, origin="", csrf="")
+        assert error.value.status == 401
+        assert customer["permissions"] == []
+
+
+async def test_internal_catalog_route_rejects_browser_and_unbound_service_tokens(api):
+    from time import time
+    from uuid import uuid4
+
+    import jwt
+
+    from nivaro_identity.api.internal import CatalogCheck
+
+    client, app, db = api
+    _, password = await admin_account(db)
+    await client.post(
+        "/api/v1/admin/auth/login", json={"email": "owner@example.com", "password": password}
+    )
+    access = client.cookies.get("nivaro_admin_access")
+    body = CatalogCheck(access_token=access, mutating=False)
+    path = "/internal/v1/catalog/admin-check"
+    assert (await client.post(path, json=body.model_dump())).status_code == 401
+    assert (
+        await client.post(
+            path, json=body.model_dump(), headers={"Authorization": f"Bearer {access}"}
+        )
+    ).status_code == 401
+    now_value = int(time())
+    claims = {
+        "iss": "nivaro-catalog",
+        "sub": "catalog",
+        "aud": "nivaro-identity-introspection",
+        "iat": now_value,
+        "exp": now_value + 30,
+        "jti": str(uuid4()),
+        "kind": "service",
+        "scope": "catalog.admin_introspect",
+        "body_sha256": body.fingerprint(),
+    }
+    for changed in (
+        {"aud": "nivaro-browser"},
+        {"kind": "admin"},
+        {"exp": now_value + 300},
+        {"exp": now_value - 1},
+        {"body_sha256": "wrong"},
+    ):
+        service = jwt.encode(
+            {**claims, **changed}, app.state.catalog_service_key, algorithm="HS256"
+        )
+        assert (
+            await client.post(
+                path, json=body.model_dump(), headers={"Authorization": f"Bearer {service}"}
+            )
+        ).status_code == 401
+    valid = jwt.encode(claims, app.state.catalog_service_key, algorithm="HS256")
+    altered = {**body.model_dump(), "mutating": True}
+    assert (
+        await client.post(path, json=altered, headers={"Authorization": f"Bearer {valid}"})
+    ).status_code == 401
+    result = await client.post(
+        path, json=body.model_dump(), headers={"Authorization": f"Bearer {valid}"}
+    )
+    assert result.status_code == 200
+    assert set(result.json()) == {"user_id", "session_id", "kind", "permissions"}
+
+
+async def test_internal_catalog_checks_fresh_permission_even_without_catalog_client(api):
+    from time import time
+    from uuid import uuid4
+
+    import jwt
+
+    from nivaro_identity.api.internal import CatalogCheck
+
+    client, app, db = api
+    await admin_account(db, role="support_agent")
+    async with db.sessions() as session:
+        user = await session.scalar(select(User).where(User.phone == PHONE))
+        issued = await app.state.sessions.issue(session, user, "admin")
+        await session.commit()
+    body = CatalogCheck(access_token=issued.access, mutating=False)
+    instant = int(time())
+    service = jwt.encode(
+        {
+            "iss": "nivaro-catalog",
+            "sub": "catalog",
+            "aud": "nivaro-identity-introspection",
+            "iat": instant,
+            "exp": instant + 30,
+            "jti": str(uuid4()),
+            "kind": "service",
+            "scope": "catalog.admin_introspect",
+            "body_sha256": body.fingerprint(),
+        },
+        app.state.catalog_service_key,
+        algorithm="HS256",
+    )
+    result = await client.post(
+        "/internal/v1/catalog/admin-check",
+        json=body.model_dump(),
+        headers={"Authorization": f"Bearer {service}"},
+    )
+    assert result.status_code == 403
 
 
 async def test_health_schema_and_database_isolation(api):

@@ -2,6 +2,16 @@
 
 Catalog owns product facts, physical variants, independent market offers and compatibility evaluations. It has no cart/order database access and no reservation or payment endpoint. The gateway connects this service to the home, collection, details, comparison and temporary builder pages. See [progress](../../docs/progress.md) for exact verified revisions and acceptance evidence.
 
+## P04 protected administration reads
+
+`GET /api/v1/admin/catalog/products` supports bounded pagination, publication status, category UUID and normalized name/exact case-insensitive SKU search. `GET /api/v1/admin/catalog/products/{product_id}` returns the selected product, including drafts/archives, only to an authorized catalog manager. These are read endpoints; editing, publication mutations, image uploads and the staff product pages are not implemented by this slice. Public read rules remain unchanged.
+
+Catalog accepts only `nivaro_admin_access`, verifies RS256 with public JWKS, strict issuer/audience/kind/session identifiers and `catalog.write`, then calls identity for fresh authoritative authorization on every request. Customer tokens never grant staff access. Public keys cache for 60 seconds with a bounded unknown-key refresh; permissions/session status do not cache. Calls use a shared bounded HTTP client, a four-second total budget, bounded response bodies and no redirects/environment proxy. An unavailable or invalid authority response denies access; public catalog reads do not depend on identity availability.
+
+`CATALOG_IDENTITY_URL` defaults to `http://identity:8000`. Compose mounts the dedicated caller secret through `CATALOG_IDENTITY_SERVICE_KEY_FILE`; no identity database credential or private browser-signing key is shared. Mutating endpoints must use the same dependency, which checks allowed origins and forwards session CSRF for authoritative validation. No mutation endpoint exists yet. See [identity boundary](../identity/README.md#catalog-authorization-boundary--p04).
+
+The catalog lock was regenerated from the existing regional cache for PyJWT/cryptography/HTTPX runtime dependencies; all prior package versions were verified unchanged. The normal Dockerfile exports frozen versions/hashes and installs from explicit `PYTHON_INDEX_URL` (official PyPI by default), matching identity's portable build approach. The offline Dockerfile keeps using the lock's mirror cache. No new base image or download was required locally.
+
 ## Verification boundary
 
 The selected baseline is Python 3.13.18, uv 0.13.5 and the committed `uv.lock`, tested against PostgreSQL 18.6. Linux checks cover Ruff, formatting, strict mypy, 67 tests, Alembic and canonical OpenAPI drift. The release image runs as a non-root user; the one-shot init service applies migrations and the repeatable seed before API readiness. Earlier provisional Windows checks are historical evidence in the progress log, not the release baseline.

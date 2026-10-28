@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     db_password_file: Path = Path("/run/secrets/catalog_db_password")
     db_pool_size: int = Field(default=5, ge=1, le=20)
     log_level: str = "INFO"
+    identity_url: str = "http://identity:8000"
+    identity_service_key_file: Path | None = None
+    allowed_origins: list[str] = ["http://127.0.0.1:8080", "http://localhost:8080"]
+    jwt_issuer: str = "nivaro-identity"
+    jwt_audience: str = "nivaro-browser"
 
     def database_url(self) -> URL:
         password = (

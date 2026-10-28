@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from nivaro_identity.api.internal import CatalogCheck, CatalogPrincipal, authenticate_catalog
 from nivaro_identity.api.limits import BoundedBody
 from nivaro_identity.api.schemas import (
     AddressEdit,
@@ -163,6 +164,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pepper = settings.secret(settings.otp_pepper_file)
         app.state.otp = OTP(redis, pepper, settings.otp_ip_limit)
         app.state.sessions = Sessions(Tokens(settings), pepper)
+        app.state.catalog_service_key = (
+            settings.secret(settings.catalog_service_key_file)
+            if settings.catalog_service_key_file
+            else None
+        )
         app.state.dummy_password = await run_in_threadpool(
             passwords.hash, secrets.token_urlsafe(48)
         )
@@ -206,7 +212,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request.state.request_id = (
             candidate if re.fullmatch("[A-Za-z0-9_-]{1,64}", candidate) else str(uuid4())
         )
-        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        if (
+            request.method not in {"GET", "HEAD", "OPTIONS"}
+            and request.url.path != "/internal/v1/catalog/admin-check"
+        ):
             try:
                 origin(request)
             except IdentityError:
@@ -447,6 +456,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await db.delete(address)
         await db.commit()
         return Response(status_code=204)
+
+    @app.post("/internal/v1/catalog/admin-check", include_in_schema=False)
+    async def catalog_admin_check(body: CatalogCheck, request: Request, db: DB) -> CatalogPrincipal:
+        authenticate_catalog(
+            request.headers.get("authorization", ""), body, app.state.catalog_service_key
+        )
+        auth: Authenticated = await app.state.sessions.authenticate(db, body.access_token, "admin")
+        if "catalog.write" not in auth.permissions:
+            raise IdentityError("permission.denied", 403)
+        if body.mutating:
+            if body.origin not in settings.allowed_origins:
+                raise IdentityError("origin.forbidden", 403)
+            app.state.sessions.check_csrf(auth.session, body.csrf_token)
+        return CatalogPrincipal(
+            user_id=auth.user.id, session_id=auth.session.id, permissions=auth.permissions
+        )
 
     app.include_router(router)
     app.add_middleware(BoundedBody, max_bytes=16384)

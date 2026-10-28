@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     jwt_audience: str = "nivaro-browser"
     otp_ip_limit: int = Field(default=30, ge=1, le=100)
     trust_gateway_client_ip: bool = False
+    catalog_service_key_file: Path | None = None
 
     @model_validator(mode="after")
     def deployment_safety(self) -> Self:

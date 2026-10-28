@@ -14,6 +14,11 @@ function operator(code: string, input = '') {
   const result = spawnSync('docker', ['compose', '-p', project, '-f', 'compose.yaml', '-f', 'compose.identity-qa.yaml', 'exec', '-T', 'identity', 'python', '-c', code], { cwd: path.resolve('../..'), input, encoding: 'utf8', timeout: 20_000 });
   if (result.status !== 0) throw new Error('Disposable identity operator check failed');
 }
+function identityService(action: 'stop' | 'start') {
+  if (!/^nivaro-p03-qa-[a-z0-9]+$/.test(project)) throw new Error('Disposable test project required');
+  const result = spawnSync('docker', ['compose', '-p', project, '-f', 'compose.yaml', '-f', 'compose.identity-qa.yaml', action, 'identity'], { cwd: path.resolve('../..'), encoding: 'utf8', timeout: 30_000 });
+  if (result.status !== 0) throw new Error(`Disposable identity ${action} failed`);
+}
 test.beforeAll(async ({ browser }) => {
   operator(`import asyncio,builtins,getpass,json,sys
 from nivaro_identity.settings import Settings
@@ -109,7 +114,10 @@ test('customer code, profile, address, expiry recovery across two tabs and logou
   await expect(second.getByLabel('Full name')).toHaveCount(0);
 });
 test('admin credentials are separate; customer login never grants staff access', async ({ page, context }) => {
+  test.setTimeout(90_000);
   await context.addCookies(seedCookies);
+  expect((await context.request.get(`${base}/api/v1/admin/catalog/products`)).status()).toBe(401);
+  expect((await context.request.post(`${base}/internal/v1/catalog/admin-check`, { data: {} })).status()).toBe(404);
   await page.goto('/en/admin/login');
   await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
   await page.getByLabel('Email', { exact: true }).fill('staff@example.com');
@@ -125,6 +133,20 @@ test('admin credentials are separate; customer login never grants staff access',
   await expect(page.getByText('Refunds', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText('User management', { exact: true })).toBeVisible();
+  const catalog = await context.request.get(`${base}/api/v1/admin/catalog/products`);
+  expect(catalog.status()).toBe(200);
+  const products = await catalog.json();
+  expect(products.total).toBe(12);
+  expect((await context.request.get(`${base}/api/v1/admin/catalog/products/${products.items[0].id}`)).status()).toBe(200);
+  // Real outage in the disposable stack: a cached public key must not grant access.
+  try {
+    identityService('stop');
+    expect((await context.request.get(`${base}/api/v1/admin/catalog/products`)).status()).toBe(503);
+    expect((await context.request.get(`${base}/api/v1/catalog/products`)).status()).toBe(200);
+  } finally {
+    identityService('start');
+    await expect.poll(async () => (await context.request.get(`${base}/api/v1/admin/catalog/products`)).status(), { timeout: 30_000 }).toBe(200);
+  }
   // Role changes are checked by the server on the next request, not trusted from old JWTs.
   operator(`import asyncio
 from sqlalchemy import update
@@ -138,9 +160,11 @@ async def change():
   await s.execute(update(Administrator).values(role='support_agent'))
  await db.engine.dispose()
 asyncio.run(change())`);
+  expect((await context.request.get(`${base}/api/v1/admin/catalog/products`)).status()).toBe(401);
   await page.reload();
   await expect(page.getByText('Support replies', { exact: true })).toBeVisible();
   await expect(page.getByText('Refunds', { exact: true })).toHaveCount(0);
+  expect((await context.request.get(`${base}/api/v1/admin/catalog/products`)).status()).toBe(403);
   await page.getByRole('button', { name: 'Sign out of staff session' }).click();
   await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
   await page.goto('/en/account');
