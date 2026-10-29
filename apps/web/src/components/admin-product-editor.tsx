@@ -8,6 +8,8 @@ import { adminCategories, createAdminProduct, getAdminProduct, productAudit, sav
 import { text, type Locale } from '@/lib/content';
 import { CatalogNotice, Readiness, StatusBadge } from './admin-shared';
 import { ConfirmAction } from './identity-shared';
+import { AdminVariantEditor } from './admin-variant-editor';
+import { AdminOfferEditor } from './admin-offer-editor';
 
 const empty: ProductContent = { slug: '', name: '', description: { fa: '', en: '' }, category_id: '', brand: '', highlights: [] };
 function SnapshotFields({ value, locale }: { value: Record<string, unknown>; locale: Locale }) {
@@ -37,6 +39,8 @@ export function AdminProductEditor({ id, locale }: { id: string; locale: Locale 
   const [saved, setSaved] = useState(false);
   const [stockDirty, setStockDirty] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState('');
+  const [selectedMarket, setSelectedMarket] = useState<'ir' | 'international'>('ir');
+  const [editorEpoch, setEditorEpoch] = useState(0);
   const [comparison, setComparison] = useState<AdminDetail | null>(null);
   const [tab, setTab] = useState('content');
   const [attempt, setAttempt] = useState(0);
@@ -61,7 +65,9 @@ export function AdminProductEditor({ id, locale }: { id: string; locale: Locale 
     document.addEventListener('click', navigation, true);
     return () => { window.removeEventListener('beforeunload', before); document.removeEventListener('click', navigation, true); };
   }, [dirty, stockDirty, locale]);
-  function adopt(row: AdminDetail) { const next = content(row); setProduct(row); setDraft(next); setBaseline(next); setComparison(null); }
+  function adopt(row: AdminDetail) { const next = content(row); setProduct(row); setDraft(next); setBaseline(next); setComparison(null); setEditorEpoch(value => value + 1); }
+  function sectionChanged(value: boolean) { setStockDirty(value); setSaved(false); }
+  function sectionSaved(row: AdminDetail, selectedId?: string, saved = true) { adopt(row); setStockDirty(false); setSaved(saved); setError(null); if (selectedId) setSelectedVariant(selectedId); }
   function update(next: Partial<ProductContent>) { setDraft(value => ({ ...value, ...next })); setSaved(false); }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(null); setSaved(false);
@@ -91,11 +97,11 @@ export function AdminProductEditor({ id, locale }: { id: string; locale: Locale 
     {loading ? <p role="status">{text(locale, 'در حال دریافت اطلاعات…', 'Loading product…')}</p> : <>
       <CatalogNotice error={error} locale={locale}/>
       {!!error && !product && id !== 'new' && <button className="button secondary" onClick={() => { setLoading(true); setAttempt(n => n + 1); }}>{text(locale, 'تلاش دوباره', 'Try again')}</button>}
-      {!!error && product && <button className="button secondary" disabled={busy} onClick={() => void loadLatest()}>{text(locale, 'بارگیری نسخهٔ تازه برای مقایسه', 'Load latest version to compare')}</button>}
+      {!!error && product && <button className="button secondary" disabled={busy || stockDirty} onClick={() => void loadLatest()}>{text(locale, 'بارگیری نسخهٔ تازه برای مقایسه', 'Load latest version to compare')}</button>}
       {saved && <p role="status" className="admin-notice success"><CheckCircle2 size={20}/>{text(locale, 'تغییرات ذخیره شد.', 'Changes saved.')}</p>}
       {comparison && <section className="admin-panel admin-conflict"><h2>{text(locale, 'مقایسه با نسخهٔ فعلی', 'Compare with current version')}</h2><p>{text(locale, 'فرم شما هنوز تغییر نکرده است. نسخهٔ فعلی را بررسی کنید؛ پذیرش آن، فرم ذخیره‌نشده را جایگزین می‌کند.', 'Your draft has not changed. Review the current version; accepting it replaces your unsaved form.')}</p><div className="admin-conflict-columns"><div><h3>{text(locale, 'نوشتهٔ شما', 'Your draft')}</h3><SnapshotFields value={draft} locale={locale}/></div><div><h3>{text(locale, 'نسخهٔ فعلی', 'Current version')}</h3><SnapshotFields value={content(comparison)} locale={locale}/></div></div><button className="button secondary" onClick={() => { adopt(comparison); setError(null); }}>{text(locale, 'جایگزینی فرم با نسخهٔ فعلی', 'Replace form with current version')}</button></section>}
       {(product || id === 'new') && <>
-        <div className="admin-tabs" role="tablist" onKeyDown={event => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement); const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowRight" ? (locale === "fa" ? -1 : 1) : (locale === "fa" ? 1 : -1)) + buttons.length) % buttons.length; event.preventDefault(); buttons[next]?.focus(); buttons[next]?.click(); }} aria-label={text(locale, 'بخش‌های محصول', 'Product sections')}>{[['content', text(locale, 'اطلاعات پایه', 'Basic information')], ['stock', text(locale, 'گونه‌ها و موجودی', 'Variants & stock')], ['history', text(locale, 'سابقهٔ تغییرات', 'Change history')]].map(([key, label]) => <button key={key} id={`tab-${key}`} role="tab" tabIndex={tab === key ? 0 : -1} aria-selected={tab === key} aria-controls={`panel-${key}`} disabled={busy || ((dirty || stockDirty) && key !== tab) || (key !== 'content' && !product)} onClick={() => setTab(key)}>{label}</button>)}</div>
+        <div className="admin-tabs" role="tablist" onKeyDown={event => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return; const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")]; const index = buttons.indexOf(document.activeElement as HTMLButtonElement); const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowRight" ? (locale === "fa" ? -1 : 1) : (locale === "fa" ? 1 : -1)) + buttons.length) % buttons.length; event.preventDefault(); buttons[next]?.focus(); buttons[next]?.click(); }} aria-label={text(locale, 'بخش‌های محصول', 'Product sections')}>{[['content', text(locale, 'اطلاعات پایه', 'Basic information')], ['variants', text(locale, 'مدل و مشخصات', 'Models & specifications')], ['stock', text(locale, 'گونه‌ها و موجودی', 'Variants & stock')], ['prices', text(locale, 'قیمت بازارها', 'Market prices')], ['history', text(locale, 'سابقهٔ تغییرات', 'Change history')]].map(([key, label]) => <button key={key} id={`tab-${key}`} role="tab" tabIndex={tab === key ? 0 : -1} aria-selected={tab === key} aria-controls={`panel-${key}`} disabled={busy || ((dirty || stockDirty) && key !== tab) || (key !== 'content' && !product)} onClick={() => { setTab(key); if (key !== 'variants' && selectedVariant === 'new') setSelectedVariant(''); setError(null); setComparison(null); setSaved(false); }}>{label}</button>)}</div>
         {tab === 'content' && <div id="panel-content" role="tabpanel" aria-labelledby="tab-content" className="admin-editor-layout">
           <form className="admin-panel admin-form" onSubmit={submit}><fieldset disabled={busy}>
             <div className="admin-panel-heading"><h2>{text(locale, 'اطلاعات محصول', 'Product information')}</h2>{dirty && <span>{text(locale, 'ذخیره‌نشده', 'Unsaved changes')}</span>}</div>
@@ -115,7 +121,19 @@ export function AdminProductEditor({ id, locale }: { id: string; locale: Locale 
           {dirty && <p className="admin-hint">{text(locale, 'پیش از تغییر وضعیت، ویرایش‌ها را ذخیره کنید.', 'Save content changes before changing status.')}</p>}</section>
           <section className="admin-panel admin-image-note"><Box size={30}/><h2>{text(locale, 'تصویر محصول', 'Product image')}</h2><p>{text(locale, 'بارگذاری و پردازش تصاویر هنوز فعال نیست. تصویر موجود حفظ می‌شود و برای محصول جدید نمی‌توان آمادگی تصویر را دستی تأیید کرد.', 'Image uploads and processing are not connected yet. Existing images are preserved; a new product cannot be manually marked image-ready.')}</p></section></aside>
         </div>}
-        {tab === 'stock' && product && <section id="panel-stock" role="tabpanel" aria-labelledby="tab-stock" className="admin-panel"><h2>{text(locale, 'گونه‌ها و موجودی', 'Variants & stock')}</h2><p className="admin-hint">{text(locale, 'موجودی هر گونه بین دو بازار مشترک است. ویرایش مشخصات و قیمت در این صفحه هنوز فعال نیست.', 'Each variant shares physical stock across both markets. Specification and price editing are not connected to this page yet.')}</p><label className="admin-variant-picker">{text(locale, 'انتخاب گونه', 'Choose variant')}<select disabled={stockDirty} value={selectedVariant || product.variants[0]?.id || ''} onChange={e => setSelectedVariant(e.target.value)}>{product.variants.map(variant => <option key={variant.id} value={variant.id}>{variant.sku}</option>)}</select></label>{product.variants.length ? product.variants.filter(variant => variant.id === (selectedVariant || product.variants[0].id)).map(variant => <StockEditor key={`${variant.id}-${product.version}`} product={product} variant={variant} locale={locale} onDirty={setStockDirty} onSaved={row => { adopt(row); setStockDirty(false); setSaved(true); }}/>) : <p className="admin-notice"><AlertCircle size={20}/>{text(locale, 'این محصول هنوز گونه ندارد. افزودن گونه از رابط مدیریت در ادامه تکمیل می‌شود.', 'This product has no variants yet. Adding variants from this workspace is still pending.')}</p>}</section>}
+        {product && ['variants', 'stock', 'prices'].includes(tab) && <section id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="admin-panel">
+          <h2>{tab === 'variants' ? text(locale, 'مدل و مشخصات فنی', 'Models & technical specifications') : tab === 'prices' ? text(locale, 'قیمت مستقل بازارها', 'Independent market prices') : text(locale, 'گونه‌ها و موجودی', 'Variants & stock')}</h2>
+          <p className="admin-hint">{text(locale, 'هر گونه یک شناسهٔ کالا دارد. مشخصات و موجودی آن مشترک است؛ قیمت هر بازار مستقل ثبت می‌شود.', 'Each variant has its own SKU. Its specifications and stock are shared; market prices are recorded separately.')}</p>
+          <label className="admin-variant-picker">{text(locale, 'انتخاب گونه', 'Choose variant')}<select disabled={stockDirty || busy} value={selectedVariant || product.variants[0]?.id || 'new'} onChange={e => { setSelectedVariant(e.target.value); setSaved(false); }}>
+            {product.variants.map(variant => <option key={variant.id} value={variant.id}>{variant.sku}</option>)}
+            {tab === 'variants' && <option value="new">{text(locale, 'افزودن گونهٔ جدید', 'Add a new variant')}</option>}
+          </select></label>
+          {tab === 'variants' && <AdminVariantEditor key={`variant-${selectedVariant}-${editorEpoch}`} product={product} variant={product.variants.find(item => item.id === (selectedVariant || product.variants[0]?.id))} locale={locale} onDirty={sectionChanged} onSaved={sectionSaved}/>}
+          {tab !== 'variants' && (product.variants.find(item => item.id === (selectedVariant || product.variants[0]?.id)) ? product.variants.filter(item => item.id === (selectedVariant || product.variants[0]?.id)).map(variant => tab === 'stock'
+            ? <StockEditor key={`stock-${variant.id}-${editorEpoch}`} product={product} variant={variant} locale={locale} onDirty={sectionChanged} onSaved={row => sectionSaved(row)}/>
+            : <AdminOfferEditor key={`offer-${variant.id}-${editorEpoch}`} product={product} variant={variant} market={selectedMarket} onMarketChange={setSelectedMarket} locale={locale} onDirty={sectionChanged} onSaved={sectionSaved}/>)
+            : <p className="admin-notice"><AlertCircle size={20}/>{text(locale, 'ابتدا از بخش مدل و مشخصات یک گونه ذخیره یا انتخاب کنید.', 'First save or select a variant in Models & specifications.')}</p>)}
+        </section>}
         {tab === 'history' && product && <section id="panel-history" role="tabpanel" aria-labelledby="tab-history"><AuditHistory productId={product.id} locale={locale}/></section>}
       </>}
     </>}

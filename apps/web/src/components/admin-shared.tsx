@@ -14,6 +14,10 @@ export function CatalogNotice({ error, locale }: { error: unknown; locale: Local
   const descriptions: Record<string, [string, string]> = {
     'catalog.version_conflict': ['این محصول تغییر کرده است. نوشته‌های شما حفظ شده‌اند؛ نسخهٔ تازه را بارگیری و تغییرات را مقایسه کنید.', 'This product changed. Your draft is preserved; load the latest version and compare before saving.'],
     'catalog.stock_version_conflict': ['موجودی تغییر کرده است. پیش از ثبت، نسخهٔ تازه را بارگیری کنید.', 'Stock changed. Load the latest version before adjusting it.'],
+    'catalog.price_version_conflict': ['قیمت تغییر کرده است. نوشته‌های شما حفظ شده‌اند؛ پیش از ثبت، قیمت فعلی را بارگیری کنید.', 'Price changed. Your draft is preserved; load the current price before saving.'],
+    'catalog.offer_not_ready': ['عرضه به محصول منتشرشده، تصویر آماده و موجودی بررسی‌شده نیاز دارد.', 'Sale eligibility needs a published product, ready image and verified stock.'],
+    'catalog.variant_kind_immutable': ['برای تغییر نوع قطعه، گونهٔ جدید بسازید.', 'Create a new variant for a different hardware type.'],
+    'catalog.variant_limit': ['هر محصول حداکثر ۱۰۰ گونه دارد.', 'A product supports at most 100 variants.'],
     'catalog.stock_reserved': ['موجودی کل نمی‌تواند از تعداد رزروشده کمتر باشد.', 'Physical stock cannot be lower than reserved units.'],
     'catalog.constraint_conflict': ['این نامک یا شناسهٔ کالا قبلاً ثبت شده یا با اطلاعات موجود ناسازگار است.', 'This slug or SKU already exists, or the change conflicts with stored data.'],
     'catalog.not_publishable': ['برای انتشار، اطلاعات کامل، یک گونهٔ معتبر و تصویر آماده لازم است.', 'Publication needs complete content, a valid variant and a ready image.'],

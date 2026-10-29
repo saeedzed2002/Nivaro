@@ -11,6 +11,10 @@ export type AdminCategory = components['schemas']['Category'];
 export type ProductContent = components['schemas']['ProductContent'];
 export type StockChange = components['schemas']['StockChange'];
 export type AuditPage = components['schemas']['AuditPage'];
+export type VariantContent = components['schemas']['VariantContent'];
+export type OfferChange = components['schemas']['OfferChange'];
+export type AdminVariant = AdminDetail['variants'][number];
+export type Evidence = components['schemas']['Evidence'];
 export type Filters = NonNullable<operations['listAdminProducts']['parameters']['query']>;
 const client = createClient<paths>({ baseUrl: '', credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
@@ -32,3 +36,7 @@ export const saveAdminProduct = (id: string, body: ProductContent & { expected_v
 export const setProductStatus = (product: AdminDetail, status: AdminProduct['status']) => authorized(async csrf => unwrap(await client.PUT('/api/v1/admin/catalog/products/{product_id}/status', { params: { path: { product_id: product.id } }, body: { expected_version: product.version, status }, headers: { 'X-CSRF-Token': csrf } })), 'admin');
 export const saveAdminStock = (productId: string, variantId: string, body: StockChange) => authorized(async csrf => unwrap(await client.PUT('/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}/stock', { params: { path: { product_id: productId, variant_id: variantId } }, body, headers: { 'X-CSRF-Token': csrf } })), 'admin');
 export const productAudit = (id: string, page = 1) => authorized(async () => unwrap(await client.GET('/api/v1/admin/catalog/products/{product_id}/audit', { params: { path: { product_id: id }, query: { page, page_size: 10 } } })), 'admin');
+export const saveAdminVariant = (productId: string, variantId: string | undefined, body: VariantContent) => authorized(async csrf => unwrap(variantId
+  ? await client.PUT('/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}', { params: { path: { product_id: productId, variant_id: variantId } }, body, headers: { 'X-CSRF-Token': csrf } })
+  : await client.POST('/api/v1/admin/catalog/products/{product_id}/variants', { params: { path: { product_id: productId } }, body, headers: { 'X-CSRF-Token': csrf } })), 'admin');
+export const saveAdminOffer = (productId: string, variantId: string, body: OfferChange) => authorized(async csrf => unwrap(await client.PUT('/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}/offers', { params: { path: { product_id: productId, variant_id: variantId } }, body, headers: { 'X-CSRF-Token': csrf } })), 'admin');

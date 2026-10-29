@@ -2,6 +2,7 @@ import { test, expect, type BrowserContext } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import type { AdminDetail } from '../src/lib/admin-catalog-client';
 
 const project = process.env.NIVARO_IDENTITY_QA_PROJECT || '';
 test.describe.configure({ mode: 'serial' });
@@ -217,6 +218,122 @@ test('staff product workspace: responsive references, persistence, conflicts and
   await page.getByRole('button', { name: 'Publish product', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(page.locator('.admin-heading .admin-badge')).toHaveText('Published');
+});
+
+test('staff edits typed variants and independent prices without losing failed drafts', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  page.setDefaultTimeout(15_000);
+  expect((await context.request.post(`${base}/api/v1/admin/auth/login`, { headers: { Origin: base }, data: { email: 'staff@example.com', password: adminPassword } })).status()).toBe(200);
+  const listing = await (await context.request.get(`${base}/api/v1/admin/catalog/products?q=UI%20draft%20fixture`)).json();
+  const productId = listing.items[0].id;
+  const productUrl = `${base}/api/v1/admin/catalog/products/${productId}`;
+  const current = async (): Promise<AdminDetail> => (await context.request.get(productUrl)).json();
+  await page.goto(`/en/admin/products/${productId}`);
+  await page.getByRole('tab', { name: 'Models & specifications' }).click();
+  const variantForm = page.locator('.admin-variant-form');
+  for (const kind of ['motherboard', 'memory', 'storage', 'case', 'psu', 'cooler', 'gpu', 'peripheral', 'prebuilt', 'cpu']) {
+    await variantForm.getByRole('combobox', { name: 'Hardware type', exact: true }).selectOption(kind);
+    await expect(variantForm.locator('.admin-spec-grid')).toBeVisible();
+  }
+  await variantForm.getByLabel('SKU', { exact: true }).fill('QA-CPU');
+  await variantForm.getByLabel('Persian packaging').fill('بستهٔ آزمایشی');
+  await variantForm.getByLabel('English packaging').fill('Synthetic browser fixture');
+  await variantForm.getByLabel('Exact CPU model').fill('QA CPU');
+  await variantForm.getByRole('combobox', { name: 'Integrated graphics', exact: true }).selectOption('false');
+  await variantForm.getByRole('button', { name: 'Add source', exact: true }).click();
+  await variantForm.getByLabel('Source URL').fill('https://example.com/synthetic-specification');
+  await variantForm.getByLabel('Checked on (Gregorian)', { exact: true }).fill('2026-10-29');
+  await variantForm.getByLabel('Source note').fill('Synthetic fixture; not real product data');
+  await variantForm.getByRole('button', { name: 'Save variant' }).click();
+  await expect(page.getByRole('status')).toContainText('Changes saved');
+  await expect(variantForm.getByRole('combobox', { name: 'Hardware type', exact: true })).toBeDisabled();
+  let product = await current();
+  const cpu = product.variants.find(row => row.sku === 'QA-CPU')!;
+  expect(cpu.specifications).toMatchObject({ kind: 'cpu', model: 'QA CPU', integrated_graphics: false, included_cooler: null, cores: null });
+  expect(cpu.evidence?.[0].note).toContain('Synthetic');
+  expect(cpu.on_hand).toBe(0);
+  expect(cpu.stock_verified).toBe(false);
+  await page.getByRole('combobox', { name: 'Choose variant', exact: true }).selectOption('new');
+  await variantForm.getByRole('combobox', { name: 'Hardware type', exact: true }).selectOption('psu');
+  await variantForm.getByLabel('SKU', { exact: true }).fill('QA-PSU');
+  await variantForm.getByLabel('Persian packaging').fill('آزمایشی');
+  await variantForm.getByLabel('English packaging').fill('Synthetic');
+  await variantForm.getByLabel('Rated power (W)', { exact: true }).fill('450');
+  await variantForm.getByRole('button', { name: 'Add row', exact: true }).click();
+  await variantForm.getByLabel('Connector or form name', { exact: true }).fill('ATX24');
+  await variantForm.getByLabel('Count', { exact: true }).fill('1');
+  await variantForm.getByRole('button', { name: 'Save variant' }).click();
+  await expect(page.getByRole('status')).toContainText('Changes saved');
+  product = await current();
+  expect(product.variants.find(row => row.sku === 'QA-PSU')?.specifications).toMatchObject({ kind: 'psu', wattage_w: 450, connectors: { ATX24: 1 }, length_mm: null });
+  await page.getByRole('combobox', { name: 'Choose variant', exact: true }).selectOption(cpu.id);
+  await variantForm.getByLabel('Exact CPU model').fill('Preserve failed model');
+  await expect(page.getByRole('tab', { name: 'Market prices' })).toBeDisabled();
+  await page.route(`**/api/v1/admin/catalog/products/${productId}/variants/${cpu.id}`, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'catalog.unavailable' } }) }));
+  await variantForm.getByRole('button', { name: 'Save variant' }).click();
+  await expect(variantForm.getByRole('alert')).toContainText('Your draft is preserved');
+  await expect(variantForm.getByLabel('Exact CPU model')).toHaveValue('Preserve failed model');
+  await page.unroute(`**/api/v1/admin/catalog/products/${productId}/variants/${cpu.id}`);
+  await variantForm.getByRole('button', { name: 'Discard variant changes' }).click();
+  await variantForm.getByLabel('Exact CPU model').fill('QA CPU revised');
+  await variantForm.getByRole('button', { name: 'Save variant' }).click();
+  await expect(page.getByRole('status')).toContainText('Changes saved');
+  expect((await current()).variants.find(row => row.id === cpu.id)?.specifications).toMatchObject({ model: 'QA CPU revised', integrated_graphics: false, cores: null });
+  await page.getByRole('tab', { name: 'Market prices' }).click();
+  const offerForm = page.locator('.admin-offer-form');
+  await expect(offerForm.getByRole('checkbox', { name: 'Offer for sale in this market' })).toBeDisabled();
+  async function fillOffer(amount: string, label: string) {
+    await offerForm.getByLabel(label, { exact: true }).fill(amount);
+    await offerForm.getByLabel('Seller', { exact: true }).fill('Synthetic QA merchant');
+    await offerForm.getByLabel('Source URL').fill('https://example.com/synthetic-price');
+    await offerForm.getByLabel('Checked on (Gregorian)', { exact: true }).fill('2026-10-29');
+    await offerForm.getByLabel('Source note').fill('Synthetic price; never a merchant quote');
+    await offerForm.getByLabel('Price change reason').fill('Disposable browser price verification');
+    await offerForm.getByRole('button', { name: 'Review price change' }).click();
+  }
+  await fillOffer('۱۲۳۴۵۶', 'Amount (whole tomans)');
+  await expect(page.getByRole('dialog')).toContainText('123456 tomans');
+  await page.getByRole('button', { name: 'Confirm price save' }).click();
+  await expect(offerForm.getByLabel('Price change reason')).toHaveValue('');
+  await offerForm.getByRole('combobox', { name: 'Price market' }).selectOption('international');
+  await fillOffer('129.99', 'Amount (USD)');
+  await page.getByRole('button', { name: 'Confirm price save' }).click();
+  await expect(offerForm.getByLabel('Price change reason')).toHaveValue('');
+  await expect(offerForm.getByRole('combobox', { name: 'Price market' })).toHaveValue('international');
+  product = await current();
+  const prices = product.variants.find(row => row.id === cpu.id)!.offers!;
+  expect(prices.find(row => row.market === 'ir')).toMatchObject({ amount_minor: 1234560, currency: 'IRR', reference_only: true, available_for_sale: false });
+  const usd = prices.find(row => row.market === 'international')!;
+  expect(usd).toMatchObject({ amount_minor: 12999, currency: 'USD' });
+  await offerForm.getByLabel('Amount (USD)', { exact: true }).fill('131.25');
+  await offerForm.getByLabel('Price change reason').fill('Stale price draft');
+  await expect(offerForm.getByRole('combobox', { name: 'Price market' })).toBeDisabled();
+  const csrf = (await (await context.request.get(`${base}/api/v1/admin/auth/csrf`, { headers: { 'X-CSRF-Request': '1', Origin: base } })).json()).csrf_token;
+  const { price_version, ...priceContent } = usd;
+  expect((await context.request.put(`${productUrl}/variants/${cpu.id}/offers`, { headers: { Origin: base, 'X-CSRF-Token': csrf }, data: { ...priceContent, expected_version: product.version, expected_price_version: price_version, amount_minor: 13099, reason: 'Concurrent disposable edit' } })).status()).toBe(200);
+  await offerForm.getByRole('button', { name: 'Review price change' }).click();
+  await page.getByRole('button', { name: 'Confirm price save' }).click();
+  await expect(offerForm.getByRole('alert')).toContainText('Your draft is preserved');
+  await expect(offerForm.getByLabel('Amount (USD)', { exact: true })).toHaveValue('131.25');
+  page.once('dialog', dialog => dialog.accept());
+  await offerForm.getByRole('button', { name: 'Reload current price' }).click();
+  await expect(offerForm.getByLabel('Amount (USD)', { exact: true })).toHaveValue('130.99');
+  expect((await current()).variants.find(row => row.id === cpu.id)?.offers?.find(row => row.market === 'ir')?.amount_minor).toBe(1234560);
+  const pageErrors: string[] = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  for (const locale of ['fa', 'en']) for (const theme of ['light', 'dark']) for (const width of [360, 768, 1440]) {
+    await context.addCookies([{ name: 'nivaro-theme', value: theme, url: base }]);
+    await page.setViewportSize({ width, height: 1100 });
+    await page.goto(`/${locale}/admin/products/${productId}`);
+    for (const section of ['variants', 'prices']) {
+      await page.locator(`#tab-${section}`).click();
+      await expect(page.locator(section === 'variants' ? '.admin-variant-form' : '.admin-offer-form')).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: test.info().outputPath(`${locale}-${theme}-${width}-${section}.png`), fullPage: true, animations: 'disabled' });
+    }
+  }
+  expect(pageErrors).toEqual([]);
 });
 
 test('admin credentials are separate; customer login never grants staff access', async ({ page, context }) => {

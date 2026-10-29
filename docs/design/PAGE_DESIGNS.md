@@ -46,6 +46,7 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Administrator dashboard | P10 | Pending |
 | Administrator products | P04 | [Products](pages/admin-products.png), generated/inspected 2026-10-28; list/search/filter/pagination implementation added 2026-10-29, verification below |
+| Administrator categories | P04 | [Categories](pages/admin-categories.png), generated/inspected 2026-10-29 before implementation; two-level hierarchy, bilingual form, parent constraints and responsive list |
 | Product editor / images | P04 | [Editor](pages/admin-product-editor.png), generated/inspected 2026-10-28; basic content/status/stock/history implementation added 2026-10-29; gallery, variant and price forms remain pending |
 | Review moderation | P08 | Pending |
 | Administrator orders | P07 | Pending |
@@ -100,3 +101,11 @@ Implemented list/search/category/status/pagination and create/edit content, publ
 Initial visual inspection covered Persian dark desktop list and English light mobile editor. The interface preserves content after a conflict and displays current/local fields side by side, requiring explicit replacement rather than silently rebasing. Corrected the slug's accessible name to exclude helper text. Full-page test captures scroll through lazy thumbnails before checking loaded images. Final browser evidence/results belong in the progress log; a reference or screenshot alone is not accessibility or functional acceptance.
 
 Final local run: 16 identity/staff browser tests passed, including 24 new staff list/editor captures across both languages/themes and 360/768/1440 widths. Also inspected Persian dark desktop editor and Persian light mobile list; aligned paired input fields without stretching. Confirmed actual create/edit/conflict/stock/history/status journeys against a disposable database, plus existing permission and service-outage behavior. Evidence: `nivaro-p04-staff-ui/` in the existing visualization root; see the progress log for exact scope and remaining P04 work.
+
+### P04 editor continuation — 2026-10-29
+
+Reinspected `pages/admin-product-editor.png` before extending its existing models/specifications and market-price sections. Retain its tabbed panel, restrained blue borders, responsive field columns and explicit readiness. Technical facts use labeled fields with unknown states and source rows; no raw JSON editor. Each market has a separately selected price form, showing whole tomans for Iran and dollars/cents internationally regardless of UI language. Never derive one market's price from the other. Existing editor reference covers this page extension; no new page or visual rebrand is introduced. New category pages still require their own generated reference.
+
+### P04 categories reference — 2026-10-29
+
+Generated with the built-in image tool and visually inspected before page implementation. Workspace asset: `pages/admin-categories.png`; original: `C:/Users/S/.codex/generated_images/01a179d7-c6c8-70b0-8191-257446c60022/exec-080a227f-2606-4f15-b9f7-3e60e4398c6a.png`. Prompt and corrections are recorded in `P04_ADMIN_IMAGE_PROMPTS.md`. Retain the two-level tree/list, adjacent bilingual edit form, eligible-parent selector, blue staff navigation and light mobile treatment. Generated names/counts are fixtures, not database evidence. Preserve the existing wordmark rather than the generated logo variation; remove decorative sidebar slogans. Show conflict guidance only on an actual conflict; the generated generic reload banner must not discard drafts implicitly. Do not add deletion, arbitrary image URLs or nonfunctional controls.
