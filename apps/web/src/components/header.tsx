@@ -10,7 +10,7 @@ import { text, type Locale, type Market, type Theme } from '@/lib/content';
 export function Header({ locale }: { locale: Locale }) {
   const { market, theme, setMarket, setTheme } = usePreferences();
   const pathname = usePathname();
-  const minimal = pathname.endsWith('/login');
+  const minimal = pathname.endsWith('/login') || pathname.includes('/admin/');
   const searchParams = useSearchParams();
   const nextLocale = locale === 'fa' ? 'en' : 'fa';
   const languagePath = pathname.replace(/^\/(fa|en)(?=\/|$)/, `/${nextLocale}`);

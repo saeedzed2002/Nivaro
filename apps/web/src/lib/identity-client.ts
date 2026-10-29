@@ -52,7 +52,7 @@ export async function readSession(scope: Scope = 'customer'): Promise<IdentitySe
   try { return await current(scope); }
   catch (e) { if (e instanceof IdentityError && e.status === 401) return renew(scope); throw e; }
 }
-async function authorized<T>(operation: (csrf: string) => Promise<T>, scope: Scope = 'customer'): Promise<T> {
+export async function authorized<T>(operation: (csrf: string) => Promise<T>, scope: Scope = 'customer'): Promise<T> {
   const state = await readSession(scope);
   try { return await operation(state.csrf_token); }
   catch (e) {

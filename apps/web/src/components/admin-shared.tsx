@@ -1,0 +1,81 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { AlertCircle, Box, CheckCircle2, ExternalLink, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { IdentityError, logout, readSession } from '@/lib/identity-client';
+import { type InitialIdentity } from '@/lib/identity-server';
+import { text, type Locale } from '@/lib/content';
+
+export function CatalogNotice({ error, locale }: { error: unknown; locale: Locale }) {
+  if (!error) return null;
+  const e = error instanceof IdentityError ? error : new IdentityError('catalog.unavailable');
+  const descriptions: Record<string, [string, string]> = {
+    'catalog.version_conflict': ['این محصول تغییر کرده است. نوشته‌های شما حفظ شده‌اند؛ نسخهٔ تازه را بارگیری و تغییرات را مقایسه کنید.', 'This product changed. Your draft is preserved; load the latest version and compare before saving.'],
+    'catalog.stock_version_conflict': ['موجودی تغییر کرده است. پیش از ثبت، نسخهٔ تازه را بارگیری کنید.', 'Stock changed. Load the latest version before adjusting it.'],
+    'catalog.stock_reserved': ['موجودی کل نمی‌تواند از تعداد رزروشده کمتر باشد.', 'Physical stock cannot be lower than reserved units.'],
+    'catalog.constraint_conflict': ['این نامک یا شناسهٔ کالا قبلاً ثبت شده یا با اطلاعات موجود ناسازگار است.', 'This slug or SKU already exists, or the change conflicts with stored data.'],
+    'catalog.not_publishable': ['برای انتشار، اطلاعات کامل، یک گونهٔ معتبر و تصویر آماده لازم است.', 'Publication needs complete content, a valid variant and a ready image.'],
+    'catalog.not_found': ['محصول پیدا نشد. به فهرست محصولات برگردید.', 'Product not found. Return to the product list.'],
+    'request.invalid': ['مقادیر فرم را بررسی کنید. تغییرات ذخیره نشده‌اند.', 'Check the form values. Changes were not saved.'],
+    'csrf.invalid': ['اعتبار درخواست تغییر کرده است؛ دوباره تلاش کنید.', 'Request verification changed; please try again.'],
+  };
+  const message = e.status === 401 ? text(locale, 'نشست مدیریت پایان یافته است. نوشته‌های خود را نگه دارید و دوباره وارد شوید.', 'Your staff session ended. Keep your draft and sign in again.')
+    : e.status === 403 ? text(locale, 'اجازهٔ انجام این عملیات وجود ندارد.', 'You do not have permission to perform this action.')
+    : descriptions[e.code] ? text(locale, descriptions[e.code][0], descriptions[e.code][1])
+    : text(locale, 'ارتباط برقرار نشد. نوشته‌های شما حفظ شده‌اند. برای اطمینان از نتیجه، اطلاعات فعلی را دوباره بارگیری کنید.', 'Connection unavailable. Your draft is preserved. Reload the current data to check whether your last change was saved.');
+  return <div className="admin-notice error" role="alert"><AlertCircle size={20}/><div>{message}{e.status === 401 && <Link className="text-link" href={`/${locale}/admin/login`}>{text(locale, 'ورود مدیران', 'Administrator sign-in')}</Link>}</div></div>;
+}
+
+export function StatusBadge({ status, locale }: { status: 'draft' | 'published' | 'archived'; locale: Locale }) {
+  const labels = { draft: ['پیش‌نویس', 'Draft'], published: ['منتشرشده', 'Published'], archived: ['بایگانی', 'Archived'] } as const;
+  return <span className={`admin-badge ${status}`}><span/>{text(locale, labels[status][0], labels[status][1])}</span>;
+}
+
+export function AdminShell({ locale, initial, children }: { locale: Locale; initial: InitialIdentity; children: ReactNode }) {
+  const router = useRouter();
+  const [identity, setIdentity] = useState(initial.session);
+  const [checking, setChecking] = useState(!initial.session && !initial.unavailable);
+  const [error, setError] = useState<unknown>(initial.unavailable ? new IdentityError('identity.unavailable') : null);
+  const [attempt, setAttempt] = useState(0);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    readSession('admin').then(value => { if (alive) { setIdentity(value); setError(null); } })
+      .catch(e => { if (alive) { setIdentity(null); setError(e); } })
+      .finally(() => { if (alive) setChecking(false); });
+    return () => { alive = false; };
+  }, [attempt]);
+  const allowed = identity?.permissions.includes('catalog.write');
+  async function signOut() {
+    if (document.querySelector('[data-unsaved="true"]') && !window.confirm(text(locale, 'تغییرات ذخیره‌نشده کنار گذاشته شوند؟', 'Leave and discard unsaved changes?'))) return;
+    setBusy(true);
+    try { await logout('admin', false); setIdentity(null); router.replace(`/${locale}/admin/login`); router.refresh(); }
+    catch (e) { setError(e); } finally { setBusy(false); }
+  }
+  return <main id="main-content" className="admin-page container">
+    <div className="admin-layout"><aside className="admin-sidebar">
+      <div className="admin-sidebar-title"><ShieldCheck size={24}/><div><strong>{text(locale, 'مدیریت کاتالوگ', 'Catalog workspace')}</strong><small>{text(locale, 'نیوارو گیمینگ', 'Nivaro Gaming')}</small></div></div>
+      <nav aria-label={text(locale, 'ناوبری مدیریت', 'Administration navigation')}>
+        {allowed && <Link href={`/${locale}/admin/products`} aria-current="page"><Box size={19}/>{text(locale, 'محصولات', 'Products')}</Link>}
+        <Link href={`/${locale}/admin/login`}><ShieldCheck size={19}/>{text(locale, 'نشست و دسترسی‌ها', 'Session & permissions')}</Link>
+        <Link href={`/${locale}`}><ExternalLink size={19}/>{text(locale, 'مشاهدهٔ فروشگاه', 'View storefront')}</Link>
+        {identity && <button disabled={busy} onClick={() => void signOut()}><LogOut size={19}/>{text(locale, 'خروج از مدیریت', 'Sign out of staff session')}</button>}
+      </nav>
+      <p className="admin-sidebar-note">{text(locale, 'هر تغییر با حساب مدیر ثبت می‌شود.', 'Changes are recorded with the staff account responsible.')}</p>
+    </aside><div className="admin-content">
+      {allowed ? <><CatalogNotice error={error} locale={locale}/>{children}</> : <section className="admin-panel admin-access">
+        <ShieldCheck size={36}/><h1>{text(locale, 'دسترسی مدیریت محصولات', 'Product administration access')}</h1>
+        {checking ? <p role="status">{text(locale, 'در حال بررسی دسترسی…', 'Checking your access…')}</p> : <>
+          {identity && !allowed ? <p>{text(locale, 'این حساب مجوز مدیریت کاتالوگ ندارد.', 'This account does not have catalog management permission.')}</p> : <CatalogNotice error={error} locale={locale}/>}
+          <div className="admin-actions"><Link className="button primary" href={`/${locale}/admin/login`}>{text(locale, 'ورود مدیران', 'Administrator sign-in')}</Link><button className="button secondary" onClick={() => { setChecking(true); setAttempt(v => v + 1); }}><RefreshCw size={16}/>{text(locale, 'بررسی دوباره', 'Check again')}</button></div>
+        </>}
+      </section>}
+    </div></div>
+  </main>;
+}
+
+export function Readiness({ ready, children }: { ready: boolean; children: ReactNode }) {
+  return <li>{ready ? <CheckCircle2 size={19}/> : <AlertCircle size={19}/>}<span>{children}</span></li>;
+}

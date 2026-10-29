@@ -45,8 +45,8 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Customer support | P09 | Pending |
 | Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Administrator dashboard | P10 | Pending |
-| Administrator products | P04 | [Products](pages/admin-products.png), generated/inspected 2026-10-28; page implementation pending |
-| Product editor / images | P04 | [Editor](pages/admin-product-editor.png), generated/inspected 2026-10-28; page implementation pending |
+| Administrator products | P04 | [Products](pages/admin-products.png), generated/inspected 2026-10-28; list/search/filter/pagination implementation added 2026-10-29, verification below |
+| Product editor / images | P04 | [Editor](pages/admin-product-editor.png), generated/inspected 2026-10-28; basic content/status/stock/history implementation added 2026-10-29; gallery, variant and price forms remain pending |
 | Review moderation | P08 | Pending |
 | Administrator orders | P07 | Pending |
 | Administrator order detail | P07 | Pending |
@@ -90,3 +90,13 @@ Five references were implemented before browser verification, preserving the est
 The isolated browser suite passed 15 tests, including 60 page/locale/theme/viewport captures at 360/768/1440 widths, image readiness and no page errors or horizontal overflow. Visual inspection covered dark Persian desktop login/overview, English light mobile profile, Persian light mobile empty addresses and English dark staff login. Corrected implicit field names that included helper text, increased identity body-copy size, and removed inherited excessive field margins. Image readiness is awaited before capture; an earlier overview capture preceded lazy-image completion and is not the final visual evidence.
 
 Evidence directory: `C:/Users/S/.codex/visualizations/2026/10/26/01a179d7-c6c8-70b0-8191-257446c60022/nivaro-p03-visual-final/`. Real local flows cover OTP, profile persistence, address CRUD, two-tab session recovery, customer/staff separation, role-change visibility and logout. An injected unavailable response preserves the profile draft. This is not an actual network-outage test or a full assistive-technology audit. Processed avatar, order history and operational administrator pages remain later gates.
+
+### P04 initial staff UI — 2026-10-29
+
+Reinspected both registered products/editor references before coding. Retained the existing blue/RGB brand and local fonts, restrained staff header/sidebar, outlined edit actions, publication labels, desktop table/mobile cards, tabbed editor and readiness side panel. Reused existing truthful category artwork/symbols rather than generating inaccurate model photographs. Both themes use existing tokens; no redesign or new dependency.
+
+Implemented list/search/category/status/pagination and create/edit content, publication transitions, stock adjustment with explicit confirmation, and audit history. Readiness is server-owned; missing media prevents publishing a new draft. The generated reference's gallery tab is not implemented yet: show a clear unavailable explanation rather than fake upload/progress controls. Category/profile sidebar links are omitted until their own references and working pages exist. Variant metadata and market-price forms remain later work; the backend contracts already exist.
+
+Initial visual inspection covered Persian dark desktop list and English light mobile editor. The interface preserves content after a conflict and displays current/local fields side by side, requiring explicit replacement rather than silently rebasing. Corrected the slug's accessible name to exclude helper text. Full-page test captures scroll through lazy thumbnails before checking loaded images. Final browser evidence/results belong in the progress log; a reference or screenshot alone is not accessibility or functional acceptance.
+
+Final local run: 16 identity/staff browser tests passed, including 24 new staff list/editor captures across both languages/themes and 360/768/1440 widths. Also inspected Persian dark desktop editor and Persian light mobile list; aligned paired input fields without stretching. Confirmed actual create/edit/conflict/stock/history/status journeys against a disposable database, plus existing permission and service-outage behavior. Evidence: `nivaro-p04-staff-ui/` in the existing visualization root; see the progress log for exact scope and remaining P04 work.
