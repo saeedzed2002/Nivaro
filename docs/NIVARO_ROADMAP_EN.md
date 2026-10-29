@@ -1311,6 +1311,7 @@ File-based secret injection is the suggested approach. Use another method when t
 - Initial development line is `main`; use short-lived branches when there is a real review need. Avoid ceremonial branches and pull requests for every small step.
 - No end-of-project mega-commit, force pushes, history rewriting, committed secrets, or changes to unrelated data.
 - Once execution and pushing under this plan are explicitly authorized, push each verified change to the same private repository. Report local verification separately from `CI` results.
+- Owner workflow update, `2026-10-29`: after each locally verified push, immediately continue the current phase's remaining work; do not wait for or routinely poll CI after individual commits. When the entire phase's implementation is finished (for example, `P04`), review its CI runs, fix failures and verify the final implementation revision before declaring the phase verified. This changes CI review timing, not per-change local testing or the requirement for actual CI evidence.
 
 ### Phase `P00` — Reconcile Specification and Prerequisites
 

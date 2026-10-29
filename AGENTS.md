@@ -20,6 +20,7 @@
 - Working display brand: `Nivaro Gaming`. Keep `D:\Project\Nivaro`, the canonical roadmap filenames, and the existing private repository identity unless a deliberate rename is separately selected; naming freedom does not require a rename.
 - The explicit start instruction has been received. Follow the English specification's phase dependencies, Git, Docker, verification, and privacy rules; keep evidence and unfinished phases in `docs/progress.md`.
 - Preserve existing files, repository history, and the private GitHub repository. Do not recreate or publish the repository.
+- CI cadence (owner instruction, 2026-10-29): after each locally verified commit/push, continue the remaining work in the current phase immediately. Do not wait for or routinely poll CI after individual pushes. Review the phase's CI runs when its implementation is finished, resolve failures, and verify the final implementation revision before marking the phase verified. Keep local checks with each change and distinguish pending CI from successful CI in progress reports.
 
 ## Communication
 
