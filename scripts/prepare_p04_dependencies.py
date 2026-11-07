@@ -12,7 +12,12 @@ for service in ("catalog", "identity"):
     directory = root / "services" / service
     project = tomllib.loads((directory / "pyproject.toml").read_text())
     lock = tomllib.loads((directory / "uv.lock").read_text())
-    dependencies.update(project["project"]["dependencies"])
+    local_packages = set(project.get("tool", {}).get("uv", {}).get("sources", {}))
+    dependencies.update(
+        dep
+        for dep in project["project"]["dependencies"]
+        if dep.split("==")[0] not in local_packages
+    )
     dependencies.update(project["dependency-groups"]["dev"])
     dependencies.update(project["build-system"]["requires"])
     for package in lock["package"]:

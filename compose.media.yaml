@@ -1,0 +1,85 @@
+# Opt-in until full P04 acceptance. Include after compose.yaml.
+services:
+  rabbitmq:
+    image: rabbitmq:4.4.0-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
+    hostname: nivaro-media-broker
+    volumes:
+      - media_broker:/var/lib/rabbitmq
+      - ./infra/rabbitmq/media.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    secrets:
+      - media_broker_definitions
+    mem_limit: 768m
+    cpus: 1
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, check_port_listener, '5672']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+  catalog-media-init:
+    image: nivaro-catalog:release
+    user: '0:0'
+    volumes:
+      - catalog_media:/var/lib/nivaro-media
+    command: [python, -c, "import os; from pathlib import Path; p=Path('/var/lib/nivaro-media'); [(x.mkdir(exist_ok=True), os.chown(x,10001,10001), x.chmod(0o750)) for x in [p,p/'private',p/'outputs']]"]
+    restart: 'no'
+  catalog-init:
+    image: nivaro-catalog:release
+  catalog:
+    image: nivaro-catalog:release
+    volumes:
+      - catalog_media:/var/lib/nivaro-media
+    depends_on:
+      catalog-media-init:
+        condition: service_completed_successfully
+  catalog-media-worker:
+    image: nivaro-catalog:release
+    command: [celery, -A, nivaro_catalog.media_worker:app, worker, --loglevel=WARNING, --concurrency=1, --pool=prefork, --without-gossip, --without-mingle, --without-heartbeat]
+    environment:
+      CATALOG_DB_HOST: postgres
+    secrets:
+      - catalog_db_password
+      - catalog_media_broker_password
+    volumes:
+      - catalog_media:/var/lib/nivaro-media
+    depends_on:
+      catalog-init:
+        condition: service_completed_successfully
+      catalog-media-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    init: true
+    restart: unless-stopped
+  catalog-media-dispatcher:
+    image: nivaro-catalog:release
+    command: [python, -m, nivaro_catalog.media_dispatcher]
+    environment:
+      CATALOG_DB_HOST: postgres
+    secrets:
+      - catalog_db_password
+      - catalog_media_broker_password
+    volumes:
+      - catalog_media:/var/lib/nivaro-media
+    depends_on:
+      catalog-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      catalog-media-init:
+        condition: service_completed_successfully
+    mem_limit: 192m
+    cpus: 0.5
+    init: true
+    restart: unless-stopped
+volumes:
+  catalog_media:
+  media_broker:
+secrets:
+  catalog_media_broker_password:
+    file: ./work/secrets/catalog_media_broker_password.txt
+  media_broker_definitions:
+    file: ./work/secrets/media_broker_definitions.json

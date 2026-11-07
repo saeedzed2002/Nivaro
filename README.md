@@ -4,6 +4,14 @@ Bilingual Persian/English gaming hardware storefront, following [the canonical r
 
 ## Current delivery
 
+P04 continuation (2026-11-07): protected product/variant/category/price/stock administration and recoverable product-image processing/gallery are locally verified. Customer/staff avatars and measured public caching remain; phase-level CI review is pending. The current owner runtime includes `compose.media.yaml` for broker, workers and image volumes. For a restart with already built images:
+
+```powershell
+docker compose -f compose.yaml -f compose.media.yaml up -d --no-build --pull never --wait
+```
+
+For a fresh setup initialize both local and media secrets, then build with the base Compose configuration and include the media overlay when starting. The older base-only commands below describe storefront/development operation and do not mount media or start its workers. See [catalog media operations](services/catalog/README.md#p04-catalog-media-runtime) for exact candidate tests, permissions, retention and queue-recovery behavior.
+
 P02 verified: home, product collection/details, same-category product comparison and temporary PC assembly selections use the catalog API. PostgreSQL owns products, physical variants and independent market offers. Pages follow the references in [the image-first register](docs/design/PAGE_DESIGNS.md).
 
 The seed contains 12 documented products and 13 variants; reference prices remain unavailable for sale and stock remains unverified. Missing prices and technical facts stay unknown. P03 adds real local account/session persistence: customer mock-code login, separate administrator credentials, profile and address management. Customer login is allowlisted local testing only; no real SMS is sent. Durable saved builds, checkout and payment remain later phases. See [identity setup](services/identity/README.md) and [progress and exact continuation](docs/progress.md).

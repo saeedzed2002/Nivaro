@@ -36,7 +36,9 @@ jobs:
       - name: Initialize isolated CI secrets
         shell: pwsh
         working-directory: .
-        run: ./scripts/Initialize-LocalSecrets.ps1
+        run: |
+          ./scripts/Initialize-LocalSecrets.ps1
+          ./scripts/Initialize-MediaSecrets.ps1
       - name: Build and start release containers with fresh schema
         working-directory: .
         run: |
@@ -47,7 +49,7 @@ jobs:
       - name: Catalog checks and canonical OpenAPI drift
         working-directory: .
         run: |
-          docker build --target test -t nivaro-catalog:test services/catalog
+          docker build --build-context image-processing=./packages/python/image_processing --target test -t nivaro-catalog:test services/catalog
           docker run --rm --network nivaro_default -e CATALOG_DB_HOST=postgres -e CATALOG_DISPOSABLE_TESTS=1 \
             -v "$PWD/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro" \
             -v "$PWD/contracts:/contracts:ro" nivaro-catalog:test \
@@ -77,10 +79,19 @@ jobs:
           pnpm test:e2e
       - name: Verify container-served storefront
         run: pnpm test:e2e
-      - name: Identity browser journeys on a disposable stack
+      - name: Prepare media candidates and real queue recovery check
         working-directory: .
         shell: pwsh
-        run: ./scripts/Verify-IdentityBrowser.ps1
+        run: |
+          docker tag nivaro-catalog:release nivaro-catalog:media-foundation
+          docker tag nivaro-web:release nivaro-web:media-foundation
+          docker pull rabbitmq:4.4.0-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned broker image download failed.' }
+          ./scripts/Verify-CatalogMedia.ps1
+      - name: Identity and media browser journeys on a disposable stack
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-IdentityBrowser.ps1 -WithMedia
       - name: Verify database visibility and catalog outage recovery
         env:
           NIVARO_DEMO_RUNTIME_CHECK: '1'

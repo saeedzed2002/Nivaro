@@ -1,4 +1,5 @@
 import asyncio
+import re
 from uuid import uuid4
 
 from starlette.responses import JSONResponse
@@ -13,6 +14,16 @@ class BoundedBody:
         self.max_bytes = max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] == "http"
+            and scope["method"] == "PUT"
+            and re.fullmatch(
+                r"/api/v1/admin/catalog/products/[0-9a-fA-F-]{36}/images/[0-7]", scope["path"]
+            )
+        ):
+            # This route authorizes first and bounds its binary stream explicitly.
+            await self.app(scope, receive, send)
+            return
         if scope["type"] != "http" or scope["method"] not in {"POST", "PUT", "PATCH"}:
             await self.app(scope, receive, send)
             return

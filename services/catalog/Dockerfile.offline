@@ -2,12 +2,13 @@
 # Populate from the existing named download cache; see scripts/Prepare-CatalogCache.ps1.
 ARG PYTHON_IMAGE=python:3.13.18-slim-bookworm@sha256:93498f36dc7e24ef233bfdf6cc17d4b8bd32d94ee737143e906460d5f5a914c5
 FROM ${PYTHON_IMAGE} AS dependencies
-WORKDIR /app
+WORKDIR /workspace/services/catalog
 ENV UV_OFFLINE=1 UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
 RUN --network=none --mount=from=dependency-cache,target=/seed pip install --no-index --no-deps /seed/uv-0.13.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 COPY pyproject.toml uv.lock ./
+COPY --from=image-processing / /workspace/packages/python/image_processing/
 COPY src ./src
-RUN --network=none --mount=from=dependency-cache,target=/seed --mount=type=cache,target=/root/.cache tar -C /root/.cache -xzf /seed/uv-cache.tar.gz && uv sync --frozen --no-dev
+RUN --network=none --mount=from=dependency-cache,target=/seed --mount=type=cache,target=/root/.cache tar -C /root/.cache -xzf /seed/uv-cache.tar.gz && UV_PROJECT_ENVIRONMENT=/app/.venv uv sync --frozen --no-dev --no-editable
 FROM ${PYTHON_IMAGE} AS release
 WORKDIR /app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1

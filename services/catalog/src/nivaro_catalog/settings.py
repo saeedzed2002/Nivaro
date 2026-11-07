@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     allowed_origins: list[str] = ["http://127.0.0.1:8080", "http://localhost:8080"]
     jwt_issuer: str = "nivaro-identity"
     jwt_audience: str = "nivaro-browser"
+    media_private_root: Path = Path("/var/lib/nivaro-media/private")
+    media_output_root: Path = Path("/var/lib/nivaro-media/outputs")
+    media_broker_host: str = "rabbitmq"
+    media_broker_user: str = "nivaro_catalog_media"
+    media_broker_password_file: Path = Path("/run/secrets/catalog_media_broker_password")
 
     def database_url(self) -> URL:
         password = (

@@ -12,6 +12,8 @@ export function CatalogNotice({ error, locale }: { error: unknown; locale: Local
   if (!error) return null;
   const e = error instanceof IdentityError ? error : new IdentityError('catalog.unavailable');
   const descriptions: Record<string, [string, string]> = {
+    'media.too_large': ['حجم هر تصویر باید حداکثر ۸ مِبی‌بایت باشد.', 'Each image must be at most 8 MiB.'],
+    'catalog.image_required': ['پیش از حذف آخرین تصویر، محصول را به پیش‌نویس برگردانید.', 'Return the product to draft before removing its last image.'],
     'catalog.version_conflict': ['این محصول تغییر کرده است. نوشته‌های شما حفظ شده‌اند؛ نسخهٔ تازه را بارگیری و تغییرات را مقایسه کنید.', 'This product changed. Your draft is preserved; load the latest version and compare before saving.'],
     'catalog.stock_version_conflict': ['موجودی تغییر کرده است. پیش از ثبت، نسخهٔ تازه را بارگیری کنید.', 'Stock changed. Load the latest version before adjusting it.'],
     'catalog.price_version_conflict': ['قیمت تغییر کرده است. نوشته‌های شما حفظ شده‌اند؛ پیش از ثبت، قیمت فعلی را بارگیری کنید.', 'Price changed. Your draft is preserved; load the current price before saving.'],

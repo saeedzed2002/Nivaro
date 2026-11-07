@@ -1,5 +1,36 @@
 # Catalog — storefront and administration
 
+## P04 catalog media runtime
+
+The catalog media slice is implemented; identity avatars and measured cache integration remain P04 work. `compose.media.yaml` starts the internal RabbitMQ broker, service-owned storage initializer, dedicated catalog worker and recoverable dispatcher alongside the base stack. Use both files for subsequent restarts; the base file alone does not start media processing or mount image storage.
+
+```powershell
+./scripts/Initialize-MediaSecrets.ps1
+docker compose -f compose.yaml -f compose.media.yaml up -d --no-build --pull never --wait
+```
+
+The initializer preserves existing random passwords. Definitions create separate catalog/identity vhosts and users with permissions restricted to their own named media exchange/queue; no management account or host broker port is created. Identity's queue is not used until its own avatar integration exists. Preserve `catalog_media` and `media_broker` volumes; this command is not a backup/rotation procedure.
+
+Product uploads require fresh `catalog.write` authorization, CSRF, allowed Origin, a product revision, a slot `0..7`, bilingual alternative text and an explicit illustration/model-photo classification. Send binary `JPEG`, `PNG` or `WebP` bytes to `PUT /api/v1/admin/catalog/products/{id}/images/{position}`. Decoding occurs only in the worker, limited to static inputs, 8 MiB and 24 million pixels. The private original is never served. The gallery GET reports persisted job state and revision; the `/change` POST swaps a ready slot to a requested position or clears its references when destination is null. Removing the last uploaded cover of a published product requires returning it to draft first. Public gallery/output routes expose only ready active images of published products.
+
+Migration `0005_product_media` adds slots, fenced jobs and transactional dispatch records. Product -> slot -> job is the mutation lock order; claim/recovery lock jobs alone. Outbox records are committed with jobs, claimed for 20 seconds, published outside transactions with broker confirmation and marked confirmed afterward. The same job ID is reused after lost confirmation. Job attempts have 90-second leases, 50/60-second soft/hard worker limits, at most three attempts and database-scheduled backoff. Duplicate/stale attempts cannot activate. Complete immutable output directories are written before DB activation; failures preserve the previous active image. Normal product edit revisions cover gallery changes and activation too.
+
+The dedicated JSON-only task registry accepts `catalog.process_image` only. The durable quorum queue uses consumer-scoped QoS, one prefork worker and container memory/CPU limits. Celery's unused native ETA bootstep is excluded through the selected Consumer subclass: delayed retries belong to the owning database dispatch schedule, not a second broker topology. No result backend, remote-control channel or OTP queue is shared. Recovery and cleanup use separate advisory schedule locks. An hourly idempotent retention pass removes unreferenced service-owned originals/candidates older than seven days, preserving active/in-flight references and unknown/symlink entries; DB job/audit history remains.
+
+Candidate checks (existing images/caches, no downloads):
+
+```powershell
+docker build --network=none --pull=false --build-context image-processing=./packages/python/image_processing --build-context dependency-cache=./work/python-cache -f services/catalog/Dockerfile.offline -t nivaro-catalog:media-foundation services/catalog
+docker build --network=none --pull=false --build-arg CACHE_IMAGE=nivaro-web:p02-watch -f apps/web/Dockerfile.cached -t nivaro-web:media-foundation apps/web
+./scripts/Verify-CatalogFresh.ps1 -CatalogImage nivaro-catalog:media-foundation
+./scripts/Verify-CatalogMedia.ps1
+./scripts/Verify-IdentityBrowser.ps1 -WithMedia
+```
+
+QA overlays use uniquely named disposable projects and remove only their own volumes; they do not mutate the owner's catalog/accounts. The worker-loss check kills an actually processing worker, restarts it and requires a later fenced attempt to become ready. Browser checks use installed Playwright directly; set `CHROMIUM_EXECUTABLE` for an installed Edge/Chromium if needed. `compose.media-qa.yaml` is a candidate-image override, never an owner-runtime file. CI performs normal builds and runs these checks; inspect results at phase completion, per the owner cadence.
+
+The Python local package requires the repository-relative layout. For a mounted development environment, mount `services/catalog` at `/workspace/services/catalog` and `packages` at `/workspace/packages`, then run frozen sync from the service directory. If using the existing `/app/.venv` mount, set `UV_PROJECT_ENVIRONMENT=/app/.venv`. A non-editable cached installation is a snapshot; source-mount checks/contract export must use `PYTHONPATH=src`. Normal and offline Dockerfiles package both service and shared image library non-editably; the additional `image-processing` build context is required.
+
 Catalog owns product facts, physical variants, independent market offers and compatibility evaluations. It has no cart/order database access and no reservation or payment endpoint. The gateway connects this service to the home, collection, details, comparison and temporary builder pages. See [progress](../../docs/progress.md) for exact verified revisions and acceptance evidence.
 
 ## P04 protected administration
@@ -69,7 +100,7 @@ The init script runs automatically only for a fresh volume. For an already initi
 - `POST /api/v1/catalog/comparisons`: exactly two distinct variants, same category, one market/currency; normalized scalar facts, unknowns and differences, no winner or invented benchmarks.
 - `POST /api/v1/catalog/build-evaluations`: bounded selections, revision-bound findings, partial research subtotals, missing prices and aggregate availability; no persistence, price guarantee or reservation.
 
-Request bodies are capped at 64 KiB including chunked requests. Errors carry a bounded request ID and never echo database errors or raw invalid input. Stored facts are revalidated at the read boundary; invalid data returns an unavailable result instead of guessed facts. OpenAPI/docs are exported locally and not exposed by the app.
+JSON request bodies are capped at 64 KiB including chunked requests. The authenticated binary image route has a separate 8 MiB / 30-second bound. Errors carry a bounded request ID and never echo database errors or raw invalid input. Stored facts are revalidated at the read boundary; invalid data returns an unavailable result instead of guessed facts. OpenAPI/docs are exported locally and not exposed by the app.
 
 ## Data and policy limits
 
@@ -85,11 +116,11 @@ The normal Dockerfile is the clean-machine/CI build. On the owner machine, the e
 
 ```powershell
 ./scripts/Prepare-CatalogCache.ps1
-docker build --pull=false --network=none --build-context dependency-cache=./work/python-cache -f services/catalog/Dockerfile.offline -t nivaro-catalog:release services/catalog
-docker build --pull=false -f apps/web/Dockerfile.cached -t nivaro-web:release apps/web
+docker build --pull=false --network=none --build-context image-processing=./packages/python/image_processing --build-context dependency-cache=./work/python-cache -f services/catalog/Dockerfile.offline -t nivaro-catalog:release services/catalog
+docker build --pull=false --build-arg CACHE_IMAGE=nivaro-web:p02-watch -f apps/web/Dockerfile.cached -t nivaro-web:release apps/web
 docker compose up -d --no-build --pull never --wait
 ```
 
-Run from the repository root. The frontend recovery requires the already populated `nivaro-web:development` Linux image; missing dependencies get a bounded fetch. This is not an offline bootstrap on an empty machine. Never remove the database volume or regenerate existing secrets.
+Run from the repository root. The frontend recovery requires the already populated `nivaro-web:p02-watch` Linux dependency image (the default older development image lacks later contract packages); missing dependencies get a bounded fetch. This is not an offline bootstrap on an empty machine. Never remove the database volume or regenerate existing secrets.
 
 Canonical contract check: run `python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check` in the frozen catalog environment with contracts mounted, then `pnpm contracts:check` in apps/web. Regenerate using the export command without `--check` and `pnpm contracts:generate`. Type artifacts stay inside the frontend build context.

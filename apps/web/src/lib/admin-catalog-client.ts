@@ -18,6 +18,7 @@ export type Evidence = components['schemas']['Evidence'];
 export type ManagedCategory = components['schemas']['AdminCategory'];
 export type CategoryContent = components['schemas']['CategoryContent'];
 export type Filters = NonNullable<operations['listAdminProducts']['parameters']['query']>;
+export type MediaGallery = components['schemas']['MediaGallery'];
 const client = createClient<paths>({ baseUrl: '', credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
     try { return await fetch(request, { signal: AbortSignal.timeout(10000) }); }
@@ -46,3 +47,15 @@ export const listManagedCategories = () => authorized(async () => unwrap(await c
 export const saveManagedCategory = (body: CategoryContent, category?: ManagedCategory) => authorized(async csrf => unwrap(category
   ? await client.PUT('/api/v1/admin/catalog/categories/{category_id}', { params: { path: { category_id: category.id } }, body: { ...body, expected_version: category.version }, headers: { 'X-CSRF-Token': csrf } })
   : await client.POST('/api/v1/admin/catalog/categories', { body, headers: { 'X-CSRF-Token': csrf } })), 'admin');
+
+export const getProductImages = (id: string) => authorized(async () => unwrap(await client.GET('/api/v1/admin/catalog/products/{product_id}/images', { params: { path: { product_id: id } } })), 'admin');
+export const changeProductImage = (id: string, position: number, version: number, destination: number | null) => authorized(async csrf => unwrap(await client.POST('/api/v1/admin/catalog/products/{product_id}/images/{position}/change', { params: { path: { product_id: id, position } }, body: { expected_version: version, destination }, headers: { 'X-CSRF-Token': csrf } })), 'admin');
+export const uploadProductImage = (id: string, position: number, version: number, file: File, alt: { fa: string; en: string }, imageKind: 'illustration' | 'exact_sku') => authorized(async csrf => {
+  const query = new URLSearchParams({ expected_version: String(version), alt_fa: alt.fa, alt_en: alt.en, image_kind: imageKind });
+  let response: Response;
+  try { response = await fetch(`/api/v1/admin/catalog/products/${encodeURIComponent(id)}/images/${position}?${query}`, { method: 'PUT', body: file, headers: { 'Content-Type': 'application/octet-stream', 'X-CSRF-Token': csrf }, credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(35000) }); }
+  catch { throw new IdentityError('catalog.unavailable'); }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new IdentityError(data?.error?.code || (response.status === 413 ? 'media.too_large' : 'catalog.unavailable'), response.status);
+  return data as components['schemas']['MediaJob'];
+}, 'admin');

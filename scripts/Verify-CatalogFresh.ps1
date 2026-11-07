@@ -1,3 +1,4 @@
+param([string]$CatalogImage = 'nivaro-catalog:release')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $probeName = 'nivaro-p02-fresh-postgres'
@@ -23,7 +24,7 @@ try {
     if (-not $ready) { throw 'Fresh database readiness timed out.' }
     docker run --rm --pull never --network nivaro_default -e "CATALOG_DB_HOST=$probeName" `
       -v "${projectRoot}/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro" `
-      nivaro-catalog:release sh -c 'alembic upgrade head && python -m nivaro_catalog.infrastructure.seed && python -m nivaro_catalog.infrastructure.seed && alembic check'
+      $CatalogImage sh -c 'alembic upgrade head && python -m nivaro_catalog.infrastructure.seed && python -m nivaro_catalog.infrastructure.seed && alembic check'
     if ($LASTEXITCODE -ne 0) { throw 'Fresh migrations or repeatable seed failed.' }
     docker run --rm --pull never --network nivaro_default -e "CATALOG_DB_HOST=$probeName" -e CATALOG_DISPOSABLE_TESTS=1 `
       -v "${projectRoot}/services/catalog:/app" -w /app `

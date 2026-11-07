@@ -9,6 +9,7 @@ test.describe.configure({ mode: 'serial' });
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8080';
 test.skip(!/^nivaro-p03-qa-[a-z0-9]+$/.test(project), 'Use the isolated identity browser helper; never reset real accounts or limits.');
 let seedCookies: Awaited<ReturnType<BrowserContext['cookies']>>;
+let staffCookies: Awaited<ReturnType<BrowserContext['cookies']>> | undefined;
 const adminPassword = randomBytes(24).toString('base64url');
 function operator(code: string, input = '') {
   if (!/^nivaro-p03-qa-[a-z0-9]+$/.test(project)) throw new Error('Disposable test project required');
@@ -121,6 +122,7 @@ test('staff product workspace: responsive references, persistence, conflicts and
   await expect(page.getByRole('heading', { name: 'Product administration access' })).toBeVisible();
   const signedIn = await context.request.post(`${base}/api/v1/admin/auth/login`, { headers: { Origin: base }, data: { email: 'staff@example.com', password: adminPassword } });
   expect(signedIn.status()).toBe(200);
+  staffCookies = (await context.cookies()).filter(cookie => cookie.name.startsWith('nivaro_admin_'));
   const listing = await context.request.get(`${base}/api/v1/admin/catalog/products?q=9700X`);
   const productId = (await listing.json()).items[0].id;
   const productUrl = `${base}/api/v1/admin/catalog/products/${productId}`;
@@ -409,6 +411,85 @@ test('staff category hierarchy preserves drafts, versions and responsive layouts
   expect(errors).toEqual([]);
 });
 
+test('media gallery: real processing, failed replacement, conflicts, cover and public views', async ({ page, context }) => {
+  test.skip(process.env.NIVARO_MEDIA_BROWSER !== '1', 'Requires the disposable media worker overlay');
+  test.setTimeout(180_000);
+  if (staffCookies) await context.addCookies(staffCookies);
+  else {
+    const signed = await context.request.post(`${base}/api/v1/admin/auth/login`, { headers: { Origin: base }, data: { email: 'staff@example.com', password: adminPassword } });
+    expect(signed.status()).toBe(200);
+  }
+  const list = await (await context.request.get(`${base}/api/v1/admin/catalog/products?q=RTX`)).json();
+  const id = list.items[0].id;
+  const endpoint = `${base}/api/v1/admin/catalog/products/${id}`;
+  const readGallery = async () => (await (await context.request.get(`${endpoint}/images`)).json());
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(`/en/admin/products/${id}`);
+  await page.getByRole('tab', { name: 'Images', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Product images', exact: true })).toBeVisible();
+  async function upload(alt: string, invalid = false) {
+    await page.getByLabel('Image file', { exact: true }).setInputFiles(invalid ? { name: 'forged.png', mimeType: 'image/png', buffer: Buffer.from('<svg>not an allowed image</svg>') } : path.resolve('public/images/gpu.webp'));
+    await page.getByLabel('Persian alternative text').fill('نمای آزمایشی کارت گرافیک');
+    await page.getByLabel('English alternative text').fill(alt);
+    await page.getByRole('button', { name: 'Upload for processing', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('Image received');
+  }
+  await upload('Synthetic graphics card view');
+  await expect.poll(async () => (await readGallery()).items[0]?.pending?.state, { timeout: 30_000 }).toBe('ready');
+  await expect(page.locator('.admin-gallery-tile img')).toBeVisible();
+  const first = (await readGallery()).items[0].active.id;
+  await page.getByRole('button', { name: 'Add image', exact: true }).click();
+  await upload('Synthetic second view');
+  await expect.poll(async () => (await readGallery()).items[1]?.pending?.state, { timeout: 30_000 }).toBe('ready');
+  await expect(page.getByRole('button', { name: 'Use as cover image', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Use as cover image', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Gallery updated');
+  const cover = (await readGallery()).items[0].active.id;
+  expect(cover).not.toBe(first);
+  await upload('Rejected forged replacement', true);
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('could not be processed', { timeout: 30_000 });
+  expect((await readGallery()).items[0].active.id).toBe(cover);
+  await page.getByLabel('Image file', { exact: true }).setInputFiles(path.resolve('public/images/gpu.webp'));
+  await page.getByLabel('Persian alternative text').fill('متن حفظ‌شده');
+  await page.getByLabel('English alternative text').fill('Preserved image draft');
+  const current = await (await context.request.get(endpoint)).json();
+  const csrf = (await (await context.request.get(`${base}/api/v1/admin/auth/csrf`, { headers: { Origin: base, 'X-CSRF-Request': '1' } })).json()).csrf_token;
+  const { slug, name, description, category_id, brand, highlights } = current;
+  expect((await context.request.put(endpoint, { headers: { Origin: base, 'X-CSRF-Token': csrf }, data: { slug, name: name + ' media QA', description, category_id, brand, highlights, expected_version: current.version } })).status()).toBe(200);
+  await page.getByRole('button', { name: 'Upload for processing', exact: true }).click();
+  await expect(page.getByRole('main').getByRole('alert').first()).toContainText('product changed');
+  await expect(page.getByLabel('English alternative text')).toHaveValue('Preserved image draft');
+  expect(await page.getByLabel('Image file', { exact: true }).evaluate((el: HTMLInputElement) => el.files?.length)).toBe(1);
+  await page.getByRole('button', { name: 'Discard file and text' }).click();
+  await page.getByRole('button', { name: 'Reload current status' }).click();
+  for (const locale of ['fa', 'en']) for (const theme of ['dark', 'light']) for (const width of [360, 768, 1440]) {
+    await context.addCookies([{ name: 'nivaro-theme', value: theme, url: base }]);
+    await page.setViewportSize({ width, height: 1100 });
+    await page.goto(`/${locale}/admin/products/${id}`);
+    await page.getByRole('tab', { name: locale === 'fa' ? 'تصاویر' : 'Images', exact: true }).click();
+    await expect(page.locator('.admin-gallery-tile img')).toHaveCount(2);
+    await page.evaluate(() => document.fonts.ready);
+    await expect.poll(() => page.locator('.admin-gallery-tile img').evaluateAll(images => images.every(el => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0))).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`${locale}-${theme}-${width}-gallery.png`), fullPage: true, animations: 'disabled' });
+    await page.goto(`/${locale}/products/${slug}`);
+    await expect(page.locator('.product-gallery-thumbs button')).toHaveCount(2);
+    await page.locator('.product-gallery-thumbs button').nth(1).click();
+    await expect(page.locator('.detail-art > div img')).toHaveAttribute('alt', locale === 'fa' ? 'نمای آزمایشی کارت گرافیک' : 'Synthetic graphics card view');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`${locale}-${theme}-${width}-public-gallery.png`), fullPage: true, animations: 'disabled' });
+  }
+  await page.goto(`/en/admin/products/${id}`);
+  await page.getByRole('tab', { name: 'Images', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove this image', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect(page.locator('.admin-gallery-tile')).toHaveCount(1);
+  const publicGallery = await context.request.get(`${base}/api/v1/catalog/products/${id}/images`);
+  expect((await publicGallery.json()).map((item: { id: string }) => item.id)).toEqual([first]);
+  expect((await context.request.get(`${base}/api/v1/catalog/images/${cover}/320`)).status()).toBe(404);
+  expect(errors).toEqual([]);
+});
 test('admin credentials are separate; customer login never grants staff access', async ({ page, context }) => {
   test.setTimeout(90_000);
   await context.addCookies(seedCookies);

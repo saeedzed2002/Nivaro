@@ -5,6 +5,7 @@ import type { Product, Reference } from './content';
 
 export type CatalogProduct = components['schemas']['Product'];
 export type CatalogVariant = components['schemas']['Variant'];
+export type PublicImage = components['schemas']['PublicImage'];
 const client = createClient<paths>({ baseUrl: process.env.CATALOG_URL || 'http://127.0.0.1:8000' });
 export class CatalogUnavailable extends Error {}
 
@@ -17,7 +18,7 @@ export function productView(item: CatalogProduct): Product {
     if (!offers[offer.market]) offers[offer.market] = reference;
   }
   return { slug: item.slug, name: item.name, category: item.category, brand: item.brand,
-    image: item.image, description: item.description, highlights: item.highlights ?? [], offers };
+    image: item.image, imageKind: item.image_kind, description: item.description, highlights: item.highlights ?? [], offers };
 }
 
 export type CatalogQuery = NonNullable<paths['/api/v1/catalog/products']['get']['parameters']['query']>;
@@ -47,3 +48,11 @@ export const listCategories = cache(async () => {
     return data.map(c => ({ id: c.slug, ...c.name, image: c.image }));
   } catch { throw new CatalogUnavailable(); }
 });
+
+export async function getProductGallery(id: string): Promise<PublicImage[]> {
+  const { data, response } = await client.GET('/api/v1/catalog/products/{product_id}/images', {
+    params: { path: { product_id: id } }, cache: 'no-store', signal: AbortSignal.timeout(6000),
+  });
+  if (!response.ok || !data) throw new CatalogUnavailable();
+  return data;
+}

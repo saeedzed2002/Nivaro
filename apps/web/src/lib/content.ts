@@ -13,6 +13,7 @@ export type Reference = {
   packaging: { fa: string; en: string };
 };
 export type Product = {
+  imageKind?: 'illustration' | 'exact_sku';
   slug: string;
   name: string;
   category: string;

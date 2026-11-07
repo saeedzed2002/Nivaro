@@ -8,7 +8,7 @@ export function ProductCard({ product, locale, categoryLabel }: { product: Produ
   return <article className="product-card">
     <Link href={`/${locale}/products/${product.slug}`} className="product-image" aria-label={product.name}>
       <ProductArtwork image={product.image} locale={locale} sizes="(max-width: 600px) 90vw, (max-width: 1000px) 45vw, 25vw" />
-      <span className="image-caption">{text(locale, 'تصویر مفهومی', 'ILLUSTRATION')}</span>
+      <span className="image-caption">{product.image.startsWith('schematic-') ? text(locale, 'نماد دسته', 'CATEGORY SYMBOL') : product.imageKind === 'exact_sku' ? text(locale, 'تصویر مدل', 'MODEL PHOTO') : text(locale, 'تصویر مفهومی', 'ILLUSTRATION')}</span>
       <span className="image-arrow"><ArrowUpRight size={20}/></span>
     </Link>
     <div className="product-body">

@@ -1,0 +1,14 @@
+# Candidate UI only, never applied to the owner's persistent stack.
+services:
+  catalog-init:
+    image: nivaro-catalog:media-foundation
+  catalog:
+    image: nivaro-catalog:media-foundation
+  catalog-media-init:
+    image: nivaro-catalog:media-foundation
+  catalog-media-worker:
+    image: nivaro-catalog:media-foundation
+  catalog-media-dispatcher:
+    image: nivaro-catalog:media-foundation
+  web:
+    image: nivaro-web:media-foundation

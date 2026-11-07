@@ -53,7 +53,6 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Administrator order detail | P07 | Pending |
 | Payments / reconciliation | P07 | Pending |
 | Users / permissions | P10 | Pending |
-| Administrator categories | P04 | Pending; generate before implementing its page |
 | Administrator profile / avatar | P04 | Pending; customer profile reference does not cover a distinct staff page |
 | Support inbox | P09 | Pending |
 
@@ -113,3 +112,9 @@ Generated with the built-in image tool and visually inspected before page implem
 ### P04 category implementation review — 2026-11-07
 
 Implemented the registered category reference with live counts, a two-level list and bilingual edit panel. Actual conflicts preserve local input and require explicit replacement. Reviewed Persian dark desktop and light mobile screenshots; moved the mobile edit panel before the long list. No horizontal overflow or page errors across both locales/themes and 360/768/1440 widths. Evidence: `nivaro-p04-categories-mobile/` under the existing visualization root. Generated mockup data was never copied into the owner's database.
+
+### P04 product gallery — 2026-11-07
+
+Reinspected `pages/admin-product-editor.png` before extending its Images tab. Retained the blue outlined gallery tiles, selected/cover indicators, ready/queued/processing/failed text, upload area, bilingual alternative text, explicit image classification and previous-image preservation. Existing product-detail reference covers its public gallery thumbnails. Keyboard buttons select images and promote the selected ready image to cover; a confirmed removal clears references without deleting storage inline. The file control remains native and accessible. Do not copy the generated reference's incorrect repeated format label or arbitrary mixed-product images.
+
+The real upload/replacement/conflict/cover/removal journey passed in a disposable stack. Captured staff and public gallery in both locales/themes at 360/768/1440 pixels. Reviewed dark Persian desktop, light Persian mobile and English light mobile product detail. Corrected the upload area from a squeezed horizontal row to the reference's stacked layout. The native file picker uses the browser's language, while its label/help/errors use the selected site language. Minor RGB accents remain on artwork; motion is limited to processing feedback and respects reduced motion. No new image-generation gate is needed for these existing templates. Full-suite evidence and runtime state are recorded in `docs/progress.md`.

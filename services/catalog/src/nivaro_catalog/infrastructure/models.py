@@ -171,3 +171,62 @@ class CategoryAuditRow(Base):
     reason: Mapped[str] = mapped_column(String(500))
     request_id: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MediaSlotRow(Base):
+    __tablename__ = "product_media_slots"
+    __table_args__ = (
+        UniqueConstraint(
+            "product_id",
+            "position",
+            name="media_slot_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        CheckConstraint("position >= 0 AND position < 8", name="media_position_range"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"))
+    position: Mapped[int] = mapped_column(Integer)
+    alt: Mapped[dict[str, str]] = mapped_column(JSONB)
+    desired_job_id: Mapped[UUID | None] = mapped_column()
+    active_job_id: Mapped[UUID | None] = mapped_column()
+
+
+class MediaJobRow(Base):
+    __tablename__ = "product_media_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('uploaded','processing','ready','failed')", name="media_job_state"
+        ),
+        CheckConstraint("attempts >= 0 AND attempts <= 3", name="media_job_attempts"),
+        Index("ix_media_job_recovery", "state", "lease_until"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    slot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("product_media_slots.id", ondelete="RESTRICT"), index=True
+    )
+    actor_id: Mapped[UUID] = mapped_column()
+    alt: Mapped[dict[str, str]] = mapped_column(JSONB)
+    image_kind: Mapped[str] = mapped_column(String(20))
+    state: Mapped[str] = mapped_column(String(20), default="uploaded")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    attempt_id: Mapped[UUID | None] = mapped_column()
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    outputs: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict)
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MediaDispatchRow(Base):
+    __tablename__ = "product_media_dispatch"
+    job_id: Mapped[UUID] = mapped_column(
+        ForeignKey("product_media_jobs.id", ondelete="RESTRICT"), primary_key=True
+    )
+    available_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    claim_id: Mapped[UUID | None] = mapped_column()
+    claimed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
