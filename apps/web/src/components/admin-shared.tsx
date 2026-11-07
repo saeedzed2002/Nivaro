@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertCircle, Box, CheckCircle2, ExternalLink, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { AlertCircle, Box, CheckCircle2, ExternalLink, FolderTree, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import { IdentityError, logout, readSession } from '@/lib/identity-client';
 import { type InitialIdentity } from '@/lib/identity-server';
 import { text, type Locale } from '@/lib/content';
@@ -18,6 +18,10 @@ export function CatalogNotice({ error, locale }: { error: unknown; locale: Local
     'catalog.offer_not_ready': ['عرضه به محصول منتشرشده، تصویر آماده و موجودی بررسی‌شده نیاز دارد.', 'Sale eligibility needs a published product, ready image and verified stock.'],
     'catalog.variant_kind_immutable': ['برای تغییر نوع قطعه، گونهٔ جدید بسازید.', 'Create a new variant for a different hardware type.'],
     'catalog.variant_limit': ['هر محصول حداکثر ۱۰۰ گونه دارد.', 'A product supports at most 100 variants.'],
+    'catalog.category_version_conflict': ['دسته‌بندی تغییر کرده است. نوشته‌های شما حفظ شده‌اند؛ نسخهٔ فعلی را بررسی کنید.', 'Category changed. Your draft is preserved; compare the current version.'],
+    'catalog.category_hierarchy': ['فقط دو سطح مجاز است؛ دستهٔ دارای زیرمجموعه باید در سطح اصلی بماند.', 'Only two levels are allowed; a category with children must stay at the top level.'],
+    'catalog.category_not_found': ['دستهٔ انتخاب‌شده پیدا نشد. فهرست را دوباره بارگیری کنید.', 'Selected category not found. Reload the category list.'],
+    'catalog.category_limit': ['حداکثر تعداد دسته‌ها ثبت شده است.', 'The category limit has been reached.'],
     'catalog.stock_reserved': ['موجودی کل نمی‌تواند از تعداد رزروشده کمتر باشد.', 'Physical stock cannot be lower than reserved units.'],
     'catalog.constraint_conflict': ['این نامک یا شناسهٔ کالا قبلاً ثبت شده یا با اطلاعات موجود ناسازگار است.', 'This slug or SKU already exists, or the change conflicts with stored data.'],
     'catalog.not_publishable': ['برای انتشار، اطلاعات کامل، یک گونهٔ معتبر و تصویر آماده لازم است.', 'Publication needs complete content, a valid variant and a ready image.'],
@@ -39,6 +43,7 @@ export function StatusBadge({ status, locale }: { status: 'draft' | 'published' 
 
 export function AdminShell({ locale, initial, children }: { locale: Locale; initial: InitialIdentity; children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [identity, setIdentity] = useState(initial.session);
   const [checking, setChecking] = useState(!initial.session && !initial.unavailable);
   const [error, setError] = useState<unknown>(initial.unavailable ? new IdentityError('identity.unavailable') : null);
@@ -62,7 +67,7 @@ export function AdminShell({ locale, initial, children }: { locale: Locale; init
     <div className="admin-layout"><aside className="admin-sidebar">
       <div className="admin-sidebar-title"><ShieldCheck size={24}/><div><strong>{text(locale, 'مدیریت کاتالوگ', 'Catalog workspace')}</strong><small>{text(locale, 'نیوارو گیمینگ', 'Nivaro Gaming')}</small></div></div>
       <nav aria-label={text(locale, 'ناوبری مدیریت', 'Administration navigation')}>
-        {allowed && <Link href={`/${locale}/admin/products`} aria-current="page"><Box size={19}/>{text(locale, 'محصولات', 'Products')}</Link>}
+        {allowed && <><Link href={`/${locale}/admin/products`} aria-current={pathname.includes('/admin/products') ? 'page' : undefined}><Box size={19}/>{text(locale, 'محصولات', 'Products')}</Link><Link href={`/${locale}/admin/categories`} aria-current={pathname.endsWith('/admin/categories') ? 'page' : undefined}><FolderTree size={19}/>{text(locale, 'دسته‌بندی‌ها', 'Categories')}</Link></>}
         <Link href={`/${locale}/admin/login`}><ShieldCheck size={19}/>{text(locale, 'نشست و دسترسی‌ها', 'Session & permissions')}</Link>
         <Link href={`/${locale}`}><ExternalLink size={19}/>{text(locale, 'مشاهدهٔ فروشگاه', 'View storefront')}</Link>
         {identity && <button disabled={busy} onClick={() => void signOut()}><LogOut size={19}/>{text(locale, 'خروج از مدیریت', 'Sign out of staff session')}</button>}

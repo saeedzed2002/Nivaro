@@ -109,3 +109,7 @@ Reinspected `pages/admin-product-editor.png` before extending its existing model
 ### P04 categories reference — 2026-10-29
 
 Generated with the built-in image tool and visually inspected before page implementation. Workspace asset: `pages/admin-categories.png`; original: `C:/Users/S/.codex/generated_images/01a179d7-c6c8-70b0-8191-257446c60022/exec-080a227f-2606-4f15-b9f7-3e60e4398c6a.png`. Prompt and corrections are recorded in `P04_ADMIN_IMAGE_PROMPTS.md`. Retain the two-level tree/list, adjacent bilingual edit form, eligible-parent selector, blue staff navigation and light mobile treatment. Generated names/counts are fixtures, not database evidence. Preserve the existing wordmark rather than the generated logo variation; remove decorative sidebar slogans. Show conflict guidance only on an actual conflict; the generated generic reload banner must not discard drafts implicitly. Do not add deletion, arbitrary image URLs or nonfunctional controls.
+
+### P04 category implementation review — 2026-11-07
+
+Implemented the registered category reference with live counts, a two-level list and bilingual edit panel. Actual conflicts preserve local input and require explicit replacement. Reviewed Persian dark desktop and light mobile screenshots; moved the mobile edit panel before the long list. No horizontal overflow or page errors across both locales/themes and 360/768/1440 widths. Evidence: `nivaro-p04-categories-mobile/` under the existing visualization root. Generated mockup data was never copied into the owner's database.

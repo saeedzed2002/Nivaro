@@ -32,7 +32,9 @@ class Timestamps:
 
 class CategoryRow(Timestamps, Base):
     __tablename__ = "categories"
+    __table_args__ = (CheckConstraint("version > 0", name="category_version"),)
     id: Mapped[UUID] = mapped_column(primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     slug: Mapped[str] = mapped_column(String(80), unique=True)
     name: Mapped[dict[str, str]] = mapped_column(JSONB)
     image: Mapped[str] = mapped_column(String(100))
@@ -146,6 +148,21 @@ class AuditRow(Base):
     __table_args__ = (Index("ix_catalog_audit_product_created", "product_id", "created_at", "id"),)
     id: Mapped[UUID] = mapped_column(primary_key=True)
     product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"))
+    actor_id: Mapped[UUID] = mapped_column()
+    action: Mapped[str] = mapped_column(String(60))
+    target_id: Mapped[UUID] = mapped_column()
+    before: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    after: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    reason: Mapped[str] = mapped_column(String(500))
+    request_id: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CategoryAuditRow(Base):
+    __tablename__ = "category_audit_entries"
+    __table_args__ = (Index("ix_category_audit_created", "category_id", "created_at", "id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    category_id: Mapped[UUID] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"))
     actor_id: Mapped[UUID] = mapped_column()
     action: Mapped[str] = mapped_column(String(60))
     target_id: Mapped[UUID] = mapped_column()

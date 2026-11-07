@@ -40,6 +40,24 @@ class ProductEdit(ProductContent):
     expected_version: Version
 
 
+class CategoryContent(Contract):
+    slug: Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=80)]
+    name: Localized
+    parent_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def meaningful_names(self) -> Self:
+        if any(
+            not value.strip() or len(value.strip()) > 120 for value in (self.name.fa, self.name.en)
+        ):
+            raise ValueError("Category names must contain 1 to 120 characters")
+        return self
+
+
+class CategoryEdit(CategoryContent):
+    expected_version: Version
+
+
 class StatusChange(Contract):
     expected_version: Version
     status: Literal["draft", "published", "archived"]

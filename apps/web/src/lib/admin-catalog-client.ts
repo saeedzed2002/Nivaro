@@ -15,6 +15,8 @@ export type VariantContent = components['schemas']['VariantContent'];
 export type OfferChange = components['schemas']['OfferChange'];
 export type AdminVariant = AdminDetail['variants'][number];
 export type Evidence = components['schemas']['Evidence'];
+export type ManagedCategory = components['schemas']['AdminCategory'];
+export type CategoryContent = components['schemas']['CategoryContent'];
 export type Filters = NonNullable<operations['listAdminProducts']['parameters']['query']>;
 const client = createClient<paths>({ baseUrl: '', credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
@@ -40,3 +42,7 @@ export const saveAdminVariant = (productId: string, variantId: string | undefine
   ? await client.PUT('/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}', { params: { path: { product_id: productId, variant_id: variantId } }, body, headers: { 'X-CSRF-Token': csrf } })
   : await client.POST('/api/v1/admin/catalog/products/{product_id}/variants', { params: { path: { product_id: productId } }, body, headers: { 'X-CSRF-Token': csrf } })), 'admin');
 export const saveAdminOffer = (productId: string, variantId: string, body: OfferChange) => authorized(async csrf => unwrap(await client.PUT('/api/v1/admin/catalog/products/{product_id}/variants/{variant_id}/offers', { params: { path: { product_id: productId, variant_id: variantId } }, body, headers: { 'X-CSRF-Token': csrf } })), 'admin');
+export const listManagedCategories = () => authorized(async () => unwrap(await client.GET('/api/v1/admin/catalog/categories')), 'admin');
+export const saveManagedCategory = (body: CategoryContent, category?: ManagedCategory) => authorized(async csrf => unwrap(category
+  ? await client.PUT('/api/v1/admin/catalog/categories/{category_id}', { params: { path: { category_id: category.id } }, body: { ...body, expected_version: category.version }, headers: { 'X-CSRF-Token': csrf } })
+  : await client.POST('/api/v1/admin/catalog/categories', { body, headers: { 'X-CSRF-Token': csrf } })), 'admin');

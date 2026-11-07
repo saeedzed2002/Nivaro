@@ -17,6 +17,7 @@ from starlette.responses import Response
 
 from nivaro_catalog.api.admin import router as admin_router
 from nivaro_catalog.api.authorization import AuthorizationError, IdentityAuthorization
+from nivaro_catalog.api.categories import router as categories_router
 from nivaro_catalog.api.limits import BoundedBody
 from nivaro_catalog.api.schemas import (
     Comparison,
@@ -173,7 +174,7 @@ async def live() -> dict[str, str]:
 @app.get("/health/ready", include_in_schema=False)
 async def ready(db: SessionDep) -> dict[str, str]:
     revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-    if revision != "0003_admin_mutations":
+    if revision != "0004_category_admin":
         raise HTTPException(503, "Catalog schema revision is not ready")
     return {"status": "ok", "service": "catalog", "schema": revision}
 
@@ -253,4 +254,5 @@ async def variant(variant_id: UUID, db: SessionDep) -> Variant:
 
 app.include_router(router)
 app.include_router(admin_router)
+app.include_router(categories_router)
 app.add_middleware(BoundedBody)
