@@ -38,8 +38,8 @@ The normal Dockerfile has `test` and non-root `release` targets. For the existin
 
 ```powershell
 ./scripts/Prepare-CatalogCache.ps1
-docker build --pull=false --network=none --build-context dependency-cache=./work/python-cache -f services/identity/Dockerfile.offline -t nivaro-identity:release services/identity
-docker build --pull=false --network=none --build-context dependency-cache=./work/python-cache -f services/identity/Dockerfile.offline --target test -t nivaro-identity:test services/identity
+docker build --pull=false --network=none --build-context image-processing=./packages/python/image_processing --build-context dependency-cache=./work/python-cache -f services/identity/Dockerfile.offline -t nivaro-identity:release services/identity
+docker build --pull=false --network=none --build-context image-processing=./packages/python/image_processing --build-context dependency-cache=./work/python-cache -f services/identity/Dockerfile.offline --target test -t nivaro-identity:test services/identity
 ./scripts/Verify-IdentityService.ps1 -TestImage nivaro-identity:test
 ```
 

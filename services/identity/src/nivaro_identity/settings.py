@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     db_name: str = "nivaro_identity"
     db_user: str = "nivaro_identity"
     db_password_file: Path = Path("/run/secrets/identity_db_password")
+    media_private_root: Path = Path("/var/lib/nivaro-avatars/private")
+    media_output_root: Path = Path("/var/lib/nivaro-avatars/outputs")
+    media_broker_user: str = "nivaro_identity_media"
+    media_broker_password_file: Path = Path("/run/secrets/identity_media_broker_password")
+    media_broker_host: str = "rabbitmq"
     redis_host: str = "redis-state"
     redis_port: int = Field(default=6379, ge=1, le=65535)
     redis_password_file: Path = Path("/run/secrets/redis_state_password")

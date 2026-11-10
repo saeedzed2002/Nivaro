@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 import ipaddress
 import re
@@ -10,7 +11,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pwdlib import PasswordHash
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
@@ -26,6 +27,7 @@ from nivaro_identity.api.schemas import (
     AddressInput,
     AddressResponse,
     AdminLogin,
+    AvatarStatus,
     ChallengeResponse,
     CSRFResponse,
     ErrorEnvelope,
@@ -34,12 +36,15 @@ from nivaro_identity.api.schemas import (
     Profile,
     ProfileEdit,
     SessionResponse,
+    StaffProfile,
     VerifyCode,
 )
 from nivaro_identity.domain.errors import IdentityError
 from nivaro_identity.domain.security import SessionKind, Tokens, authenticate_value, digest
+from nivaro_identity.infrastructure import avatars
+from nivaro_identity.infrastructure.avatar_storage import MAX_UPLOAD_BYTES, MediaStorage
 from nivaro_identity.infrastructure.database import Database
-from nivaro_identity.infrastructure.models import Address, Administrator, Session, User
+from nivaro_identity.infrastructure.models import Address, Administrator, AvatarJob, Session, User
 from nivaro_identity.infrastructure.otp import OTP, RateLimited
 from nivaro_identity.infrastructure.sessions import Authenticated, Issued, Sessions
 from nivaro_identity.settings import Settings
@@ -249,7 +254,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health/ready", include_in_schema=False)
     async def ready(db: DB) -> dict[str, str]:
-        if await db.scalar(text("SELECT version_num FROM alembic_version")) != "0001_identity":
+        if (
+            await db.scalar(text("SELECT version_num FROM alembic_version"))
+            != "0002_identity_avatars"
+        ):
             raise IdentityError("identity.schema", 503)
         await app.state.redis.ping()
         return {"status": "ok", "service": "identity"}
@@ -403,6 +411,126 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         auth.user.name = data.name
         await db.commit()
         return Profile(id=auth.user.id, name=auth.user.name, phone=auth.user.phone)
+
+    async def avatar_status(request: Request, db: DB, auth: Auth) -> AvatarStatus:
+        kind = kind_for(request)
+        slot = await avatars.get_slot(db, auth.user.id, kind)
+        if slot is None:
+            return AvatarStatus(version=0)
+        job = await db.get(AvatarJob, slot.desired_job_id) if slot.desired_job_id else None
+        return AvatarStatus(
+            version=slot.version,
+            active=slot.active_job_id,
+            candidate=slot.desired_job_id,
+            state=job.state if job else None,
+            error_code=job.error_code if job else None,
+        )
+
+    async def upload_avatar(
+        request: Request, db: DB, auth: Auth, version: Annotated[int, Query(ge=0)]
+    ) -> AvatarStatus:
+        owner, session_id = auth.user.id, auth.session.id
+        kind = kind_for(request)
+        await db.rollback()
+        content = bytearray()
+        try:
+            async with asyncio.timeout(30):
+                async for chunk in request.stream():
+                    if len(content) + len(chunk) > MAX_UPLOAD_BYTES:
+                        raise IdentityError("avatar.too_large", 413)
+                    content.extend(chunk)
+        except TimeoutError as exc:
+            raise IdentityError("avatar.upload_timeout", 408) from exc
+        if not content:
+            raise IdentityError("avatar.empty", 422)
+        job_id = uuid4()
+
+        def store() -> None:
+            media = MediaStorage(settings.media_private_root, settings.media_output_root)
+            media.write_original(job_id, bytes(content))
+
+        try:
+            await run_in_threadpool(store)
+        except OSError as exc:
+            raise IdentityError("avatar.storage_unavailable", 503) from exc
+        # Revalidate revocation and CSRF after I/O, then keep the user row locked through commit.
+        verified = await authenticated(request, db)
+        if verified.user.id != owner or verified.session.id != session_id:
+            raise IdentityError("session.invalid")
+        await avatars.update_slot(db, owner, kind, version, job_id)
+        await db.commit()
+        return await avatar_status(request, db, verified)
+
+    async def remove_avatar(
+        request: Request, db: DB, auth: Auth, version: Annotated[int, Query(ge=0)]
+    ) -> AvatarStatus:
+        await avatars.update_slot(db, auth.user.id, kind_for(request), version, None)
+        await db.commit()
+        return await avatar_status(request, db, auth)
+
+    async def avatar_output(
+        request: Request, db: DB, auth: Auth, asset_id: UUID, size: int
+    ) -> FileResponse:
+        slot = await avatars.get_slot(db, auth.user.id, kind_for(request))
+        if not slot or slot.active_job_id != asset_id or size not in (128, 256):
+            raise IdentityError("avatar.not_found", 404)
+        job = await db.get(AvatarJob, asset_id)
+        if not job or job.slot_id != slot.id or job.state != "ready" or not job.attempt_id:
+            raise IdentityError("avatar.not_found", 404)
+        path = settings.media_output_root / job.attempt_id.hex / f"{size}.webp"
+        if not path.is_file():
+            raise IdentityError("avatar.not_found", 404)
+        return FileResponse(
+            path,
+            media_type="image/webp",
+            headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+        )
+
+    for owner_prefix, scope in (("/me/avatar", "customer"), ("/admin/me/avatar", "staff")):
+        router.add_api_route(
+            owner_prefix, avatar_status, methods=["GET"], operation_id=scope + "Avatar"
+        )
+        router.add_api_route(
+            owner_prefix,
+            upload_avatar,
+            methods=["PUT"],
+            status_code=202,
+            operation_id=scope + "UploadAvatar",
+            openapi_extra={
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/octet-stream": {
+                            "schema": {"type": "string", "format": "binary"}
+                        }
+                    },
+                }
+            },
+        )
+        router.add_api_route(
+            owner_prefix, remove_avatar, methods=["DELETE"], operation_id=scope + "RemoveAvatar"
+        )
+        router.add_api_route(
+            owner_prefix + "/{asset_id}/{size}",
+            avatar_output,
+            methods=["GET"],
+            operation_id=scope + "AvatarOutput",
+            response_class=FileResponse,
+        )
+
+    @router.get("/admin/me", operation_id="readStaffProfile")
+    async def staff_profile(db: DB, auth: Auth) -> StaffProfile:
+        admin = await db.get(Administrator, auth.user.id)
+        if admin is None:
+            raise IdentityError("session.invalid")
+        return StaffProfile(name=auth.user.name, email=admin.email, role=admin.role)
+
+    @router.patch("/admin/me", operation_id="editStaffProfile")
+    async def edit_staff_profile(data: ProfileEdit, db: DB, auth: Auth) -> StaffProfile:
+        auth.user.name = data.name
+        profile = await staff_profile(db, auth)
+        await db.commit()
+        return profile
 
     @router.get("/me/addresses", operation_id="listAddresses")
     async def addresses(db: DB, auth: Auth) -> list[AddressResponse]:

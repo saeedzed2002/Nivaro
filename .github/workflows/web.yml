@@ -56,7 +56,7 @@ jobs:
             sh -c 'ruff check . && ruff format --check . && mypy src && pytest -q && alembic check && python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check'
       - name: Build identity test image
         working-directory: .
-        run: docker build --target test -t nivaro-identity:test services/identity
+        run: docker build --build-context image-processing=./packages/python/image_processing --target test -t nivaro-identity:test services/identity
       - name: Identity database isolation sessions and OpenAPI
         working-directory: .
         shell: pwsh
@@ -84,6 +84,7 @@ jobs:
         shell: pwsh
         run: |
           docker tag nivaro-catalog:release nivaro-catalog:media-foundation
+          docker tag nivaro-identity:release nivaro-identity:avatar-candidate
           docker tag nivaro-web:release nivaro-web:media-foundation
           docker pull rabbitmq:4.4.0-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
           if ($LASTEXITCODE -ne 0) { throw 'Pinned broker image download failed.' }

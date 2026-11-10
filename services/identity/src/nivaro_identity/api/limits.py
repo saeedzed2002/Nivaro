@@ -13,6 +13,13 @@ class BoundedBody:
         self.max_bytes = max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] == "http"
+            and scope["method"] == "PUT"
+            and scope["path"] in {"/api/v1/me/avatar", "/api/v1/admin/me/avatar"}
+        ):
+            await self.app(scope, receive, send)
+            return
         if scope["type"] != "http" or scope["method"] not in {"POST", "PUT", "PATCH"}:
             await self.app(scope, receive, send)
             return

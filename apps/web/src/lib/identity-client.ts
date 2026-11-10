@@ -71,3 +71,22 @@ export const saveAddress = (body: AddressInput, existing?: Address) => authorize
   ? unwrap(await client.PUT('/api/v1/me/addresses/{address_id}', { params: { path: { address_id: existing.id } }, body: { ...body, version: existing.version }, headers: { 'X-CSRF-Token': csrf } }))
   : unwrap(await client.POST('/api/v1/me/addresses', { body, headers: { 'X-CSRF-Token': csrf } })));
 export const deleteAddress = (address: Address) => authorized(async csrf => unwrap(await client.DELETE('/api/v1/me/addresses/{address_id}', { params: { path: { address_id: address.id }, query: { version: address.version } }, headers: { 'X-CSRF-Token': csrf } })));
+
+export type AvatarStatus = components['schemas']['AvatarStatus'];
+export const avatarPath = (scope: Scope) => scope === 'admin' ? '/api/v1/admin/me/avatar' : '/api/v1/me/avatar';
+export const readAvatar = (scope: Scope) => authorized(async () => unwrap(await client.GET(avatarPath(scope))), scope);
+export const readStaffProfile = () => authorized(async () => unwrap(await client.GET('/api/v1/admin/me')), 'admin');
+export const saveStaffName = (name: string) => authorized(async csrf => unwrap(await client.PATCH('/api/v1/admin/me', { body: { name }, headers: { 'X-CSRF-Token': csrf } })), 'admin');
+
+export function changeAvatar(scope: Scope, version: number, file: File | null): Promise<AvatarStatus> {
+  return authorized(async csrf => {
+    if (!file) return unwrap(await client.DELETE(avatarPath(scope), { params: { query: { version } }, headers: { 'X-CSRF-Token': csrf } }));
+    const response = await fetch(avatarPath(scope) + '?version=' + version, {
+      method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/octet-stream', 'X-CSRF-Token': csrf },
+      body: file, signal: AbortSignal.timeout(35000),
+    });
+    const payload = await response.json().catch(() => undefined);
+    if (!response.ok || !payload) throw new IdentityError(payload?.error?.code || 'identity.unavailable', response.status);
+    return payload as AvatarStatus;
+  }, scope);
+}

@@ -127,6 +127,8 @@ services:
     image: nivaro-identity:release
     build:
       context: ./services/identity
+      additional_contexts:
+        image-processing: ./packages/python/image_processing
     secrets:
       - identity_db_password
     depends_on:

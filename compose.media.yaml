@@ -16,6 +16,13 @@ services:
       timeout: 5s
       retries: 15
     restart: unless-stopped
+
+  identity:
+    volumes:
+      - identity_media:/var/lib/nivaro-avatars
+    depends_on:
+      identity-media-init:
+        condition: service_completed_successfully
   catalog-media-init:
     image: nivaro-catalog:release
     user: '0:0'
@@ -75,11 +82,64 @@ services:
     cpus: 0.5
     init: true
     restart: unless-stopped
+  identity-media-init:
+    image: nivaro-identity:release
+    user: '0:0'
+    volumes:
+      - identity_media:/var/lib/nivaro-avatars
+    command: [python, -c, "import os; from pathlib import Path; p=Path('/var/lib/nivaro-avatars'); [(x.mkdir(exist_ok=True), os.chown(x,10002,10002), x.chmod(0o750)) for x in [p,p/'private',p/'outputs']]"]
+    restart: 'no'
+  identity-media-worker:
+    image: nivaro-identity:release
+    command: [celery, -A, nivaro_identity.media_worker:app, worker, --loglevel=WARNING, --concurrency=1, --pool=prefork, --without-gossip, --without-mingle, --without-heartbeat]
+    environment:
+      IDENTITY_DB_HOST: postgres
+    secrets:
+      - identity_db_password
+      - identity_media_broker_password
+    volumes:
+      - identity_media:/var/lib/nivaro-avatars
+    depends_on:
+      identity-init:
+        condition: service_completed_successfully
+      identity-media-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    init: true
+    restart: unless-stopped
+  identity-media-dispatcher:
+    image: nivaro-identity:release
+    command: [python, -m, nivaro_identity.media_dispatcher]
+    environment:
+      IDENTITY_DB_HOST: postgres
+    secrets:
+      - identity_db_password
+      - identity_media_broker_password
+    volumes:
+      - identity_media:/var/lib/nivaro-avatars
+    depends_on:
+      identity-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      identity-media-init:
+        condition: service_completed_successfully
+    mem_limit: 192m
+    cpus: 0.5
+    init: true
+    restart: unless-stopped
 volumes:
   catalog_media:
+  identity_media:
   media_broker:
 secrets:
   catalog_media_broker_password:
     file: ./work/secrets/catalog_media_broker_password.txt
+  identity_media_broker_password:
+    file: ./work/secrets/identity_media_broker_password.txt
   media_broker_definitions:
     file: ./work/secrets/media_broker_definitions.json

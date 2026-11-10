@@ -106,3 +106,17 @@ class ErrorDetail(BaseModel):
 
 class ErrorEnvelope(BaseModel):
     error: ErrorDetail
+
+
+class StaffProfile(BaseModel):
+    name: str
+    email: str
+    role: str
+
+
+class AvatarStatus(BaseModel):
+    version: int
+    active: UUID | None = None
+    candidate: UUID | None = None
+    state: str | None = None
+    error_code: str | None = None

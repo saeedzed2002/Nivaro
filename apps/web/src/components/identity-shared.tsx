@@ -11,6 +11,8 @@ export function errorText(error: unknown, locale: Locale): string {
     'login.rate_limited': ['تعداد تلاش‌ها بیش از حد مجاز است. پس از زمان اعلام‌شده دوباره تلاش کنید.', 'Too many attempts. Try again after the indicated wait.'],
     'session.invalid': ['نشست شما پایان یافته است. دوباره وارد شوید؛ اطلاعات ذخیره‌نشده را پیش از خروج کپی کنید.', 'Your session has ended. Sign in again; copy any unsaved information before leaving.'],
     'session.refresh_race': ['نشست در پنجرهٔ دیگری تازه شد. دوباره تلاش کنید.', 'Another tab refreshed the session. Please try again.'],
+    'avatar.changed': ['تصویر تغییر کرده است. وضعیت فعلی را دریافت کنید.', 'The photo changed. Reload its status before trying again.'],
+    'avatar.invalid_size': ['تصویر باید بین یک بایت تا هشت مگابایت باشد.', 'Select a non-empty file up to 8 MiB.'],
     'address.changed': ['این نشانی در پنجرهٔ دیگری تغییر کرده است. فهرست را تازه کنید و دوباره ویرایش کنید.', 'This address changed in another tab. Reload the list before editing again.'],
     'address.limit': ['حداکثر بیست نشانی قابل ذخیره است.', 'You can save up to twenty addresses.'],
     'request.invalid': ['اطلاعات فرم را بررسی کنید؛ شماره باید معتبر و کد پستی ایران ده رقم باشد.', 'Check the form values, phone number and postal code. Iranian postal codes require ten digits.'],

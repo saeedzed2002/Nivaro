@@ -490,6 +490,55 @@ test('media gallery: real processing, failed replacement, conflicts, cover and p
   expect((await context.request.get(`${base}/api/v1/catalog/images/${cover}/320`)).status()).toBe(404);
   expect(errors).toEqual([]);
 });
+test('private avatars: customer and staff upload through the identity worker with separate profile scopes', async ({ page, context }) => {
+  test.skip(process.env.NIVARO_MEDIA_BROWSER !== '1', 'Requires media services');
+  test.setTimeout(150_000);
+  await context.addCookies(seedCookies);
+  if (staffCookies) await context.addCookies(staffCookies);
+  else {
+    const login = await context.request.post(base + '/api/v1/admin/auth/login', { headers: { Origin: base }, data: { email: 'staff@example.com', password: adminPassword } });
+    expect(login.status()).toBe(200);
+  }
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  for (const route of ['/en/account/profile', '/en/admin/profile']) {
+    await page.goto(route);
+    await expect(page.getByAltText('Current profile photo')).toHaveCount(0);
+    await page.locator('.avatar-editor input').setInputFiles(path.resolve('public/images/gpu.webp'));
+    await page.getByRole('button', { name: 'Upload photo' }).click();
+    const image = page.getByAltText('Current profile photo');
+    await expect(image).toBeVisible({ timeout: 35_000 });
+    const url = await image.getAttribute('src');
+    expect(url).toBeTruthy();
+    const response = await context.request.get(base + url);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe('image/webp');
+    expect(response.headers()['cache-control']).toContain('no-store');
+    if (route.includes('admin')) {
+      await page.getByLabel('Display name').fill('Staff avatar QA');
+      await page.getByRole('button', { name: 'Save display name' }).click();
+      await expect(page.getByText('Display name saved.')).toBeVisible();
+      for (const [locale, theme, width] of [['fa', 'dark', 1440], ['en', 'light', 360]] as const) {
+        await context.addCookies([{ name: 'nivaro-theme', value: theme, url: base }]);
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto('/' + locale + '/admin/profile');
+        await expect(page.locator('.avatar-portrait img')).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({ path: test.info().outputPath(locale + '-' + theme + '-staff-profile.png'), fullPage: true });
+      }
+    }
+    await page.locator('.avatar-editor input').setInputFiles({ name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('invalid image') });
+    await page.getByRole('button', { name: 'Upload photo' }).click();
+    await expect(page.getByText('Photo processing failed.', { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(image).toHaveAttribute('src', url!);
+    await page.getByRole('button', { name: 'Remove photo' }).click();
+    await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(image).toHaveCount(0);
+    expect((await context.request.get(base + url)).status()).toBe(404);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('admin credentials are separate; customer login never grants staff access', async ({ page, context }) => {
   test.setTimeout(90_000);
   await context.addCookies(seedCookies);

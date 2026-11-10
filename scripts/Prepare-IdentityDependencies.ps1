@@ -21,14 +21,14 @@ else
   pip install --disable-pip-version-check --timeout 20 --retries 0 uv==0.13.5
 fi
 if [ ! -f uv.lock ]; then uv lock; fi
-uv sync --frozen
+uv sync --frozen --no-editable
 '@
 docker run --rm --pull never `
-    -v "${source}:/app" -v "${cache}:/seed:ro" `
+    -e UV_PROJECT_ENVIRONMENT=/app/.venv -v "${root}/packages:/workspace/packages:ro" -v "${source}:/workspace/services/identity" -v "${source}:/app" -v "${cache}:/seed:ro" `
     -v 'nivaro-python-download-cache:/root/.cache' `
     -e "UV_DEFAULT_INDEX=$($IndexUrl.AbsoluteUri)" -e "PIP_INDEX_URL=$($IndexUrl.AbsoluteUri)" `
     -e UV_HTTP_TIMEOUT=20 -e UV_HTTP_RETRIES=0 -e UV_LINK_MODE=copy `
-    -w /app python:3.13.18-slim-bookworm sh -c $install
+    -w /workspace/services/identity python:3.13.18-slim-bookworm sh -c $install
 if ($LASTEXITCODE -ne 0) {
     throw 'Identity dependencies remain incomplete. Do not run Verify-IdentityFoundation.ps1 yet. Restore package connectivity or use the documented HTTPS mirror via -IndexUrl; do not change TLS or dependency pins. Existing lockfiles keep their recorded download URLs.'
 }

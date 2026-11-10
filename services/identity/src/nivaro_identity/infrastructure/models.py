@@ -1,7 +1,16 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -95,3 +104,52 @@ class Audit(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now, server_default=func.now(), index=True
     )
+
+
+class AvatarSlot(Base):
+    __tablename__ = "avatar_slots"
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", name="avatar_owner_kind"),
+        CheckConstraint("kind IN ('customer','admin')", name="avatar_kind"),
+        CheckConstraint("version > 0", name="avatar_version"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    kind: Mapped[str] = mapped_column(String(16))
+    version: Mapped[int] = mapped_column(default=1)
+    desired_job_id: Mapped[UUID | None] = mapped_column()
+    active_job_id: Mapped[UUID | None] = mapped_column()
+
+
+class AvatarJob(Base):
+    __tablename__ = "avatar_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('uploaded','processing','ready','failed')", name="avatar_job_state"
+        ),
+        CheckConstraint("attempts BETWEEN 0 AND 3", name="avatar_job_attempts"),
+        Index("ix_avatar_recovery", "state", "lease_until"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    slot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("avatar_slots.id", ondelete="RESTRICT"), index=True
+    )
+    state: Mapped[str] = mapped_column(String(16), default="uploaded")
+    attempts: Mapped[int] = mapped_column(default=0)
+    attempt_id: Mapped[UUID | None] = mapped_column()
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_code: Mapped[str | None] = mapped_column(String(80))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AvatarDispatch(Base):
+    __tablename__ = "avatar_dispatch"
+    job_id: Mapped[UUID] = mapped_column(
+        ForeignKey("avatar_jobs.id", ondelete="RESTRICT"), primary_key=True
+    )
+    available_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+    claim_id: Mapped[UUID | None] = mapped_column()
+    claimed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

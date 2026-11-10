@@ -73,6 +73,7 @@ export function IdentityLogin({ locale, admin = false, initial, mock = false }: 
           <div className="identity-notice success"><CheckCircle2 size={20}/><span>{text(locale, 'ورود مدیر تأیید شد. دسترسی‌های این نشست:', 'Administrator verified. This session has access to:')}</span></div>
           <ul className="permission-list">{session.permissions.map(permission => <li key={permission}><ShieldCheck size={17}/>{permissionLabels[permission] ? text(locale, ...permissionLabels[permission]) : permission}</li>)}</ul>
           <p className="muted">{text(locale, 'این نشست از حساب خرید شما جداست.', 'This session is separate from your shopping account.')}</p>
+          <Link className="button secondary" href={`/${locale}/admin/profile`}>{text(locale, 'پروفایل من', 'My profile')}</Link>
           {session.permissions.includes('catalog.write') && <Link className="button primary" href={`/${locale}/admin/products`}>{text(locale, 'مدیریت محصولات', 'Manage products')}</Link>}
           <IdentityNotice error={error} locale={locale}/><button className="button secondary" disabled={busy} onClick={() => void run(async () => { await logout('admin', false); setSession(null); router.refresh(); })}>{text(locale, 'خروج از نشست مدیریت', 'Sign out of staff session')}</button>
         </> : <>

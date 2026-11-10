@@ -10,6 +10,8 @@ import type { InitialIdentity } from '@/lib/identity-server';
 import { text, type Locale } from '@/lib/content';
 import { ConfirmAction, IdentityNotice } from './identity-shared';
 
+import { AvatarEditor } from './avatar-editor';
+
 export type AccountView = 'overview' | 'profile' | 'addresses';
 export function IdentityAccount({ locale, initial, view }: { locale: Locale; initial: InitialIdentity; view: AccountView }) {
   const [session, setSession] = useState(initial.session);
@@ -45,7 +47,7 @@ export function IdentityAccount({ locale, initial, view }: { locale: Locale; ini
         <div className="account-shortcuts"><Link className="identity-panel" href={`/${locale}/account/profile`}><UserRound size={30}/><span><strong>{text(locale, 'اطلاعات حساب', 'Account details')}</strong><small>{text(locale, 'مشاهده و ویرایش اطلاعات شخصی', 'View and edit personal information')}</small></span><ArrowRight size={19}/></Link><Link className="identity-panel" href={`/${locale}/account/addresses`}><MapPin size={30}/><span><strong>{text(locale, 'نشانی‌ها', 'Addresses')}</strong><small>{text(locale, 'مدیریت نشانی‌های ذخیره‌شده', 'Manage your saved addresses')}</small></span><ArrowRight size={19}/></Link></div>
         <div className="account-promo"><Image src="/images/showroom.webp" alt="" fill sizes="(max-width: 760px) 100vw, 70vw"/><div><h2>{text(locale, 'برای ستاپ بعدی آماده شو', 'Ready for your next setup?')}</h2><p>{text(locale, 'قطعات و تجهیزات گیمینگ را بررسی کن.', 'Explore gaming hardware and peripherals.')}</p><Link className="button primary" href={`/${locale}/products`}>{text(locale, 'مشاهدهٔ قطعات', 'Explore components')}<ArrowRight size={18}/></Link></div></div>
         <div className="identity-panel account-security"><ShieldCheck size={30}/><div><h2>{text(locale, 'امنیت حساب', 'Account security')}</h2><p className="muted">{text(locale, 'نشست‌های خرید خود را در همهٔ دستگاه‌ها، شامل همین دستگاه، ببندید.', 'End your shopping sessions on every device, including this one.')}</p></div><ConfirmAction locale={locale} label={text(locale, 'خروج از همهٔ دستگاه‌ها', 'Sign out everywhere')} title={text(locale, 'از همهٔ دستگاه‌ها خارج شوید؟', 'Sign out on every device?')} busy={busy} onConfirm={() => signOut(true)}>{text(locale, 'این دستگاه نیز خارج می‌شود. نشست‌های مدیریتی جداگانه باقی می‌مانند.', 'This device will also be signed out. Separate staff sessions are unaffected.')}</ConfirmAction></div>
-      </> : view === 'profile' ? <ProfileForm locale={locale} session={session} onSaved={profile => setSession({ ...session, profile })}/> : <Addresses locale={locale} phone={session.profile.phone}/>}
+      </> : view === 'profile' ? <div className="profile-workspace"><AvatarEditor locale={locale} scope="customer"/><ProfileForm locale={locale} session={session} onSaved={profile => setSession({ ...session, profile })}/></div> : <Addresses locale={locale} phone={session.profile.phone}/>}
     </section></div>
   </main>;
 }

@@ -604,3 +604,65 @@ async def test_limits_private_routes_and_public_keys(api):
     # delivery never produces an apparently successful send.
     app.state.settings.otp_provider = "disabled"
     assert (await client.post("/api/v1/auth/otp/request", json={"phone": PHONE})).status_code == 503
+
+
+async def test_private_avatar_lifecycle_and_scope(api, tmp_path):
+    from uuid import UUID
+
+    from nivaro_identity.infrastructure.avatar_storage import MediaStorage
+    from nivaro_identity.infrastructure.avatars import claim_job, finish_job
+
+    client, app, db = api
+    settings = app.state.settings
+    settings.media_private_root = tmp_path / "private"
+    settings.media_output_root = tmp_path / "outputs"
+    storage = MediaStorage(settings.media_private_root, settings.media_output_root)
+    _, password = await admin_account(db, role="support_agent")
+    customer = await login(client)
+    path = "/api/v1/me/avatar"
+    staff = "/api/v1/admin/me/avatar"
+    headers = {"X-CSRF-Token": customer["csrf_token"]}
+    assert (await client.get(staff)).status_code == 401
+    assert (await client.get(path)).json()["version"] == 0
+    assert (await client.put(path, params={"version": 0}, content=b"sample")).status_code == 403
+    queued = await client.put(path, params={"version": 0}, headers=headers, content=b"sample")
+    assert queued.status_code == 202, queued.text
+    first = UUID(queued.json()["candidate"])
+    async with db.sessions() as session, session.begin():
+        attempt = await claim_job(session, first)
+        assert attempt is not None
+        storage.write_outputs(attempt, {128: b"small", 256: b"large"})
+        assert await finish_job(session, first, attempt)
+    image = f"{path}/{first}/128"
+    delivered = await client.get(image)
+    assert delivered.content == b"small"
+    assert "no-store" in delivered.headers["cache-control"]
+    assert (await client.get(f"{path}/{first}/512")).status_code == 404
+    assert (await client.delete(path, params={"version": 1}, headers=headers)).status_code == 409
+    admin = await client.post(
+        "/api/v1/admin/auth/login", json={"email": "owner@example.com", "password": password}
+    )
+    assert admin.status_code == 200
+    assert (await client.get(staff)).json()["active"] is None
+    assert (await client.get(f"{staff}/{first}/128")).status_code == 404
+    assert (await client.get("/api/v1/admin/me")).json()["role"] == "support_agent"
+    rejected = await client.put(path, params={"version": 2}, headers=headers, content=b"invalid")
+    async with db.sessions() as session, session.begin():
+        job_id = UUID(rejected.json()["candidate"])
+        attempt = await claim_job(session, job_id)
+        assert not await finish_job(session, job_id, attempt, error_code="invalid_image")
+    state = (await client.get(path)).json()
+    assert state["state"] == "failed" and state["active"] == str(first)
+    pending = await client.put(
+        path, params={"version": state["version"]}, headers=headers, content=b"replacement"
+    )
+    job_id = UUID(pending.json()["candidate"])
+    async with db.sessions() as session, session.begin():
+        attempt = await claim_job(session, job_id)
+    removed = await client.delete(
+        path, params={"version": pending.json()["version"]}, headers=headers
+    )
+    assert removed.status_code == 200 and removed.json()["active"] is None
+    async with db.sessions() as session, session.begin():
+        assert not await finish_job(session, job_id, attempt)
+    assert (await client.get(image)).status_code == 404

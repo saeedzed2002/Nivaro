@@ -10,5 +10,15 @@ services:
     image: nivaro-catalog:media-foundation
   catalog-media-dispatcher:
     image: nivaro-catalog:media-foundation
+  identity-init:
+    image: nivaro-identity:avatar-candidate
+  identity:
+    image: nivaro-identity:avatar-candidate
+  identity-media-init:
+    image: nivaro-identity:avatar-candidate
+  identity-media-worker:
+    image: nivaro-identity:avatar-candidate
+  identity-media-dispatcher:
+    image: nivaro-identity:avatar-candidate
   web:
     image: nivaro-web:media-foundation

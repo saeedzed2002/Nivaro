@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AlertCircle, Box, CheckCircle2, ExternalLink, FolderTree, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Box, CheckCircle2, ExternalLink, FolderTree, UserRound, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import { IdentityError, logout, readSession } from '@/lib/identity-client';
 import { type InitialIdentity } from '@/lib/identity-server';
 import { text, type Locale } from '@/lib/content';
@@ -43,7 +43,7 @@ export function StatusBadge({ status, locale }: { status: 'draft' | 'published' 
   return <span className={`admin-badge ${status}`}><span/>{text(locale, labels[status][0], labels[status][1])}</span>;
 }
 
-export function AdminShell({ locale, initial, children }: { locale: Locale; initial: InitialIdentity; children: ReactNode }) {
+export function AdminShell({ locale, initial, children, selfProfile = false }: { locale: Locale; initial: InitialIdentity; selfProfile?: boolean; children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [identity, setIdentity] = useState(initial.session);
@@ -70,13 +70,14 @@ export function AdminShell({ locale, initial, children }: { locale: Locale; init
       <div className="admin-sidebar-title"><ShieldCheck size={24}/><div><strong>{text(locale, 'مدیریت کاتالوگ', 'Catalog workspace')}</strong><small>{text(locale, 'نیوارو گیمینگ', 'Nivaro Gaming')}</small></div></div>
       <nav aria-label={text(locale, 'ناوبری مدیریت', 'Administration navigation')}>
         {allowed && <><Link href={`/${locale}/admin/products`} aria-current={pathname.includes('/admin/products') ? 'page' : undefined}><Box size={19}/>{text(locale, 'محصولات', 'Products')}</Link><Link href={`/${locale}/admin/categories`} aria-current={pathname.endsWith('/admin/categories') ? 'page' : undefined}><FolderTree size={19}/>{text(locale, 'دسته‌بندی‌ها', 'Categories')}</Link></>}
+        {identity && <Link href={`/${locale}/admin/profile`} aria-current={pathname.endsWith('/admin/profile') ? 'page' : undefined}><UserRound size={19}/>{text(locale, 'پروفایل من', 'My profile')}</Link>}
         <Link href={`/${locale}/admin/login`}><ShieldCheck size={19}/>{text(locale, 'نشست و دسترسی‌ها', 'Session & permissions')}</Link>
         <Link href={`/${locale}`}><ExternalLink size={19}/>{text(locale, 'مشاهدهٔ فروشگاه', 'View storefront')}</Link>
         {identity && <button disabled={busy} onClick={() => void signOut()}><LogOut size={19}/>{text(locale, 'خروج از مدیریت', 'Sign out of staff session')}</button>}
       </nav>
       <p className="admin-sidebar-note">{text(locale, 'هر تغییر با حساب مدیر ثبت می‌شود.', 'Changes are recorded with the staff account responsible.')}</p>
     </aside><div className="admin-content">
-      {allowed ? <><CatalogNotice error={error} locale={locale}/>{children}</> : <section className="admin-panel admin-access">
+      {(selfProfile ? identity : allowed) ? <><CatalogNotice error={error} locale={locale}/>{children}</> : <section className="admin-panel admin-access">
         <ShieldCheck size={36}/><h1>{text(locale, 'دسترسی مدیریت محصولات', 'Product administration access')}</h1>
         {checking ? <p role="status">{text(locale, 'در حال بررسی دسترسی…', 'Checking your access…')}</p> : <>
           {identity && !allowed ? <p>{text(locale, 'این حساب مجوز مدیریت کاتالوگ ندارد.', 'This account does not have catalog management permission.')}</p> : <CatalogNotice error={error} locale={locale}/>}
