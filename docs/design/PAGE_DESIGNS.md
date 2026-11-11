@@ -126,3 +126,7 @@ Generated and inspected `pages/admin-profile.png` after the catalog-media checkp
 ### P04 staff profile runtime — 2026-11-11
 
 Implemented from the registered reference and inspected Persian dark desktop and English light mobile captures after the complete 20-journey browser suite passed. Image selection is localized and keyboard accessible. Active images load through authenticated private identity routes. Processed replacement, failed replacement preservation and removal were exercised for customer and staff scopes. Evidence lives in `nivaro-p04-phase-final/` outside the repository.
+
+### P05 cart reference — 2026-11-11
+
+Generated and inspected `pages/cart.png` before cart UI implementation. Retain the Blue RGB dark desktop/light mobile visual system, grouped component rows, standalone lines, explicit missing-price and availability states, estimated subtotal and non-reservation notice. The image is illustrative. Correct its complete-build label: compatibility mode does not promise physical assembly or delivery service. Use the same SKU in multiple systems/spare rows when demonstrating grouping. Empty cart is a separate state, never simultaneously shown below a populated cart. Calculate badge counts from actual lines/quantities, use actual catalog data, and do not present the reference's two-item badge as a requirement. Shipping/tax remain pending until authoritative checkout exists. Page implementation and runtime acceptance are pending.

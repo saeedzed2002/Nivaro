@@ -61,6 +61,13 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./scripts/Verify-IdentityService.ps1 -TestImage 'nivaro-identity:test'
+      - name: Build cart foundation test image
+        working-directory: .
+        run: docker build --target test -t nivaro-cart:test services/cart
+      - name: Cart foundation migrations ownership and limits
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-CartFoundation.ps1 -TestImage 'nivaro-cart:test'
       - name: Build host preview against catalog gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080
