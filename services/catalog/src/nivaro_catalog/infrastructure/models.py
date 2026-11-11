@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -230,3 +231,10 @@ class MediaDispatchRow(Base):
     claim_id: Mapped[UUID | None] = mapped_column()
     claimed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PublicCacheGeneration(Base):
+    __tablename__ = "public_cache_generation"
+    __table_args__ = (CheckConstraint("id = 1", name="public_cache_singleton"),)
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, autoincrement=False)
+    token: Mapped[UUID] = mapped_column()

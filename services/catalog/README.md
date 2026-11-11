@@ -124,3 +124,11 @@ docker compose up -d --no-build --pull never --wait
 Run from the repository root. The frontend recovery requires the already populated `nivaro-web:p02-watch` Linux dependency image (the default older development image lacks later contract packages); missing dependencies get a bounded fetch. This is not an offline bootstrap on an empty machine. Never remove the database volume or regenerate existing secrets.
 
 Canonical contract check: run `python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check` in the frozen catalog environment with contracts mounted, then `pnpm contracts:check` in apps/web. Regenerate using the export command without `--check` and `pnpm contracts:generate`. Type artifacts stay inside the frontend build context.
+
+## Public catalog cache
+
+Migration `0006_public_cache` adds a commit-visible UUID generation. Statement triggers on categories, products, variants, offers and media slots advance it with the data. Public list/detail keys include the generation and all effective query inputs, with a 60-second TTL. A slow reader fills only its obsolete namespace after a competing commit. This costs one database lookup on cache hits and serializes generation writes. Reassess contention as write volume grows.
+
+The independent `redis-cache` instance has a 128 MiB all-keys LRU limit, its own secret and no persistence. Reads/writes have bounded timeouts and a two-second local cooldown after failure. API reads fall back to the bounded SQL pool. Personal/admin responses, variant reads, comparisons and build evaluation bypass caching. Checkout authority remains a P06 requirement.
+
+Run `scripts/Verify-CatalogCache.ps1` for disposable cache, invalidation, rollback, late-writer, price/stock, expiry, access-control, outage and recovery checks.

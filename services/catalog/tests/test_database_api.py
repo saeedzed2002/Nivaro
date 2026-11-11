@@ -26,6 +26,9 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 async def api():
+    from nivaro_catalog.infrastructure.public_cache import PublicCache
+
+    app.state.public_cache = PublicCache(Settings(cache_host=None))
     database = Database(Settings())
     async with database.engine.connect() as connection:
         transaction = await connection.begin()

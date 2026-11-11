@@ -89,6 +89,7 @@ jobs:
           docker pull rabbitmq:4.4.0-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
           if ($LASTEXITCODE -ne 0) { throw 'Pinned broker image download failed.' }
           ./scripts/Verify-CatalogMedia.ps1
+          ./scripts/Verify-CatalogCache.ps1
       - name: Identity and media browser journeys on a disposable stack
         working-directory: .
         shell: pwsh

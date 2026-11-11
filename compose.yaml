@@ -76,10 +76,12 @@ services:
     image: nivaro-catalog:release
     environment:
       CATALOG_DB_HOST: postgres
+      CATALOG_CACHE_HOST: redis-cache
       CATALOG_IDENTITY_SERVICE_KEY_FILE: /run/secrets/catalog_identity_service_key
     secrets:
       - catalog_db_password
       - catalog_identity_service_key
+      - redis_cache_password
     depends_on:
       catalog-init:
         condition: service_completed_successfully
@@ -93,6 +95,22 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 6
+  redis-cache:
+    image: redis:8.10.3@sha256:0c257ce8b2f31f9f7595f587edf8ac259a248ba3ced82badc8c7aa826a85224f
+    user: redis
+    command: [sh, /etc/redis/start-cache.sh]
+    secrets:
+      - redis_cache_password
+    volumes:
+      - ./infra/redis/start-cache.sh:/etc/redis/start-cache.sh:ro
+    mem_limit: 192m
+    cpus: 0.5
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH=$$(cat /run/secrets/redis_cache_password) redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 10
   redis-state:
     image: redis:8.10.3@sha256:0c257ce8b2f31f9f7595f587edf8ac259a248ba3ced82badc8c7aa826a85224f
     user: redis
@@ -169,6 +187,8 @@ volumes:
   catalog_postgres:
   identity_redis:
 secrets:
+  redis_cache_password:
+    file: ./work/secrets/redis_cache_password.txt
   catalog_identity_service_key:
     file: ./work/secrets/catalog_identity_service_key.txt
   postgres_admin_password:

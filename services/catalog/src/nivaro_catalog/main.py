@@ -39,6 +39,7 @@ from nivaro_catalog.domain.contracts import (
 from nivaro_catalog.domain.evaluation import SelectionError, evaluate
 from nivaro_catalog.infrastructure import repository
 from nivaro_catalog.infrastructure.database import Database
+from nivaro_catalog.infrastructure.public_cache import PublicCache
 from nivaro_catalog.settings import Settings
 
 
@@ -47,6 +48,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
     database = Database(settings)
     app.state.database = database
+    cache = PublicCache(settings)
+    app.state.public_cache = cache
     async with httpx.AsyncClient(
         base_url=settings.identity_url,
         timeout=httpx.Timeout(2, pool=1),
@@ -58,6 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            await cache.close()
             await database.engine.dispose()
 
 
@@ -175,7 +179,7 @@ async def live() -> dict[str, str]:
 @app.get("/health/ready", include_in_schema=False)
 async def ready(db: SessionDep) -> dict[str, str]:
     revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-    if revision != "0005_product_media":
+    if revision != "0006_public_cache":
         raise HTTPException(503, "Catalog schema revision is not ready")
     return {"status": "ok", "service": "catalog", "schema": revision}
 
@@ -187,6 +191,7 @@ async def categories(db: SessionDep) -> list[Category]:
 
 @router.get("/products", operation_id="listProducts")
 async def products(
+    request: Request,
     db: SessionDep,
     q: Annotated[str, Query(max_length=100)] = "",
     category: Annotated[str, Query(max_length=80)] = "",
@@ -201,27 +206,41 @@ async def products(
 ) -> ProductPage:
     if min_price is not None and max_price is not None and min_price > max_price:
         raise HTTPException(422, "Minimum price exceeds maximum price")
-    return await repository.products(
+
+    async def load() -> ProductPage:
+        return await repository.products(
+            db,
+            q=q,
+            category=category,
+            brand=brand,
+            market=market,
+            sort=sort,
+            page=page,
+            page_size=page_size,
+            min_price=min_price,
+            max_price=max_price,
+            in_stock=in_stock,
+        )
+
+    cache: PublicCache = request.app.state.public_cache
+    return await cache.read(
         db,
-        q=q,
-        category=category,
-        brand=brand,
-        market=market,
-        sort=sort,
-        page=page,
-        page_size=page_size,
-        min_price=min_price,
-        max_price=max_price,
-        in_stock=in_stock,
+        ProductPage,
+        (q, category, brand, market, sort, page, page_size, min_price, max_price, in_stock),
+        load,
     )
 
 
 @router.get("/products/{slug}", operation_id="getProduct")
-async def product(slug: str, db: SessionDep) -> Product:
-    result = await repository.product(db, slug)
-    if result is None:
-        raise HTTPException(404, "Product not found")
-    return result
+async def product(slug: str, db: SessionDep, request: Request) -> Product:
+    async def load() -> Product:
+        result = await repository.product(db, slug)
+        if result is None:
+            raise HTTPException(404, "Product not found")
+        return result
+
+    cache: PublicCache = request.app.state.public_cache
+    return await cache.read(db, Product, (slug,), load)
 
 
 @router.post("/comparisons", operation_id="compareProducts")

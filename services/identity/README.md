@@ -78,3 +78,9 @@ Current local evidence: 41 backend tests; strict typing for 17 source files; 15 
 ### Builder index reachability
 
 The normal Dockerfile exports requirements directly from `uv.lock` with `uv export --frozen`, retains hashes and exact versions, and uses `uv pip sync/install --require-hashes` against `PYTHON_INDEX_URL` (default official PyPI). This avoids forcing an external CI runner through a regional mirror. The application wheel is then installed with `--no-deps`; its build backend remains pinned in `pyproject.toml`. The offline Dockerfile and local dependency helper still use the original frozen lock/cache. No source URL is silently replaced in the lock, no version is upgraded, and no hash/TLS check is disabled. The first P03 CI run demonstrated Runflare connection timeouts from GitHub while official PyPI worked; the follow-up run verifies this portable install path.
+
+## Private profile images
+
+Customer and staff avatar slots are separate for the same user. `/api/v1/me/avatar` and `/api/v1/admin/me/avatar` enforce current session and CSRF on mutations. Uploads are bounded to 8 MiB and 30 seconds, with authentication checked again after upload I/O. Replacements preserve the active image until 128/256-pixel WebP outputs activate. Version conflicts return 409. Removal fences pending activation. Image delivery requires the owning session and uses private, no-store responses.
+
+Include `compose.media.yaml` for persistent avatar storage, the dedicated identity worker and recoverable dispatcher. Its broker user and storage are separate from catalog. Original/stale attempt retention is seven days, with active and pending data preserved. The staff profile supports all staff roles, with email and role read-only.

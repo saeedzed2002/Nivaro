@@ -8,6 +8,8 @@ from sqlalchemy import URL
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CATALOG_", extra="ignore")
 
+    cache_host: str | None = None
+    cache_password_file: Path = Path("/run/secrets/redis_cache_password")
     db_host: str = "postgres"
     db_port: int = Field(default=5432, ge=1, le=65535)
     db_name: str = "nivaro_catalog"

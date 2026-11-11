@@ -28,6 +28,9 @@ ROOT = "/api/v1/admin/catalog/products"
 
 @pytest.fixture
 async def staff():
+    from nivaro_catalog.infrastructure.public_cache import PublicCache
+
+    app.state.public_cache = PublicCache(Settings(cache_host=None))
     database = Database(Settings())
     actor = uuid4()
     async with database.engine.connect() as connection:
@@ -371,6 +374,9 @@ async def test_all_write_routes_require_fresh_authorization_before_effect(staff)
 )
 async def test_competing_stock_writes_commit_once_and_loser_conflicts():
     """Two real sessions; first holds locks until the second has attempted its write."""
+    from nivaro_catalog.infrastructure.public_cache import PublicCache
+
+    app.state.public_cache = PublicCache(Settings(cache_host=None))
     database = Database(Settings())
     async with database.sessions() as db:
         variant = await db.scalar(select(VariantRow).order_by(VariantRow.id).limit(1))
