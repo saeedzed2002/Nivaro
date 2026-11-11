@@ -1,6 +1,6 @@
 # Implementation progress
 
-Current status, 2026-11-07: **P01/P02/P03 verified; P04 administration and recoverable catalog media/gallery locally verified and running**. Product/variant/category/price/stock editing, audit history, authenticated image upload, real queue/worker recovery, processed output and public gallery are implemented. Initial P04 slices had CI acceptance; later variant/category/media changes await the owner's phase-end CI review. **P04 remains incomplete**: identity-owned customer/staff avatars and measured public cache integration remain. See the latest P04 entry below; historical entries are not current status.
+Current status, 2026-11-11: **P01/P02/P03/P04 verified**. Product/variant/category/price/stock administration, catalog galleries, private customer/staff avatars, recoverable Linux workers and bounded public catalog caching are implemented and running locally. Final implementation revision `15955f45a6bf7044c30f2a8d5db511dedb0320e7` passed both jobs in GitHub Actions run `43063766250`. P05 is next and has not started. Check existing dependencies and report any required downloads before beginning that phase. Historical incomplete statuses below describe their original checkpoints.
 
 ## 2026-10-27 — P00/P01 in progress
 
@@ -364,3 +364,11 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - All 20 identity/admin/media browser journeys passed (1.7 minutes), covering locale/theme/viewport matrices, editing, concurrency conflicts, processed galleries and separate customer/staff avatar scopes. Inspected the final Persian dark desktop and English light mobile staff profile. Evidence is under `nivaro-p04-phase-final/`; raw logs are ignored local files under `work/p04-*-final.log`.
 - Avatar checkpoint `4f7c83f` is now pushed. Final worker-loss rerun and phase-end CI review are in progress. P04 remains open until those gates pass.
 - Final real Linux worker-loss rerun passed (`MEDIA_QUEUE_OK`, `MEDIA_WORKER_LOSS_OK`): duplicate delivery, invalid replacement preservation and recovery after SIGKILL were confirmed. Local implementation gates are complete. Phase-end CI verification remains pending for the final code revision.
+
+## 2026-11-11 — P04 accepted
+
+- Final implementation `15955f45a6bf7044c30f2a8d5db511dedb0320e7` passed both `web` and `image-processing` jobs. Evidence: https://github.com/saeedzed2002/Nivaro/actions/runs/43063766250. This covers frozen builds, migrations/schema, backend tests, contracts, host/container browsers, real worker-loss recovery, cache outage/restart, identity/media browser journeys, database visibility/outage and development Watch.
+- Reviewed earlier P04 runs at phase end. Intervening runs cancelled by concurrency are superseded by this successful final implementation run. The avatar checkpoint was pushed and covered by the final run.
+- Promoted the locally verified catalog, identity and web candidates to release tags and applied `compose.yaml` with `compose.media.yaml`. Local services are running, including private avatar workers and `redis-cache`. All 22 storefront/catalog browser tests passed against the upgraded local runtime (40.6 seconds). No new external download was needed for this implementation.
+- P04 is complete. P05 cart/build-draft work remains unimplemented. Before P05, inspect existing caches/images and report any additional downloads to the owner. Retain current market/quote/line-identity contracts. Live SMS.ir credentials, payments and public deployment remain outside this completed phase.
+- This acceptance entry is a documentation-only follow-up to the tested implementation revision above.
