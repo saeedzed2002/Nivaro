@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     max_units_per_variant: int = Field(default=20, ge=1)
     allowed_origins: list[str] = ["http://127.0.0.1:8080", "http://localhost:8080"]
     identity_url: str = "http://identity:8000"
+    catalog_url: str = "http://catalog:8000"
     identity_service_key_file: Path | None = None
     jwt_issuer: str = "nivaro-identity"
     jwt_audience: str = "nivaro-browser"

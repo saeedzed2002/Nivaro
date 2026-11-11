@@ -132,3 +132,9 @@ Migration `0006_public_cache` adds a commit-visible UUID generation. Statement t
 The independent `redis-cache` instance has a 128 MiB all-keys LRU limit, its own secret and no persistence. Reads/writes have bounded timeouts and a two-second local cooldown after failure. API reads fall back to the bounded SQL pool. Personal/admin responses, variant reads, comparisons and build evaluation bypass caching. Checkout authority remains a P06 requirement.
 
 Run `scripts/Verify-CatalogCache.ps1` for disposable cache, invalidation, rollback, late-writer, price/stock, expiry, access-control, outage and recovery checks.
+
+## Cart summary projection — P05
+
+`POST /api/v1/catalog/variant-summaries` accepts 1–50 distinct variant IDs plus the market/currency pair. One bounded SQL query returns only requested published/image-ready variants and their selected market offer. It does not load sibling variants, consult the listing/detail cache, reserve stock or alter inventory. Unknown stock is null; hidden/missing variants are explicitly listed in `missing_ids`. The response preserves request order and does not convert between Iran and international price books. The cart client validates the complete partition, currency, integer money, stock and response size before using it.
+
+`Verify-CatalogFresh.ps1 -CatalogImage <image> -TestImage <test-image>` can now verify the packaged test image, its schema and the real cart HTTP consumer contract. This is disposable SQL/ASGI verification; see progress for browser/runtime acceptance.

@@ -3,6 +3,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from uuid import UUID
 
+from nivaro_cart.domain.errors import CartInputError
+
 
 @dataclass(frozen=True)
 class Limits:
@@ -24,7 +26,7 @@ def validate_quantities(lines: Iterable[tuple[UUID, int]], limits: Limits = DEFA
     count = 0
     for variant, quantity in lines:
         if type(quantity) is not int or quantity < 1:
-            raise ValueError("cart.invalid_quantity")
+            raise CartInputError("cart.invalid_quantity")
         totals[variant] += quantity
         count += 1
         if (
@@ -32,4 +34,4 @@ def validate_quantities(lines: Iterable[tuple[UUID, int]], limits: Limits = DEFA
             or len(totals) > limits.variants
             or totals[variant] > limits.units_per_variant
         ):
-            raise ValueError("cart.limit")
+            raise CartInputError("cart.limit")

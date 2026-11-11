@@ -807,10 +807,10 @@ async def test_cart_service_token_is_separate_bounded_and_request_bound(api):
 
 
 async def test_real_customer_and_guest_carts_stay_private_across_login_logout(api):
-    from uuid import UUID, uuid4
+    from uuid import uuid4
 
     from nivaro_cart.api.authorization import IdentityAuthorization
-    from nivaro_cart.infrastructure.models import CartLine
+    from nivaro_cart.infrastructure.catalog import Offer, Summary
     from nivaro_cart.main import create_app as create_cart_app
     from nivaro_cart.settings import Settings as CartSettings
 
@@ -827,6 +827,32 @@ async def test_real_customer_and_guest_carts_stay_private_across_login_logout(ap
         ) as internal,
     ):
         cart.state.authorization = IdentityAuthorization(settings, internal)
+
+        class SyntheticCatalog:
+            async def summaries(self, ids, market):
+                return {
+                    key: Summary(
+                        variant_id=key,
+                        product_id=key,
+                        name="Synthetic fixture",
+                        sku="TEST",
+                        slug="test-only",
+                        image="/test.webp",
+                        image_kind="illustration",
+                        available_quantity=20,
+                        offer=Offer(
+                            market=market,
+                            currency="IRR" if market == "ir" else "USD",
+                            amount_minor=12340,
+                            price_version=1,
+                            available_for_sale=True,
+                            reference_only=False,
+                        ),
+                    )
+                    for key in ids
+                }
+
+        cart.state.catalog = SyntheticCatalog()
         cart_transport, identity_transport = (
             httpx.ASGITransport(app=cart),
             httpx.ASGITransport(app=identity),
@@ -850,8 +876,24 @@ async def test_real_customer_and_guest_carts_stay_private_across_login_logout(ap
             customer = await login(browser)
             own = (await browser.get("/api/v1/cart")).json()
             assert own["owner_scope"] == "customer" and own["id"] != guest["id"]
-            async with cart.state.database.sessions.begin() as db:
-                db.add(CartLine(cart_id=UUID(own["id"]), variant_id=uuid4(), quantity=2))
+            body = {
+                "market": "ir",
+                "expected_version": 1,
+                "variant_id": str(uuid4()),
+                "quantity": 2,
+            }
+            assert (
+                await browser.post(
+                    "/api/v1/cart/items", json=body, headers={"X-CSRF-Token": "wrong"}
+                )
+            ).status_code == 403
+            assert (
+                await browser.post(
+                    "/api/v1/cart/items",
+                    json=body,
+                    headers={"X-CSRF-Token": customer["csrf_token"]},
+                )
+            ).status_code == 201
             assert len((await browser.get("/api/v1/cart")).json()["lines"]) == 1
             old_access = browser.cookies.get("nivaro_customer_access")
             assert (

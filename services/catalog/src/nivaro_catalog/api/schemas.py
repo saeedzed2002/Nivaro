@@ -13,6 +13,34 @@ class ProductPage(Contract):
     total: int
 
 
+class SummaryRequest(MarketContext):
+    variant_ids: Annotated[list[UUID], Field(min_length=1, max_length=50)]
+
+    @model_validator(mode="after")
+    def unique_ids(self) -> Self:
+        if len(set(self.variant_ids)) != len(self.variant_ids):
+            raise ValueError("Variant IDs must be distinct")
+        return self
+
+
+class VariantSummary(Contract):
+    variant_id: UUID
+    product_id: UUID
+    name: str
+    slug: str
+    sku: str
+    image: str
+    image_kind: Literal["illustration", "exact_sku"]
+    available_quantity: Annotated[int, Field(strict=True, ge=0)] | None
+    offer: Offer | None
+
+
+class SummaryResponse(MarketContext):
+    items: list[VariantSummary]
+    missing_ids: list[UUID]
+    reserves_stock: Literal[False] = False
+
+
 class ComparisonRequest(MarketContext):
     variant_ids: Annotated[list[UUID], Field(min_length=2, max_length=2)]
 

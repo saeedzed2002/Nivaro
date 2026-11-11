@@ -9,6 +9,15 @@ COPY pyproject.toml uv.lock ./
 COPY --from=image-processing / /workspace/packages/python/image_processing/
 COPY src ./src
 RUN --network=none --mount=from=dependency-cache,target=/seed --mount=type=cache,target=/root/.cache tar -C /root/.cache -xzf /seed/uv-cache.tar.gz && UV_PROJECT_ENVIRONMENT=/app/.venv uv sync --frozen --no-dev --no-editable
+FROM dependencies AS test
+RUN --network=none --mount=from=dependency-cache,target=/seed --mount=type=cache,target=/root/.cache tar -C /root/.cache -xzf /seed/uv-cache.tar.gz && UV_PROJECT_ENVIRONMENT=/app/.venv uv sync --frozen --no-editable
+WORKDIR /app
+COPY src ./src
+COPY tests ./tests
+COPY migrations ./migrations
+COPY pyproject.toml alembic.ini ./
+ENV PATH="/app/.venv/bin:$PATH"
+
 FROM ${PYTHON_IMAGE} AS release
 WORKDIR /app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1

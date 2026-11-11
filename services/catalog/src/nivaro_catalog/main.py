@@ -26,6 +26,8 @@ from nivaro_catalog.api.schemas import (
     ErrorDetail,
     ErrorEnvelope,
     ProductPage,
+    SummaryRequest,
+    SummaryResponse,
 )
 from nivaro_catalog.domain.administration import AdministrationError
 from nivaro_catalog.domain.contracts import (
@@ -270,6 +272,12 @@ async def variant(variant_id: UUID, db: SessionDep) -> Variant:
             if item.id == variant_id:
                 return item
     raise HTTPException(404, "Variant not found")
+
+
+@router.post("/variant-summaries", operation_id="getVariantSummaries")
+async def variant_summaries(body: SummaryRequest, db: SessionDep) -> SummaryResponse:
+    # Authoritative read: never use the public listing/detail cache for carts.
+    return await repository.variant_summaries(db, body)
 
 
 app.include_router(router)

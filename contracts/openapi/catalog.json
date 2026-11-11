@@ -2721,6 +2721,94 @@
         "title": "Storage",
         "type": "object"
       },
+      "SummaryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "variant_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Variant Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "variant_ids"
+        ],
+        "title": "SummaryRequest",
+        "type": "object"
+      },
+      "SummaryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VariantSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "market": {
+            "enum": [
+              "ir",
+              "international"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "missing_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Missing Ids",
+            "type": "array"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "items",
+          "missing_ids"
+        ],
+        "title": "SummaryResponse",
+        "type": "object"
+      },
       "Variant": {
         "additionalProperties": false,
         "properties": {
@@ -2934,6 +3022,80 @@
           "specifications"
         ],
         "title": "VariantContent",
+        "type": "object"
+      },
+      "VariantSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "available_quantity": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Quantity"
+          },
+          "image": {
+            "title": "Image",
+            "type": "string"
+          },
+          "image_kind": {
+            "enum": [
+              "illustration",
+              "exact_sku"
+            ],
+            "title": "Image Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Offer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "product_id",
+          "name",
+          "slug",
+          "sku",
+          "image",
+          "image_kind",
+          "available_quantity",
+          "offer"
+        ],
+        "title": "VariantSummary",
         "type": "object"
       }
     }
@@ -5579,6 +5741,67 @@
           }
         },
         "summary": "Product",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/v1/catalog/variant-summaries": {
+      "post": {
+        "operationId": "getVariantSummaries",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummaryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Variant Summaries",
         "tags": [
           "catalog"
         ]

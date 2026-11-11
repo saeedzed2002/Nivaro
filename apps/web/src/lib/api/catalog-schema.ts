@@ -377,6 +377,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/catalog/variant-summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Variant Summaries */
+        post: operations["getVariantSummaries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/catalog/variants/{variant_id}": {
         parameters: {
             query?: never;
@@ -1325,6 +1342,44 @@ export interface components {
              */
             kind: "storage";
         };
+        /** SummaryRequest */
+        SummaryRequest: {
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "IRR" | "USD";
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "ir" | "international";
+            /** Variant Ids */
+            variant_ids: string[];
+        };
+        /** SummaryResponse */
+        SummaryResponse: {
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "IRR" | "USD";
+            /** Items */
+            items: components["schemas"]["VariantSummary"][];
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "ir" | "international";
+            /** Missing Ids */
+            missing_ids: string[];
+            /**
+             * Reserves Stock
+             * @default false
+             * @constant
+             */
+            reserves_stock: false;
+        };
         /** Variant */
         Variant: {
             /** Evidence */
@@ -1378,6 +1433,35 @@ export interface components {
             sku: string;
             /** Specifications */
             specifications: components["schemas"]["CPU"] | components["schemas"]["Motherboard"] | components["schemas"]["Memory"] | components["schemas"]["Storage"] | components["schemas"]["Case"] | components["schemas"]["PSU"] | components["schemas"]["Cooler"] | components["schemas"]["GPU"] | components["schemas"]["Peripheral"] | components["schemas"]["Prebuilt"];
+        };
+        /** VariantSummary */
+        VariantSummary: {
+            /** Available Quantity */
+            available_quantity: number | null;
+            /** Image */
+            image: string;
+            /**
+             * Image Kind
+             * @enum {string}
+             */
+            image_kind: "illustration" | "exact_sku";
+            /** Name */
+            name: string;
+            offer: components["schemas"]["Offer"] | null;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Sku */
+            sku: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
         };
     };
     responses: never;
@@ -3245,6 +3329,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getVariantSummaries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SummaryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryResponse"];
                 };
             };
             /** @description Not Found */

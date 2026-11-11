@@ -405,3 +405,62 @@ async def test_database_failure_is_a_sanitized_unavailable_response(api):
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "catalog.unavailable"
     assert "sensitive-password-marker" not in response.text and "private SQL" not in response.text
+
+
+async def test_cart_summary_is_fresh_market_scoped_and_never_reserves(api):
+    client, session = api
+    variant = await session.scalar(select(VariantRow).order_by(VariantRow.id))
+    offers = list(await session.scalars(select(OfferRow).where(OfferRow.variant_id == variant.id)))
+    missing = uuid4()
+    variant.stock_verified = False
+    await session.flush()
+    body = {"variant_ids": [str(variant.id), str(missing)], "market": "ir", "currency": "IRR"}
+    result = (await client.post("/api/v1/catalog/variant-summaries", json=body)).json()
+    assert result["missing_ids"] == [str(missing)]
+    assert result["items"][0]["available_quantity"] is None
+    assert result["reserves_stock"] is False
+    for market, currency in (("ir", "IRR"), ("international", "USD")):
+        offer = next((entry for entry in offers if entry.market == market), None)
+        if offer:
+            offer.amount_minor = 12340 if market == "ir" else 8765
+            offer.price_version += 1
+        variant.stock_verified, variant.on_hand, variant.reserved = True, 10, 3
+        await session.flush()
+        value = (
+            await client.post(
+                "/api/v1/catalog/variant-summaries",
+                json={**body, "market": market, "currency": currency},
+            )
+        ).json()
+        item = value["items"][0]
+        assert item["available_quantity"] == 7
+        assert (
+            item["offer"] is None
+            if offer is None
+            else item["offer"]["amount_minor"] == offer.amount_minor
+        )
+        assert variant.reserved == 3
+    product = await session.get(ProductRow, variant.product_id)
+    product.status = "draft"
+    await session.flush()
+    hidden = (await client.post("/api/v1/catalog/variant-summaries", json=body)).json()
+    assert hidden["items"] == [] and set(hidden["missing_ids"]) == set(body["variant_ids"])
+
+
+async def test_summary_bounds_and_actual_cart_client_contract(api):
+    from nivaro_cart.infrastructure.catalog import Catalog
+
+    client, session = api
+    variant = await session.scalar(select(VariantRow).order_by(VariantRow.id))
+    path = "/api/v1/catalog/variant-summaries"
+    body = {"variant_ids": [str(variant.id)], "market": "ir", "currency": "IRR"}
+    for invalid in (
+        {"variant_ids": []},
+        {"variant_ids": [str(variant.id)] * 2},
+        {"variant_ids": [str(uuid4()) for _ in range(51)]},
+        {"currency": "USD"},
+    ):
+        assert (await client.post(path, json={**body, **invalid})).status_code == 422
+    missing = uuid4()
+    summaries = await Catalog(client).summaries([variant.id, missing], "ir")
+    assert summaries[variant.id].sku == variant.sku and summaries[missing] is None

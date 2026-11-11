@@ -51,6 +51,7 @@ jobs:
         run: |
           docker build --build-context image-processing=./packages/python/image_processing --target test -t nivaro-catalog:test services/catalog
           docker run --rm --network nivaro_default -e CATALOG_DB_HOST=postgres -e CATALOG_DISPOSABLE_TESTS=1 \
+            -v "$PWD/services/cart/src:/cart/src:ro" -e PYTHONPATH=/app/src:/cart/src \
             -v "$PWD/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro" \
             -v "$PWD/contracts:/contracts:ro" nivaro-catalog:test \
             sh -c 'ruff check . && ruff format --check . && mypy src && pytest -q && alembic check && python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check'

@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -131,6 +132,12 @@ class CartLine(Base):
         ),
         CheckConstraint("quantity > 0 AND version > 0", name="line_bounds"),
         CheckConstraint(
+            "(observed_price_minor IS NULL AND observed_price_version IS NULL) OR "
+            "(observed_price_minor IS NOT NULL AND observed_price_version IS NOT NULL AND "
+            "observed_price_minor > 0 AND observed_price_version > 0)",
+            name="line_observed_price",
+        ),
+        CheckConstraint(
             "(group_id IS NULL AND slot_key IS NULL) OR (group_id IS NOT NULL AND slot_key IS NOT NULL)",
             name="line_slot_scope",
         ),
@@ -142,6 +149,8 @@ class CartLine(Base):
     variant_id: Mapped[UUID] = mapped_column()
     quantity: Mapped[int] = mapped_column(Integer)
     version: Mapped[int] = mapped_column(Integer, default=1)
+    observed_price_minor: Mapped[int | None] = mapped_column(BigInteger)
+    observed_price_version: Mapped[int | None] = mapped_column(Integer)
 
 
 class Operation(Base):

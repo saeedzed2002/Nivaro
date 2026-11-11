@@ -33,8 +33,9 @@ try {
     $runtime = if ($TestImage) { $TestImage } else { 'python:3.13.18-slim-bookworm' }
     $source = if ($TestImage) { @() } else { @('-v', "${root}/services/cart:/app") }
     docker run --rm --pull never --network $network @secrets @source -w /app -e PYTHONPATH=src `
+        -v "${root}/contracts:/contracts:ro" `
         -e "CART_DB_HOST=$postgres" -e CART_DISPOSABLE_TESTS=1 $runtime `
-        sh -ec '.venv/bin/alembic upgrade head && .venv/bin/alembic upgrade head && .venv/bin/alembic check && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy src && .venv/bin/pytest -q'
+        sh -ec '.venv/bin/alembic upgrade head && .venv/bin/alembic upgrade head && .venv/bin/alembic check && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy src && .venv/bin/pytest -q && .venv/bin/python -m nivaro_cart.export_openapi /contracts/openapi/cart.json --check'
     if ($LASTEXITCODE -ne 0) { throw 'Cart foundation checks failed.' }
     Write-Output 'Cart migrations, schema, ownership, versioned mutations, concurrency, limits, isolation and health checks passed.'
 } finally {

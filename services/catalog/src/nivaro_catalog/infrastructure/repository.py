@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -11,6 +11,9 @@ from nivaro_catalog.api.schemas import (
     ComparisonRequest,
     ComparisonRow,
     ProductPage,
+    SummaryRequest,
+    SummaryResponse,
+    VariantSummary,
 )
 from nivaro_catalog.domain.contracts import Category, Localized, Market, Product, Variant
 from nivaro_catalog.domain.search import search_terms
@@ -166,6 +169,57 @@ async def selected_products(session: AsyncSession, ids: list[UUID]) -> list[Prod
         public_products().where(ProductRow.variants.any(VariantRow.id.in_(ids)))
     )
     return [product_contract(r) for r in rows]
+
+
+async def variant_summaries(session: AsyncSession, body: SummaryRequest) -> SummaryResponse:
+    # One SQL snapshot and at most one row per requested variant. Do not load
+    # every sibling variant or reuse cached public product details.
+    rows = await session.execute(
+        select(VariantRow, ProductRow, OfferRow)
+        .join(ProductRow, ProductRow.id == VariantRow.product_id)
+        .outerjoin(
+            OfferRow, and_(OfferRow.variant_id == VariantRow.id, OfferRow.market == body.market)
+        )
+        .where(
+            VariantRow.id.in_(body.variant_ids),
+            ProductRow.status == "published",
+            ProductRow.image_ready.is_(True),
+        )
+    )
+    found = {}
+    for variant, product, offer in rows:
+        found[variant.id] = VariantSummary.model_validate(
+            {
+                "variant_id": variant.id,
+                "product_id": product.id,
+                "name": product.name,
+                "slug": product.slug,
+                "sku": variant.sku,
+                "image": product.image,
+                "image_kind": product.image_kind,
+                "available_quantity": variant.on_hand - variant.reserved
+                if variant.stock_verified
+                else None,
+                "offer": {
+                    "market": offer.market,
+                    "currency": offer.currency,
+                    "amount_minor": offer.amount_minor,
+                    "price_version": offer.price_version,
+                    "available_for_sale": offer.available_for_sale,
+                    "reference_only": offer.reference_only,
+                    "source": offer.source,
+                    "seller": offer.seller,
+                }
+                if offer
+                else None,
+            }
+        )
+    return SummaryResponse(
+        market=body.market,
+        currency=body.currency,
+        items=[found[key] for key in body.variant_ids if key in found],
+        missing_ids=[key for key in body.variant_ids if key not in found],
+    )
 
 
 def compare(request: ComparisonRequest, selected: list[Product]) -> Comparison:

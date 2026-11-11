@@ -3,13 +3,18 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from nivaro_cart.api.authorization import IdentityAuthorization
+from nivaro_cart.api.items import router as items_router
+from nivaro_cart.api.limits import BoundedBody
 from nivaro_cart.api.ownership import router
-from nivaro_cart.domain.errors import AuthorizationError
+from nivaro_cart.domain.errors import AuthorizationError, CartInputError, CommerceError
+from nivaro_cart.domain.mutations import CartConflict, CartNotFound
+from nivaro_cart.infrastructure.catalog import Catalog
 from nivaro_cart.infrastructure.database import Database
 from nivaro_cart.settings import Settings
 
@@ -22,13 +27,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         database = Database(settings)
         app.state.database, app.state.settings = database, settings
         try:
-            async with httpx.AsyncClient(
-                base_url=settings.identity_url,
-                timeout=2,
-                trust_env=False,
-                limits=httpx.Limits(max_connections=8, max_keepalive_connections=4),
-            ) as client:
+            async with (
+                httpx.AsyncClient(
+                    base_url=settings.identity_url,
+                    timeout=2,
+                    trust_env=False,
+                    limits=httpx.Limits(max_connections=8, max_keepalive_connections=4),
+                ) as client,
+                httpx.AsyncClient(
+                    base_url=settings.catalog_url,
+                    timeout=2,
+                    trust_env=False,
+                    limits=httpx.Limits(max_connections=8, max_keepalive_connections=4),
+                ) as catalog_client,
+            ):
                 app.state.authorization = IdentityAuthorization(settings, client)
+                app.state.catalog = Catalog(catalog_client)
                 yield
         finally:
             await database.engine.dispose()
@@ -55,9 +69,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def authorization_error(request: Request, exc: AuthorizationError) -> JSONResponse:
         return JSONResponse(status_code=exc.status, content={"error": {"code": exc.code}})
 
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"error": {"code": "request.invalid"}})
+
     @app.exception_handler(SQLAlchemyError)
     async def database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
         return JSONResponse(status_code=503, content={"error": {"code": "cart.unavailable"}})
+
+    @app.exception_handler(CartConflict)
+    async def conflict(request: Request, exc: CartConflict) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={"error": {"code": exc.code, "current_version": exc.current_version}},
+        )
+
+    @app.exception_handler(CartNotFound)
+    async def missing(request: Request, exc: CartNotFound) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"error": {"code": "cart.not_found"}})
+
+    @app.exception_handler(CommerceError)
+    async def commerce_error(request: Request, exc: CommerceError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status, content={"error": {"code": exc.code}})
+
+    @app.exception_handler(CartInputError)
+    async def input_error(request: Request, exc: CartInputError) -> JSONResponse:
+        return JSONResponse(
+            status_code=409 if str(exc) == "cart.limit" else 422,
+            content={"error": {"code": str(exc)}},
+        )
 
     @app.get("/health/live")
     async def live() -> dict[str, str]:
@@ -68,13 +108,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             async with app.state.database.sessions() as db:
                 revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-            if revision == "0002_guest_csrf":
+            if revision == "0003_observed_price":
                 return {"service": "cart", "status": "ok"}
         except SQLAlchemyError:
             pass
         return JSONResponse(status_code=503, content={"service": "cart", "status": "unavailable"})
 
     app.include_router(router)
+    app.include_router(items_router)
+    app.add_middleware(BoundedBody)
     return app
 
 
