@@ -1,4 +1,4 @@
-"""Restricted, fresh catalog administration checks; never exposed by the gateway."""
+"""Restricted, fresh session checks; never exposed by the gateway."""
 
 import hashlib
 import hmac
@@ -33,7 +33,28 @@ class CatalogPrincipal(BaseModel):
     permissions: list[str]
 
 
+class CartCheck(CatalogCheck):
+    """Same bounded request shape, with a separate customer-only authority."""
+
+
+class CartPrincipal(BaseModel):
+    user_id: UUID
+    session_id: UUID
+    kind: Literal["customer"] = "customer"
+    permissions: list[str] = Field(default_factory=list)
+
+
 def authenticate_catalog(authorization: str, body: CatalogCheck, key: str | None) -> None:
+    _authenticate_service(authorization, body, key, "catalog", "catalog.admin_introspect")
+
+
+def authenticate_cart(authorization: str, body: CartCheck, key: str | None) -> None:
+    _authenticate_service(authorization, body, key, "cart", "cart.customer_introspect")
+
+
+def _authenticate_service(
+    authorization: str, body: CatalogCheck, key: str | None, service: str, scope: str
+) -> None:
     if key is None:
         raise IdentityError("service.unavailable", 503)
     if not authorization.startswith("Bearer ") or len(authorization) > 2048:
@@ -43,9 +64,9 @@ def authenticate_catalog(authorization: str, body: CatalogCheck, key: str | None
             authorization[7:],
             key,
             algorithms=["HS256"],
-            issuer="nivaro-catalog",
+            issuer=f"nivaro-{service}",
             audience="nivaro-identity-introspection",
-            subject="catalog",
+            subject=service,
             options={
                 "require": [
                     "iss",
@@ -63,7 +84,7 @@ def authenticate_catalog(authorization: str, body: CatalogCheck, key: str | None
         )
         if (
             claims["kind"] != "service"
-            or claims["scope"] != "catalog.admin_introspect"
+            or claims["scope"] != scope
             or type(claims["iat"]) is not int
             or type(claims["exp"]) is not int
             or not 0 < claims["exp"] - claims["iat"] <= 30

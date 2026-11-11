@@ -84,3 +84,11 @@ The normal Dockerfile exports requirements directly from `uv.lock` with `uv expo
 Customer and staff avatar slots are separate for the same user. `/api/v1/me/avatar` and `/api/v1/admin/me/avatar` enforce current session and CSRF on mutations. Uploads are bounded to 8 MiB and 30 seconds, with authentication checked again after upload I/O. Replacements preserve the active image until 128/256-pixel WebP outputs activate. Version conflicts return 409. Removal fences pending activation. Image delivery requires the owning session and uses private, no-store responses.
 
 Include `compose.media.yaml` for persistent avatar storage, the dedicated identity worker and recoverable dispatcher. Its broker user and storage are separate from catalog. Original/stale attempt retention is seven days, with active and pending data preserved. The staff profile supports all staff roles, with email and role read-only.
+
+## Cart customer authorization boundary — P05
+
+`POST /internal/v1/cart/customer-check` is private and excluded from public OpenAPI. It uses the separate `cart_identity_service_key`, configured through `IDENTITY_CART_SERVICE_KEY_FILE`. The caller must be `nivaro-cart`/`cart`, with scope `cart.customer_introspect`, service kind, the fixed introspection audience and a request-body-bound HS256 token valid for at most 30 seconds. Catalog credentials and browser/admin tokens cannot authorize it. Missing key configuration fails closed; the existing catalog route retains its own key/scope.
+
+The supplied browser token must resolve to a current, non-disabled customer session. Mutating checks also validate the original allowed origin and that same session's CSRF token. Only user/session IDs, customer kind and empty customer permissions are returned. Identity owns all session checks and imports no cart database models in application code. No positive session-status cache is introduced.
+
+The service verification helper additionally mounts cart source read-only for integration tests and creates a separate disposable cart database/role. It tests the actual cart client, real same-origin login/logout, revoked-cookie rejection even when a guest cookie is present, and a second customer's separate cart. The running local identity image is not replaced merely by adding this capability; candidate/runtime status is recorded in `docs/progress.md`.

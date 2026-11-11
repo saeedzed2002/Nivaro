@@ -47,6 +47,8 @@ async def api(tmp_path):
     settings.otp_pepper_file.write_text(secrets.token_hex(48))
     settings.catalog_service_key_file = tmp_path / "catalog-service-key"
     settings.catalog_service_key_file.write_text(secrets.token_hex(48))
+    settings.cart_service_key_file = tmp_path / "cart-service-key"
+    settings.cart_service_key_file.write_text(secrets.token_hex(48))
     db = Database(settings)
     async with db.engine.begin() as conn:
         await conn.execute(text("TRUNCATE users CASCADE"))
@@ -666,3 +668,210 @@ async def test_private_avatar_lifecycle_and_scope(api, tmp_path):
     async with db.sessions() as session, session.begin():
         assert not await finish_job(session, job_id, attempt)
     assert (await client.get(image)).status_code == 404
+
+
+@pytest.mark.parametrize("change", ["logout", "disable"])
+async def test_cart_bridge_checks_customer_scope_revocation_and_csrf(api, change):
+    from nivaro_cart.api.authorization import AuthorizationError, IdentityAuthorization
+    from nivaro_cart.settings import Settings as CartSettings
+
+    client, app, db = api
+    user_id, password = await admin_account(db)
+    customer = await login(client)
+    access = client.cookies.get("nivaro_customer_access")
+    await client.post(
+        "/api/v1/admin/auth/login", json={"email": "owner@example.com", "password": password}
+    )
+    settings = CartSettings(identity_service_key_file=app.state.settings.cart_service_key_file)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://identity.test"
+    ) as internal:
+        bridge = IdentityAuthorization(settings, internal)
+        principal = await bridge.check(
+            access, mutating=True, origin=ORIGIN, csrf=customer["csrf_token"]
+        )
+        assert principal.user_id == user_id
+        assert principal.kind == "customer" and principal.permissions == []
+        for origin_value, csrf in (
+            (ORIGIN, "wrong"),
+            ("https://attacker.invalid", customer["csrf_token"]),
+        ):
+            with pytest.raises(AuthorizationError) as error:
+                await bridge.check(access, mutating=True, origin=origin_value, csrf=csrf)
+            assert error.value.status == 403
+        with pytest.raises(AuthorizationError) as error:
+            await bridge.check(
+                client.cookies.get("nivaro_admin_access"), mutating=False, origin="", csrf=""
+            )
+        assert error.value.status == 401
+        if change == "logout":
+            assert (
+                await client.post(
+                    "/api/v1/auth/logout",
+                    json={"all_devices": False},
+                    headers={"X-CSRF-Token": customer["csrf_token"]},
+                )
+            ).status_code == 200
+        else:
+            async with db.sessions.begin() as session:
+                await session.execute(update(User).where(User.id == user_id).values(disabled=True))
+        with pytest.raises(AuthorizationError) as error:
+            await bridge.check(access, mutating=False, origin="", csrf="")
+        assert error.value.status == 401
+
+
+async def test_cart_service_token_is_separate_bounded_and_request_bound(api):
+    from time import time
+    from uuid import uuid4
+
+    import jwt
+
+    from nivaro_identity.api.internal import CartCheck
+
+    client, app, _ = api
+    customer = await login(client)
+    access = client.cookies.get("nivaro_customer_access")
+    body = CartCheck(access_token=access, mutating=False)
+    path = "/internal/v1/cart/customer-check"
+    instant = int(time())
+    claims = {
+        "iss": "nivaro-cart",
+        "sub": "cart",
+        "aud": "nivaro-identity-introspection",
+        "iat": instant,
+        "exp": instant + 30,
+        "jti": str(uuid4()),
+        "kind": "service",
+        "scope": "cart.customer_introspect",
+        "body_sha256": body.fingerprint(),
+    }
+    assert (await client.post(path, json=body.model_dump())).status_code == 401
+    assert (
+        await client.post(
+            path, json=body.model_dump(), headers={"Authorization": f"Bearer {access}"}
+        )
+    ).status_code == 401
+    for changed in (
+        {"iss": "nivaro-catalog", "sub": "catalog", "scope": "catalog.admin_introspect"},
+        {"aud": "nivaro-browser"},
+        {"kind": "customer"},
+        {"exp": instant + 300},
+        {"exp": instant - 1},
+        {"jti": "invalid"},
+        {"body_sha256": "wrong"},
+    ):
+        token = jwt.encode({**claims, **changed}, app.state.cart_service_key, algorithm="HS256")
+        assert (
+            await client.post(
+                path, json=body.model_dump(), headers={"Authorization": f"Bearer {token}"}
+            )
+        ).status_code == 401
+    wrong_key = jwt.encode(claims, app.state.catalog_service_key, algorithm="HS256")
+    assert (
+        await client.post(
+            path, json=body.model_dump(), headers={"Authorization": f"Bearer {wrong_key}"}
+        )
+    ).status_code == 401
+    valid = jwt.encode(claims, app.state.cart_service_key, algorithm="HS256")
+    headers = {"Authorization": f"Bearer {valid}"}
+    assert (
+        await client.post(path, json={**body.model_dump(), "mutating": True}, headers=headers)
+    ).status_code == 401
+    assert (
+        await client.post(
+            "/internal/v1/catalog/admin-check", json=body.model_dump(), headers=headers
+        )
+    ).status_code == 401
+    result = await client.post(path, json=body.model_dump(), headers=headers)
+    assert result.status_code == 200 and result.json()["kind"] == "customer"
+    for origin_value, csrf, status in (
+        (ORIGIN, "wrong", 403),
+        ("https://attacker.invalid", customer["csrf_token"], 403),
+        (ORIGIN, customer["csrf_token"], 200),
+    ):
+        mutation = CartCheck(
+            access_token=access, mutating=True, origin=origin_value, csrf_token=csrf
+        )
+        signed = jwt.encode(
+            {**claims, "body_sha256": mutation.fingerprint()},
+            app.state.cart_service_key,
+            algorithm="HS256",
+        )
+        assert (
+            await client.post(
+                path, json=mutation.model_dump(), headers={"Authorization": f"Bearer {signed}"}
+            )
+        ).status_code == status
+    app.state.cart_service_key = None
+    assert (await client.post(path, json=body.model_dump(), headers=headers)).status_code == 503
+
+
+async def test_real_customer_and_guest_carts_stay_private_across_login_logout(api):
+    from uuid import UUID, uuid4
+
+    from nivaro_cart.api.authorization import IdentityAuthorization
+    from nivaro_cart.infrastructure.models import CartLine
+    from nivaro_cart.main import create_app as create_cart_app
+    from nivaro_cart.settings import Settings as CartSettings
+
+    _, identity, _ = api
+    settings = CartSettings(
+        environment="test", identity_service_key_file=identity.state.settings.cart_service_key_file
+    )
+    assert settings.db_host.startswith("nivaro-identity-pg-")
+    cart = create_cart_app(settings)
+    async with (
+        LifespanManager(cart),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=identity), base_url="http://identity.test"
+        ) as internal,
+    ):
+        cart.state.authorization = IdentityAuthorization(settings, internal)
+        cart_transport, identity_transport = (
+            httpx.ASGITransport(app=cart),
+            httpx.ASGITransport(app=identity),
+        )
+
+        class Router(httpx.AsyncBaseTransport):
+            async def handle_async_request(self, request):
+                target = (
+                    cart_transport
+                    if request.url.path.startswith("/api/v1/cart")
+                    else identity_transport
+                )
+                return await target.handle_async_request(request)
+
+        async with httpx.AsyncClient(
+            transport=Router(), base_url=ORIGIN, headers={"Origin": ORIGIN}
+        ) as browser:
+            started = await browser.post("/api/v1/cart/session", headers={"X-CSRF-Request": "1"})
+            assert started.status_code == 200
+            guest = (await browser.get("/api/v1/cart")).json()
+            customer = await login(browser)
+            own = (await browser.get("/api/v1/cart")).json()
+            assert own["owner_scope"] == "customer" and own["id"] != guest["id"]
+            async with cart.state.database.sessions.begin() as db:
+                db.add(CartLine(cart_id=UUID(own["id"]), variant_id=uuid4(), quantity=2))
+            assert len((await browser.get("/api/v1/cart")).json()["lines"]) == 1
+            old_access = browser.cookies.get("nivaro_customer_access")
+            assert (
+                await browser.post(
+                    "/api/v1/auth/logout",
+                    json={"all_devices": False},
+                    headers={"X-CSRF-Token": customer["csrf_token"]},
+                )
+            ).status_code == 200
+            anonymous = (await browser.get("/api/v1/cart")).json()
+            assert anonymous["id"] == guest["id"] and anonymous["lines"] == []
+            # Even with a valid guest cookie, a revoked customer cookie fails closed.
+            assert (
+                await browser.get(
+                    "/api/v1/cart",
+                    headers={
+                        "Cookie": f"nivaro_customer_access={old_access}; nivaro_guest_cart={browser.cookies.get('nivaro_guest_cart')}"
+                    },
+                )
+            ).status_code == 401
+            await login(browser, SECOND)
+            other = (await browser.get("/api/v1/cart")).json()
+            assert other["id"] not in (own["id"], guest["id"]) and other["lines"] == []

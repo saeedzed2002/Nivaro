@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $directory = Join-Path $root 'work/secrets'
 New-Item -ItemType Directory -Path $directory -Force | Out-Null
-foreach ($name in @('postgres_admin_password', 'catalog_db_password', 'cart_db_password', 'identity_db_password', 'redis_state_password', 'redis_cache_password', 'otp_pepper', 'catalog_identity_service_key')) {
+foreach ($name in @('postgres_admin_password', 'catalog_db_password', 'cart_db_password', 'identity_db_password', 'redis_state_password', 'redis_cache_password', 'otp_pepper', 'catalog_identity_service_key', 'cart_identity_service_key')) {
     $path = Join-Path $directory "$name.txt"
     if (-not (Test-Path -LiteralPath $path)) {
         $bytes = [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(48)

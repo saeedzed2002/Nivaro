@@ -30,10 +30,15 @@ class Owner(Base):
             "(customer_id IS NOT NULL AND guest_digest IS NULL) OR (customer_id IS NULL AND guest_digest IS NOT NULL)",
             name="owner_one_identity",
         ),
+        CheckConstraint(
+            "guest_csrf IS NULL OR (guest_digest IS NOT NULL AND char_length(guest_csrf) = 43)",
+            name="owner_guest_csrf",
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     customer_id: Mapped[UUID | None] = mapped_column(unique=True)
     guest_digest: Mapped[str | None] = mapped_column(String(64), unique=True)
+    guest_csrf: Mapped[str | None] = mapped_column(String(43))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_active_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True

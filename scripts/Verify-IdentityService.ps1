@@ -14,13 +14,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Test network creation failed.' }
     $networkCreated = $true
     $secretMounts = @()
-    foreach ($name in @('postgres_admin_password','identity_db_password','catalog_db_password','redis_state_password')) {
+    foreach ($name in @('postgres_admin_password','identity_db_password','catalog_db_password','cart_db_password','redis_state_password')) {
         $secretMounts += @('-v', "${root}/work/secrets/${name}.txt:/run/secrets/${name}:ro")
     }
     docker run --rm -d --pull never --name $postgres --network $network @secretMounts `
         --tmpfs /var/lib/postgresql -e POSTGRES_PASSWORD_FILE=/run/secrets/postgres_admin_password -e POSTGRES_USER=postgres `
         -v "${root}/infra/postgres/10-catalog.sh:/docker-entrypoint-initdb.d/10-catalog.sh:ro" `
         -v "${root}/infra/postgres/20-identity.sh:/docker-entrypoint-initdb.d/20-identity.sh:ro" `
+        -v "${root}/infra/postgres/30-cart.sh:/docker-entrypoint-initdb.d/30-cart.sh:ro" `
         postgres:18.6-bookworm@sha256:bbf83594798e144bff365a9c191c5d779f181fb3135902064ab8ff11918020fc | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Temporary PostgreSQL failed.' }
     $created += $postgres
@@ -39,13 +40,14 @@ try {
     $runtime = if ($TestImage) { $TestImage } else { 'python:3.13.18-slim-bookworm' }
     $sourceMount = if ($TestImage) { @() } else { @('-v',"${source}:/app") }
     docker run --rm --pull never --network $network @secretMounts @sourceMount `
-        -v "${root}/services/catalog/src:/catalog/src:ro" -e PYTHONPATH=/app/src:/catalog/src `
+        -v "${root}/services/catalog/src:/catalog/src:ro" -v "${root}/services/cart:/cart:ro" `
+        -e PYTHONPATH=/app/src:/catalog/src:/cart/src `
         -v "${root}/contracts:/contracts:ro" -w /app `
-        -e "IDENTITY_DB_HOST=$postgres" -e "IDENTITY_REDIS_HOST=$redis" `
+        -e "IDENTITY_DB_HOST=$postgres" -e "IDENTITY_REDIS_HOST=$redis" -e "CART_DB_HOST=$postgres" `
         -e IDENTITY_SERVICE_TESTS=1 -e "IDENTITY_TEST_REDIS_URL=redis://${redis}:6379/0" `
         -e IDENTITY_TEST_REDIS_PASSWORD_FILE=/run/secrets/redis_state_password `
         $runtime `
-        sh -c '.venv/bin/alembic upgrade head && .venv/bin/alembic upgrade head && .venv/bin/alembic check && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy src && .venv/bin/pytest -q && .venv/bin/python -m nivaro_identity.export_openapi /contracts/openapi/identity.json --check'
+        sh -c '(cd /cart && /app/.venv/bin/alembic upgrade head) && .venv/bin/alembic upgrade head && .venv/bin/alembic upgrade head && .venv/bin/alembic check && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy src && .venv/bin/pytest -q && .venv/bin/python -m nivaro_identity.export_openapi /contracts/openapi/identity.json --check'
     if ($LASTEXITCODE -ne 0) { throw 'Identity service checks failed.' }
     Write-Output 'Identity migrations, isolated database/Redis API checks and source checks passed.'
 } finally {

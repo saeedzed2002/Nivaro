@@ -1,6 +1,7 @@
 from pathlib import Path
+from typing import Literal, Self
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -21,6 +22,22 @@ class Settings(BaseSettings):
     max_variants: int = Field(default=50, ge=1)
     max_lines: int = Field(default=100, ge=1)
     max_units_per_variant: int = Field(default=20, ge=1)
+    allowed_origins: list[str] = ["http://127.0.0.1:8080", "http://localhost:8080"]
+    identity_url: str = "http://identity:8000"
+    identity_service_key_file: Path | None = None
+    jwt_issuer: str = "nivaro-identity"
+    jwt_audience: str = "nivaro-browser"
+    environment: Literal["development", "test", "release"] = "development"
+
+    @model_validator(mode="after")
+    def deployment_safety(self) -> Self:
+        if not self.allowed_origins or any(origin.endswith("/") for origin in self.allowed_origins):
+            raise ValueError("Use explicit origins without a trailing slash")
+        if self.environment == "release" and any(
+            not origin.startswith("https://") for origin in self.allowed_origins
+        ):
+            raise ValueError("Release origins must use HTTPS")
+        return self
 
     def limits(self) -> Limits:
         return Limits(self.max_variants, self.max_lines, self.max_units_per_variant)

@@ -31,7 +31,7 @@ async def test_readiness_and_private_database(database):
         ) as client,
     ):
         assert (await client.get("/health/ready")).status_code == 200
-        assert (await client.get("/api/v1/cart")).status_code == 404
+        assert (await client.get("/api/v1/cart")).status_code == 401
     async with database.sessions() as db:
         assert await db.scalar(text("SELECT current_database()")) == "nivaro_cart"
         assert not await db.scalar(text("SELECT rolsuper FROM pg_roles WHERE rolname=current_user"))
