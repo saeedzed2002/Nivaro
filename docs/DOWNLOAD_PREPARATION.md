@@ -1,6 +1,24 @@
 # Download preparation for the planned local stack
 
-## P04 preflight — 2026-10-28 (current)
+## P06 preflight — 2026-11-14
+
+The existing tagged Python, PostgreSQL, RabbitMQ, Redis, Node and Caddy images cover the planned release stack. The Orders API will use the Python base and existing backend dependencies. The domain-event adapter adds the roadmap's `aio-pika==10.2.1` dependency. Its Linux wheels were staged in ignored `work/p06-wheels/` through the Runflare PyPI mirror. A fresh Python 3.13.18 container with `--network none` installed the seven wheels, passed `pip check`, and imported `aio_pika` at version `10.2.1`. No owner download is currently needed.
+
+To recreate the wheels in PowerShell if the staging directory is lost:
+
+```powershell
+Set-Location D:\Project\Nivaro
+$wheelDir = Join-Path (Get-Location).Path 'work/p06-wheels'
+New-Item -ItemType Directory -Force -Path $wheelDir | Out-Null
+docker run --rm --pull never -v "${wheelDir}:/wheels" `
+  python:3.13.18-slim-bookworm python -m pip download `
+  --disable-pip-version-check --only-binary=:all: --timeout 20 --retries 0 `
+  --dest /wheels --index-url https://mirror-pypi.runflare.com/simple 'aio-pika==10.2.1'
+```
+
+The staged transitive versions are `aiormq==7.2.5`, `pamqp==5.0.0`, `idna==3.20`, `multidict==7.2.1`, `propcache==0.5.4` and `yarl==1.25.1`. The wheel check covers the event client dependencies. Service lockfiles and broker integration are verified during P06 implementation.
+
+## P04 preflight — 2026-10-28
 
 The local image inventory was checked before starting P04. All seven base images listed below are already present, including `rabbitmq:4.4.0-management`; no additional base-image pull is currently required. APIs and Linux workers reuse the Python base. A separate `redis-cache` process will reuse the existing Redis image. No new host Python, database, generic FastAPI/Celery image, npm package, broker image or native compiler is requested for this phase's initial implementation.
 
