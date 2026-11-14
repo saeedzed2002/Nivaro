@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+const anonymousReads = new Set([
+  '/api/v1/auth/session',
+  '/api/v1/auth/refresh/csrf',
+  '/api/v1/cart',
+  '/api/v1/builds',
+]);
+
 for (const locale of ['fa', 'en']) {
   for (const theme of ['light', 'dark']) {
     for (const width of [360, 768, 1440]) {
@@ -8,7 +15,14 @@ for (const locale of ['fa', 'en']) {
         await page.setViewportSize({width,height:1000});
         const errors: string[] = [];
         page.on('pageerror',e=>errors.push(e.message));
-        page.on('console',message=>{if(message.type()==='error') errors.push(message.text());});
+        page.on('console', message => {
+          if (message.type() !== 'error') return;
+          const url = URL.parse(message.location().url);
+          // The guest has no identity session, cart or saved builds yet.
+          if (url?.origin === new URL(page.url()).origin && anonymousReads.has(url.pathname)
+              && message.text().startsWith('Failed to load resource: the server responded with a status of 401')) return;
+          errors.push(message.text());
+        });
         for (const path of ['', '/products', '/products/amd-ryzen-7-9800x3d', '/compare', '/build']) {
           await page.goto(`/${locale}${path}`);
           await expect(page.locator('html')).toHaveAttribute('dir',locale==='fa'?'rtl':'ltr');
