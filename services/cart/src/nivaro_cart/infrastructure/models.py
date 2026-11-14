@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -79,6 +80,9 @@ class Build(Base):
     market: Mapped[str] = mapped_column(String(16))
     currency: Mapped[str] = mapped_column(String(3))
     mode: Mapped[str] = mapped_column(String(20), default="complete_build")
+    requires_dedicated_gpu: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false")
+    )
     version: Mapped[int] = mapped_column(Integer, default=1)
 
 

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from nivaro_cart.api.authorization import IdentityAuthorization
+from nivaro_cart.api.builds import router as builds_router
 from nivaro_cart.api.items import router as items_router
 from nivaro_cart.api.limits import BoundedBody
 from nivaro_cart.api.merge import router as merge_router
@@ -109,7 +110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             async with app.state.database.sessions() as db:
                 revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-            if revision == "0004_cart_merge":
+            if revision == "0005_build_intent":
                 return {"service": "cart", "status": "ok"}
         except SQLAlchemyError:
             pass
@@ -118,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(items_router)
     app.include_router(merge_router)
+    app.include_router(builds_router)
     app.add_middleware(BoundedBody)
     return app
 
