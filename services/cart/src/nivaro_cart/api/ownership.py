@@ -64,6 +64,7 @@ class GroupView(BaseModel):
     id: UUID
     name: str
     mode: Literal["complete_build", "parts_only"]
+    requires_dedicated_gpu: bool
     version: int
 
 

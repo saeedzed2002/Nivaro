@@ -116,6 +116,9 @@ class CartGroup(Base):
     mode: Mapped[str] = mapped_column(String(20), default="complete_build")
     version: Mapped[int] = mapped_column(Integer, default=1)
     # Snapshot provenance survives deletion of the original editable draft.
+    requires_dedicated_gpu: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false")
+    )
     source_build_id: Mapped[UUID | None] = mapped_column()
     source_build_version: Mapped[int | None] = mapped_column(Integer)
 

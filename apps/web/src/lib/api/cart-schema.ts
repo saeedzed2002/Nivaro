@@ -37,6 +37,23 @@ export interface paths {
         patch: operations["replace_build_api_v1_builds__build_id__patch"];
         trace?: never;
     };
+    "/api/v1/builds/{build_id}/cart-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer Build */
+        post: operations["transfer_build_api_v1_builds__build_id__cart_transfers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/builds/{build_id}/duplicate": {
         parameters: {
             query?: never;
@@ -48,6 +65,23 @@ export interface paths {
         put?: never;
         /** Duplicate Build */
         post: operations["duplicate_build_api_v1_builds__build_id__duplicate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/builds/{build_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Build Review */
+        get: operations["get_build_review_api_v1_builds__build_id__review_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -209,6 +243,30 @@ export interface components {
              * Format: uuid
              */
             variant_id: string;
+        };
+        /** BuildReview */
+        BuildReview: {
+            /** Blocker */
+            blocker: string | null;
+            build: components["schemas"]["BuildView"];
+            /**
+             * Cart Id
+             * Format: uuid
+             */
+            cart_id: string;
+            /** Cart Version */
+            cart_version: number;
+            evaluation: components["schemas"]["Evaluation"] | null;
+            /** Lines */
+            lines: components["schemas"]["ReviewLine"][];
+            /**
+             * Reserves Stock
+             * @default false
+             * @constant
+             */
+            reserves_stock: false;
+            /** Review Digest */
+            review_digest: string | null;
         };
         /** BuildSelection */
         BuildSelection: {
@@ -374,6 +432,63 @@ export interface components {
         ErrorEnvelope: {
             error: components["schemas"]["ErrorDetail"];
         };
+        /** Evaluation */
+        Evaluation: {
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "IRR" | "USD";
+            /** Estimated Power W */
+            estimated_power_w: number | null;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Findings */
+            findings: components["schemas"]["Finding"][];
+            market: components["schemas"]["Market"];
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "complete_build" | "parts_only";
+            /** Power Method */
+            power_method: string;
+            /**
+             * Reserves Stock
+             * @constant
+             */
+            reserves_stock: false;
+            /** Ruleset Version */
+            ruleset_version: string;
+            /** Selection Hash */
+            selection_hash: string;
+            /** Spec Versions */
+            spec_versions: {
+                [key: string]: number;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "compatible" | "incompatible" | "incomplete" | "needs_review";
+        };
+        /** Finding */
+        Finding: {
+            /** Code */
+            code: string;
+            corrective_action: components["schemas"]["Localized"];
+            message: components["schemas"]["Localized"];
+            /** Slots */
+            slots: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "compatible" | "incompatible" | "incomplete" | "needs_review";
+        };
         /** GroupView */
         GroupView: {
             /**
@@ -388,6 +503,8 @@ export interface components {
             mode: "complete_build" | "parts_only";
             /** Name */
             name: string;
+            /** Requires Dedicated Gpu */
+            requires_dedicated_gpu: boolean;
             /** Version */
             version: number;
         };
@@ -437,6 +554,13 @@ export interface components {
             variant_id: string;
             /** Version */
             version: number;
+        };
+        /** Localized */
+        Localized: {
+            /** En */
+            en: string;
+            /** Fa */
+            fa: string;
         };
         /** @enum {string} */
         Market: "ir" | "international";
@@ -546,6 +670,27 @@ export interface components {
             /** Selections */
             selections?: components["schemas"]["BuildSelection"][];
         };
+        /** ReviewLine */
+        ReviewLine: {
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Slot Key */
+            slot_key: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "removed" | "unpriced" | "reference_only" | "unavailable" | "stock_unknown" | "insufficient_stock";
+            summary: components["schemas"]["Summary"] | null;
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+        };
         /** Summary */
         Summary: {
             /** Available Quantity */
@@ -574,6 +719,38 @@ export interface components {
              * Format: uuid
              */
             variant_id: string;
+        };
+        /** TransferReceipt */
+        TransferReceipt: {
+            /**
+             * Cart Id
+             * Format: uuid
+             */
+            cart_id: string;
+            /** Cart Version */
+            cart_version: number;
+            /**
+             * Group Id
+             * Format: uuid
+             */
+            group_id: string;
+            /** Group Version */
+            group_version: number;
+            /**
+             * Reserves Stock
+             * @default false
+             * @constant
+             */
+            reserves_stock: false;
+        };
+        /** TransferRequest */
+        TransferRequest: {
+            /** Expected Build Version */
+            expected_build_version: number;
+            /** Expected Cart Version */
+            expected_cart_version: number;
+            /** Review Digest */
+            review_digest: string;
         };
     };
     responses: never;
@@ -1062,6 +1239,106 @@ export interface operations {
             };
         };
     };
+    transfer_build_api_v1_builds__build_id__cart_transfers_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                build_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferReceipt"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     duplicate_build_api_v1_builds__build_id__duplicate_post: {
         parameters: {
             query?: never;
@@ -1084,6 +1361,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BuildView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_build_review_api_v1_builds__build_id__review_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                build_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildReview"];
                 };
             };
             /** @description Unauthorized */

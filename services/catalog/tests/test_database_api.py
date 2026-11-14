@@ -464,3 +464,27 @@ async def test_summary_bounds_and_actual_cart_client_contract(api):
     missing = uuid4()
     summaries = await Catalog(client).summaries([variant.id, missing], "ir")
     assert summaries[variant.id].sku == variant.sku and summaries[missing] is None
+
+
+async def test_cart_consumer_reads_actual_catalog_evaluation(api):
+    from nivaro_cart.infrastructure.catalog import Catalog, SelectionUnavailable
+
+    client, session = api
+    variants = list(await session.scalars(select(VariantRow)))
+    cpu = next(variant for variant in variants if variant.specifications["kind"] == "cpu")
+    catalog = Catalog(client)
+    evaluated = await catalog.evaluate(
+        market="international",
+        mode="parts_only",
+        dedicated_gpu=True,
+        selections=[("cpu", cpu.id, 1)],
+    )
+    assert evaluated.status == "incomplete" and evaluated.currency == "USD"
+    assert evaluated.spec_versions == {cpu.id: cpu.spec_version} and evaluated.findings
+    with pytest.raises(SelectionUnavailable):
+        await catalog.evaluate(
+            market="ir",
+            mode="complete_build",
+            dedicated_gpu=False,
+            selections=[("storage:1", cpu.id, 1)],
+        )

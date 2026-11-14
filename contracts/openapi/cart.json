@@ -34,6 +34,79 @@
         "title": "AddItem",
         "type": "object"
       },
+      "BuildReview": {
+        "properties": {
+          "blocker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocker"
+          },
+          "build": {
+            "$ref": "#/components/schemas/BuildView"
+          },
+          "cart_id": {
+            "format": "uuid",
+            "title": "Cart Id",
+            "type": "string"
+          },
+          "cart_version": {
+            "title": "Cart Version",
+            "type": "integer"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Evaluation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          },
+          "review_digest": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Digest"
+          }
+        },
+        "required": [
+          "build",
+          "cart_id",
+          "cart_version",
+          "evaluation",
+          "lines",
+          "blocker",
+          "review_digest"
+        ],
+        "title": "BuildReview",
+        "type": "object"
+      },
       "BuildSelection": {
         "additionalProperties": false,
         "properties": {
@@ -407,6 +480,149 @@
         "title": "ErrorEnvelope",
         "type": "object"
       },
+      "Evaluation": {
+        "properties": {
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "estimated_power_w": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Power W"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "mode": {
+            "enum": [
+              "complete_build",
+              "parts_only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "power_method": {
+            "title": "Power Method",
+            "type": "string"
+          },
+          "reserves_stock": {
+            "const": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          },
+          "ruleset_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Ruleset Version",
+            "type": "string"
+          },
+          "selection_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Selection Hash",
+            "type": "string"
+          },
+          "spec_versions": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0.0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Spec Versions",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "compatible",
+              "incompatible",
+              "incomplete",
+              "needs_review"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "mode",
+          "selection_hash",
+          "spec_versions",
+          "ruleset_version",
+          "status",
+          "findings",
+          "evaluated_at",
+          "estimated_power_w",
+          "power_method",
+          "reserves_stock"
+        ],
+        "title": "Evaluation",
+        "type": "object"
+      },
+      "Finding": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "corrective_action": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "message": {
+            "$ref": "#/components/schemas/Localized"
+          },
+          "slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Slots",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "compatible",
+              "incompatible",
+              "incomplete",
+              "needs_review"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "slots",
+          "message",
+          "corrective_action"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
       "GroupView": {
         "properties": {
           "id": {
@@ -426,6 +642,10 @@
             "title": "Name",
             "type": "string"
           },
+          "requires_dedicated_gpu": {
+            "title": "Requires Dedicated Gpu",
+            "type": "boolean"
+          },
           "version": {
             "title": "Version",
             "type": "integer"
@@ -435,6 +655,7 @@
           "id",
           "name",
           "mode",
+          "requires_dedicated_gpu",
           "version"
         ],
         "title": "GroupView",
@@ -573,6 +794,24 @@
           "observed_price_version"
         ],
         "title": "LineView",
+        "type": "object"
+      },
+      "Localized": {
+        "properties": {
+          "en": {
+            "title": "En",
+            "type": "string"
+          },
+          "fa": {
+            "title": "Fa",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fa",
+          "en"
+        ],
+        "title": "Localized",
         "type": "object"
       },
       "Market": {
@@ -815,6 +1054,59 @@
         "title": "ReplaceBuild",
         "type": "object"
       },
+      "ReviewLine": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "default": 1,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "slot_key": {
+            "pattern": "^(cpu|motherboard|memory|storage|case|psu|cooler|gpu|monitor|keyboard|mouse|audio|chair|desk|accessory)(:[1-9][0-9]?)?$",
+            "title": "Slot Key",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "available",
+              "removed",
+              "unpriced",
+              "reference_only",
+              "unavailable",
+              "stock_unknown",
+              "insufficient_stock"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Summary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_key",
+          "variant_id",
+          "summary",
+          "status"
+        ],
+        "title": "ReviewLine",
+        "type": "object"
+      },
       "Summary": {
         "properties": {
           "available_quantity": {
@@ -894,6 +1186,71 @@
           "offer"
         ],
         "title": "Summary",
+        "type": "object"
+      },
+      "TransferReceipt": {
+        "properties": {
+          "cart_id": {
+            "format": "uuid",
+            "title": "Cart Id",
+            "type": "string"
+          },
+          "cart_version": {
+            "title": "Cart Version",
+            "type": "integer"
+          },
+          "group_id": {
+            "format": "uuid",
+            "title": "Group Id",
+            "type": "string"
+          },
+          "group_version": {
+            "title": "Group Version",
+            "type": "integer"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cart_id",
+          "group_id",
+          "cart_version",
+          "group_version"
+        ],
+        "title": "TransferReceipt",
+        "type": "object"
+      },
+      "TransferRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_build_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Build Version",
+            "type": "integer"
+          },
+          "expected_cart_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Cart Version",
+            "type": "integer"
+          },
+          "review_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Review Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_build_version",
+          "expected_cart_version",
+          "review_digest"
+        ],
+        "title": "TransferRequest",
         "type": "object"
       }
     }
@@ -1510,6 +1867,141 @@
         ]
       }
     },
+    "/api/v1/builds/{build_id}/cart-transfers": {
+      "post": {
+        "operationId": "transfer_build_api_v1_builds__build_id__cart_transfers_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "build_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Build Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Transfer Build",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
     "/api/v1/builds/{build_id}/duplicate": {
       "post": {
         "operationId": "duplicate_build_api_v1_builds__build_id__duplicate_post",
@@ -1628,6 +2120,119 @@
           }
         },
         "summary": "Duplicate Build",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
+    "/api/v1/builds/{build_id}/review": {
+      "get": {
+        "operationId": "get_build_review_api_v1_builds__build_id__review_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "build_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Build Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Get Build Review",
         "tags": [
           "builds"
         ]

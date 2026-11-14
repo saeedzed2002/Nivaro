@@ -92,8 +92,14 @@ async def owned_build(
     db: AsyncSession, actor: Actor, build_id: UUID, *, version: int | None = None
 ) -> Build:
     owner = await resolve_owner(db, actor, mutating=version is not None)
+    return await find_build(db, owner.id, build_id, version=version)
+
+
+async def find_build(
+    db: AsyncSession, owner_id: UUID, build_id: UUID, *, version: int | None = None
+) -> Build:
     result = await db.scalar(
-        select(Build).where(Build.id == build_id, Build.owner_id == owner.id).with_for_update()
+        select(Build).where(Build.id == build_id, Build.owner_id == owner_id).with_for_update()
     )
     if result is None:
         raise CartNotFound

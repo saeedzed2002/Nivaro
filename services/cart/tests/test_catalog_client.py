@@ -101,3 +101,37 @@ async def test_second_batch_failure_never_returns_partial_prices():
         with pytest.raises(CatalogUnavailable):
             await Catalog(client).summaries(ids, "ir")
         assert calls == 2
+
+
+async def test_build_evaluation_rejects_a_report_for_another_selection():
+    key = uuid4()
+
+    def wrong_report(request):
+        return httpx.Response(
+            200,
+            json={
+                "market": "ir",
+                "currency": "IRR",
+                "mode": "parts_only",
+                "selection_hash": "a" * 64,
+                "spec_versions": {str(key): 1},
+                "ruleset_version": "test-v1",
+                "status": "compatible",
+                "findings": [],
+                "evaluated_at": "2026-11-14T00:00:00Z",
+                "estimated_power_w": None,
+                "power_method": "test",
+                "reserves_stock": False,
+            },
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(wrong_report), base_url="http://catalog.test"
+    ) as client:
+        with pytest.raises(CatalogUnavailable):
+            await Catalog(client).evaluate(
+                market="ir",
+                mode="parts_only",
+                dedicated_gpu=False,
+                selections=[("storage:1", key, 2)],
+            )
