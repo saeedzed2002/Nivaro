@@ -54,6 +54,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/builds/{build_id}/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compare Builds */
+        get: operations["compare_builds_api_v1_builds__build_id__comparison_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/builds/{build_id}/duplicate": {
         parameters: {
             query?: never;
@@ -384,6 +401,79 @@ export interface components {
             reserves_stock: false;
             /** Version */
             version: number;
+        };
+        /** ComparedBuild */
+        ComparedBuild: {
+            build: components["schemas"]["BuildView"];
+            evaluation: components["schemas"]["Evaluation"] | null;
+            /**
+             * Evaluation Status
+             * @enum {string}
+             */
+            evaluation_status: "ready" | "selection_unavailable" | "catalog_unavailable";
+            /** Known Components Minor */
+            known_components_minor: string | null;
+            /** Known Peripherals Minor */
+            known_peripherals_minor: string | null;
+            /**
+             * Price Basis
+             * @default catalog_display
+             * @constant
+             */
+            price_basis: "catalog_display";
+            /** Unpriced Slots */
+            unpriced_slots: string[];
+        };
+        /** ComparedPart */
+        ComparedPart: {
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Slot Key */
+            slot_key: string;
+            /** Status */
+            status: ("available" | "removed" | "unpriced" | "reference_only" | "unavailable" | "stock_unknown" | "insufficient_stock") | "catalog_unavailable";
+            summary: components["schemas"]["Summary"] | null;
+            /**
+             * Variant Id
+             * Format: uuid
+             */
+            variant_id: string;
+        };
+        /** ComparedSlot */
+        ComparedSlot: {
+            /** Different */
+            different: boolean;
+            left: components["schemas"]["ComparedPart"] | null;
+            right: components["schemas"]["ComparedPart"] | null;
+            /** Slot Key */
+            slot_key: string;
+        };
+        /** Comparison */
+        Comparison: {
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "IRR" | "USD";
+            left: components["schemas"]["ComparedBuild"];
+            market: components["schemas"]["Market"];
+            /**
+             * Price Status
+             * @enum {string}
+             */
+            price_status: "ready" | "catalog_unavailable";
+            /**
+             * Reserves Stock
+             * @default false
+             * @constant
+             */
+            reserves_stock: false;
+            right: components["schemas"]["ComparedBuild"];
+            /** Slots */
+            slots: components["schemas"]["ComparedSlot"][];
         };
         /** CreateBuild */
         CreateBuild: {
@@ -1263,6 +1353,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransferReceipt"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    compare_builds_api_v1_builds__build_id__comparison_get: {
+        parameters: {
+            query: {
+                other_id: string;
+            };
+            header?: never;
+            path: {
+                build_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comparison"];
                 };
             };
             /** @description Unauthorized */

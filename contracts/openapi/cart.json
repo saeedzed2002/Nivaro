@@ -339,6 +339,230 @@
         "title": "CartView",
         "type": "object"
       },
+      "ComparedBuild": {
+        "properties": {
+          "build": {
+            "$ref": "#/components/schemas/BuildView"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Evaluation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation_status": {
+            "enum": [
+              "ready",
+              "selection_unavailable",
+              "catalog_unavailable"
+            ],
+            "title": "Evaluation Status",
+            "type": "string"
+          },
+          "known_components_minor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known Components Minor"
+          },
+          "known_peripherals_minor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known Peripherals Minor"
+          },
+          "price_basis": {
+            "const": "catalog_display",
+            "default": "catalog_display",
+            "title": "Price Basis",
+            "type": "string"
+          },
+          "unpriced_slots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unpriced Slots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "build",
+          "evaluation",
+          "evaluation_status",
+          "known_components_minor",
+          "known_peripherals_minor",
+          "unpriced_slots"
+        ],
+        "title": "ComparedBuild",
+        "type": "object"
+      },
+      "ComparedPart": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "default": 1,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "slot_key": {
+            "pattern": "^(cpu|motherboard|memory|storage|case|psu|cooler|gpu|monitor|keyboard|mouse|audio|chair|desk|accessory)(:[1-9][0-9]?)?$",
+            "title": "Slot Key",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "available",
+                  "removed",
+                  "unpriced",
+                  "reference_only",
+                  "unavailable",
+                  "stock_unknown",
+                  "insufficient_stock"
+                ],
+                "type": "string"
+              },
+              {
+                "const": "catalog_unavailable",
+                "type": "string"
+              }
+            ],
+            "title": "Status"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Summary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant_id": {
+            "format": "uuid",
+            "title": "Variant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_key",
+          "variant_id",
+          "summary",
+          "status"
+        ],
+        "title": "ComparedPart",
+        "type": "object"
+      },
+      "ComparedSlot": {
+        "properties": {
+          "different": {
+            "title": "Different",
+            "type": "boolean"
+          },
+          "left": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparedPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "right": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparedPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slot_key": {
+            "title": "Slot Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_key",
+          "left",
+          "right",
+          "different"
+        ],
+        "title": "ComparedSlot",
+        "type": "object"
+      },
+      "Comparison": {
+        "properties": {
+          "currency": {
+            "enum": [
+              "IRR",
+              "USD"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "left": {
+            "$ref": "#/components/schemas/ComparedBuild"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "price_status": {
+            "enum": [
+              "ready",
+              "catalog_unavailable"
+            ],
+            "title": "Price Status",
+            "type": "string"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          },
+          "right": {
+            "$ref": "#/components/schemas/ComparedBuild"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/ComparedSlot"
+            },
+            "title": "Slots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "left",
+          "right",
+          "slots",
+          "price_status"
+        ],
+        "title": "Comparison",
+        "type": "object"
+      },
       "CreateBuild": {
         "additionalProperties": false,
         "properties": {
@@ -1997,6 +2221,129 @@
           }
         },
         "summary": "Transfer Build",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
+    "/api/v1/builds/{build_id}/comparison": {
+      "get": {
+        "operationId": "compare_builds_api_v1_builds__build_id__comparison_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "build_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Build Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "other_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Other Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparison"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Compare Builds",
         "tags": [
           "builds"
         ]

@@ -216,3 +216,59 @@ async def test_transfer_rechecks_draft_after_catalog_io(transfer):
         "current_version": 2,
     }
     assert (await client.get("/api/v1/cart")).json()["groups"] == []
+
+
+async def test_comparison_preserves_both_drafts_and_unknown_prices(transfer):
+    client, path, state, variant, draft = transfer
+    duplicate = await client.post(
+        f"{path}/duplicate", json={"name": "Build B", "expected_version": 1}
+    )
+    other = duplicate.json()["id"]
+    changed = {
+        **draft,
+        "name": "Build B",
+        "expected_version": 1,
+        "selections": [
+            {"slot_key": "storage:1", "variant_id": str(variant), "quantity": 1},
+            {"slot_key": "monitor", "variant_id": str(uuid4())},
+        ],
+    }
+    assert (await client.patch(f"/api/v1/builds/{other}", json=changed)).status_code == 200
+    url = f"{path}/comparison?other_id={other}"
+    comparison = await client.get(url)
+    assert comparison.status_code == 200, comparison.text
+    result = comparison.json()
+    assert result["currency"] == "IRR" and result["reserves_stock"] is False
+    assert result["left"]["build"]["version"] == 1 and result["right"]["build"]["version"] == 2
+    assert result["left"]["known_components_minor"] == "24680"
+    assert result["left"]["known_peripherals_minor"] is None
+    assert result["right"]["known_components_minor"] == "12340"
+    assert result["right"]["known_peripherals_minor"] == "12340"
+    assert result["left"]["evaluation"]["status"] == "incomplete"
+    rows = {row["slot_key"]: row for row in result["slots"]}
+    assert rows["monitor"]["left"] is None and rows["monitor"]["different"]
+    assert rows["storage:1"]["different"]
+    state["unpriced"] = True
+    result = (await client.get(url)).json()
+    assert result["right"]["known_components_minor"] is None
+    assert result["right"]["known_peripherals_minor"] is None
+    assert result["right"]["unpriced_slots"] == ["monitor", "storage:1"]
+    assert (await client.get(path)).json()["version"] == 1
+    assert (await client.get(f"/api/v1/builds/{other}")).json()["version"] == 2
+
+
+async def test_comparison_rejects_cross_market_and_foreign_drafts(transfer):
+    client, path, _, _, draft = transfer
+    overseas = await client.post("/api/v1/builds", json={**draft, "market": "international"})
+    assert overseas.status_code == 201
+    rejected = await client.get(f"{path}/comparison", params={"other_id": overseas.json()["id"]})
+    assert (
+        rejected.status_code == 422
+        and rejected.json()["error"]["code"] == "build.comparison_market_mismatch"
+    )
+    assert (
+        await client.get(f"{path}/comparison", params={"other_id": path.rsplit("/", 1)[1]})
+    ).status_code == 422
+    assert (
+        await client.get(f"{path}/comparison", params={"other_id": str(uuid4())})
+    ).status_code == 404
