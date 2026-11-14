@@ -10,6 +10,8 @@ export type CartLine = components['schemas']['LineView'];
 export type SavedBuild = components['schemas']['BuildView'];
 export type BuildReview = components['schemas']['BuildReview'];
 export type DraftContent = Omit<components['schemas']['CreateBuild'], 'market'>;
+export type GroupEdit = components['schemas']['GroupEdit'];
+export type GroupReview = components['schemas']['GroupEditReview'];
 export class CartError extends Error {
   constructor(public code: string, public status = 0) { super(code); }
 }
@@ -170,6 +172,20 @@ export async function deleteCartGroup(cart: Cart, group: Cart['groups'][number])
   return unwrap(await client.DELETE('/api/v1/cart/groups/{group_id}', {
     params: { path: { group_id: group.id }, query: { market: cart.market, expected_version: cart.version, expected_group_version: group.version } },
     headers: { 'X-CSRF-Token': csrf },
+  }));
+}
+
+export async function reviewGroup(cart: Cart, groupId: string, body: GroupEdit) {
+  return unwrap(await client.POST('/api/v1/cart/groups/{group_id}/review', {
+    params: { path: { group_id: groupId } }, body,
+    headers: { 'X-CSRF-Token': await cartCsrf(cart.owner_scope) },
+  }));
+}
+
+export async function saveGroup(cart: Cart, groupId: string, body: GroupEdit, digest: string) {
+  return unwrap(await client.PATCH('/api/v1/cart/groups/{group_id}', {
+    params: { path: { group_id: groupId } }, body: { ...body, review_digest: digest },
+    headers: { 'X-CSRF-Token': await cartCsrf(cart.owner_scope) },
   }));
 }
 

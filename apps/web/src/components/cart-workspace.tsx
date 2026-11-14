@@ -122,7 +122,8 @@ export function CartWorkspace({ locale }: { locale: Locale }) {
         {cart.catalog_status === 'unavailable' && <p className="cart-notice"><AlertTriangle size={18} /> {text(locale, 'قیمت‌ها موقتاً در دسترس نیستند.', 'Prices are temporarily unavailable.')}</p>}
         {cart.groups.map(group => <section key={group.id} className="cart-group">
           <header><div><h2>{group.name}</h2><p>{group.mode === 'parts_only' ? text(locale, 'فقط قطعات', 'Parts only') : text(locale, 'پیکربندی سیستم کامل', 'Complete configuration')}</p></div>
-            <button type="button" className="cart-icon" disabled={busy} aria-label={`${text(locale, 'حذف سیستم', 'Remove system')}: ${group.name}`} onClick={() => mutation.mutate({ kind: 'group', cart, group })}><Trash2 size={17} /></button>
+            <div className="cart-actions"><Link className="text-link" href={`/${locale}/build?group=${encodeURIComponent(group.id)}`}>{text(locale, 'ویرایش سیستم', 'Edit system')}</Link>
+            <button type="button" className="cart-icon" disabled={busy} aria-label={`${text(locale, 'حذف سیستم', 'Remove system')}: ${group.name}`} onClick={() => mutation.mutate({ kind: 'group', cart, group })}><Trash2 size={17} /></button></div>
           </header>
           <ul>{cart.lines.filter(line => line.group_id === group.id).map(lineView)}</ul>
         </section>)}

@@ -69,15 +69,15 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./scripts/Verify-CartFoundation.ps1 -TestImage 'nivaro-cart:test'
-      - name: Cart gateway and customer session integration
-        working-directory: .
-        shell: pwsh
-        run: ./scripts/Verify-CartGateway.ps1
       - name: Build host preview against catalog gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080
         run: pnpm build && pnpm typecheck
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Cart browser integration through gateway
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-CartGateway.ps1 -Browser
       - name: Host browser verification
         env:
           TEST_BASE_URL: http://127.0.0.1:8081

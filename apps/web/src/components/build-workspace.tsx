@@ -9,8 +9,8 @@ import { Cpu, CircuitBoard, MemoryStick, HardDrive, Box, Zap, Fan, Monitor, Keyb
 import { usePreferences } from './preferences';
 import { text, type Locale } from '@/lib/content';
 import type { components, paths } from '@/lib/api/catalog-schema';
-import { CartError, cartErrorCopy, openBuild, reviewSavedBuild, saveBuild, transferBuild, type BuildReview, type SavedBuild } from '@/lib/cart-client';
-import { buildsKey, cartKey } from './cart-query';
+import { CartError, cartErrorCopy, openBuild, reviewGroup, reviewSavedBuild, saveBuild, saveGroup, transferBuild, type BuildReview, type Cart, type GroupEdit, type GroupReview, type SavedBuild } from '@/lib/cart-client';
+import { buildsKey, cartKey, useCart } from './cart-query';
 
 type Product = components['schemas']['Product'];
 type Evaluation = components['schemas']['Evaluation'];
@@ -24,7 +24,13 @@ const names: Record<Role,[string,string]> = {cpu:['پردازنده','Processor'
 const icons = {cpu:Cpu,motherboard:CircuitBoard,memory:MemoryStick,storage:HardDrive,gpu:Monitor,case:Box,psu:Zap,cooler:Fan,monitor:Monitor,keyboard:Keyboard,mouse:Mouse,audio:Headphones,chair:Armchair,desk:Box,accessory:Plus};
 const statuses = {compatible:['کنترل‌های اصلی گذرانده شد','Core checks passed'],incompatible:['قطعات ناسازگارند','Conflicting components'],incomplete:['انتخاب قطعات کامل نیست','Incomplete selection'],needs_review:['نیازمند بررسی بیشتر','Needs further review']};
 export function BuildWorkspace({ products, locale }: {products:Product[];locale:Locale}) {
-  const id = useSearchParams().get('draft');
+  const params = useSearchParams();
+  const group = params.get('group');
+  if (group) return <GroupWorkspace products={products} locale={locale} id={group} />;
+  return <DraftWorkspace products={products} locale={locale} id={params.get('draft')} />;
+}
+
+function DraftWorkspace({products, locale, id}: {products: Product[]; locale: Locale; id: string | null}) {
   const { market } = usePreferences();
   const draft = useQuery({ queryKey: [...buildsKey(market), id], enabled: Boolean(id), queryFn: ({ signal }) => openBuild(id!, signal), refetchOnMount: 'always', refetchOnWindowFocus: false });
   if (id && (draft.isPending || (draft.isFetching && !draft.isFetchedAfterMount))) return <p role="status">{text(locale,'در حال بازکردن پیش‌نویس…','Opening saved build…')}</p>;
@@ -35,19 +41,41 @@ export function BuildWorkspace({ products, locale }: {products:Product[];locale:
   return <BuildEditor key={`${market}:${id ?? 'new'}`} products={products} locale={locale} draft={id ? draft.data : undefined} />;
 }
 
-function initialRows(draft?: SavedBuild): Row[] {
-  const saved = draft?.selections.map(line => ({ key: line.slot_key, role: line.slot_key.split(':')[0] as Role, id: line.variant_id, quantity: line.quantity ?? 1 })) ?? [];
+type Group = Cart['groups'][number];
+
+function groupSelections(cart: Cart, id: string): SavedBuild['selections'] {
+  return cart.lines.flatMap(line => line.group_id === id && line.slot_key
+    ? [{ slot_key: line.slot_key, variant_id: line.variant_id, quantity: line.quantity }]
+    : []);
+}
+
+function GroupWorkspace({ products, locale, id }: { products: Product[]; locale: Locale; id: string }) {
+  const { market } = usePreferences();
+  const cart = useCart(market);
+  const group = cart.data?.groups.find(item => item.id === id);
+  if (cart.isPending) return <p role="status">{text(locale, 'در حال بازکردن سیستم…', 'Opening cart system…')}</p>;
+  if (cart.isError || !cart.data || !group) return <div className="workspace-panel">
+    <p role="alert">{text(locale, 'این سیستم در سبد بازار فعلی در دسترس نیست.', 'This system is unavailable in the current market cart.')}</p>
+    <Link className="button secondary" href={`/${locale}/cart`}>{text(locale, 'بازگشت به سبد', 'Back to cart')}</Link>
+  </div>;
+  return <BuildEditor key={`${cart.data.id}:${group.id}`} products={products} locale={locale} groupEdit={{ cart: cart.data, group }} />;
+}
+
+function initialRows(selections: SavedBuild['selections'] = []): Row[] {
+  const saved = selections.map(line => ({ key: line.slot_key, role: line.slot_key.split(':')[0] as Role, id: line.variant_id, quantity: line.quantity ?? 1 }));
   return [...saved, ...[...core, ...extra].filter(role => !saved.some(row => row.role === role)).map(role => ({ key: role, role, id: '', quantity: 1 }))];
 }
 
-function BuildEditor({ products, locale, draft }: { products: Product[]; locale: Locale; draft?: SavedBuild }) {
+function BuildEditor({ products, locale, draft, groupEdit }: { products: Product[]; locale: Locale; draft?: SavedBuild; groupEdit?: { cart: Cart; group: Group } }) {
   const { market } = usePreferences();
   const router = useRouter();
   const client = useQueryClient();
-  const [rows,setRows] = useState<Row[]>(() => initialRows(draft));
-  const [dedicated,setDedicated] = useState(draft?.requires_dedicated_gpu ?? false);
-  const [mode,setMode] = useState<'complete_build'|'parts_only'>(draft?.mode ?? 'complete_build');
-  const [name, setName] = useState(draft?.name ?? '');
+  const [base, setBase] = useState(groupEdit);
+  const [rows,setRows] = useState<Row[]>(() => initialRows(groupEdit ? groupSelections(groupEdit.cart, groupEdit.group.id) : draft?.selections));
+  const [dedicated,setDedicated] = useState(groupEdit?.group.requires_dedicated_gpu ?? draft?.requires_dedicated_gpu ?? false);
+  const [mode,setMode] = useState<'complete_build'|'parts_only'>(groupEdit?.group.mode ?? draft?.mode ?? 'complete_build');
+  const [name, setName] = useState(groupEdit?.group.name ?? draft?.name ?? '');
+  const [groupReport, setGroupReport] = useState<{ proposal: GroupEdit; review: GroupReview }>();
   const [saved, setSaved] = useState(draft);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<Error | null>(null);
@@ -61,6 +89,9 @@ function BuildEditor({ products, locale, draft }: { products: Product[]; locale:
   const choices = products.flatMap(p=>p.variants.filter(v=>v.specifications.kind!=='prebuilt').map(v=>({p,v,role:v.specifications.kind==='peripheral'?v.specifications.role:v.specifications.kind})));
   const selections: Selection[] = rows.filter(r=>r.id).map(r=>({slot_key:r.key,role:r.role,variant_id:r.id,quantity:r.quantity}));
   const content = { name: name.trim(), mode, requires_dedicated_gpu: dedicated, selections: selections.map(({ slot_key, variant_id, quantity }) => ({ slot_key, variant_id, quantity })) };
+  const proposal = base && { ...content, market, expected_version: base.cart.version, expected_group_version: base.group.version };
+  const currentGroupReport = groupReport && JSON.stringify(groupReport.proposal) === JSON.stringify(proposal) ? groupReport.review : undefined;
+  const staleGroup = Boolean(base && groupEdit && (base.cart.version !== groupEdit.cart.version || base.group.version !== groupEdit.group.version));
   const normalize = (lines: SavedBuild['selections']) => lines.map(({ slot_key, variant_id, quantity }) => [slot_key, variant_id, quantity ?? 1]).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
   const dirty = !saved || content.name !== saved.name || saved.mode !== mode || saved.requires_dedicated_gpu !== dedicated || JSON.stringify(normalize(saved.selections)) !== JSON.stringify(normalize(content.selections));
   const review = useQuery({ queryKey: [...buildsKey(market), 'review', saved?.id, saved?.version],
@@ -102,6 +133,39 @@ function BuildEditor({ products, locale, draft }: { products: Product[]; locale:
     finally { setBusy(false); }
   }
 
+  function reloadGroup() {
+    if (!groupEdit) return;
+    setBase(groupEdit);
+    setRows(initialRows(groupSelections(groupEdit.cart, groupEdit.group.id)));
+    setName(groupEdit.group.name);
+    setMode(groupEdit.group.mode);
+    setDedicated(groupEdit.group.requires_dedicated_gpu);
+    setGroupReport(undefined);
+    setSaveError(null);
+  }
+
+  async function checkGroup() {
+    if (!base || !proposal || busy || staleGroup) return;
+    setBusy(true); setSaveError(null); setGroupReport(undefined);
+    try { setGroupReport({ proposal, review: await reviewGroup(base.cart, base.group.id, proposal) }); }
+    catch (error) { setSaveError(error as Error); void client.invalidateQueries({ queryKey: cartKey(market) }); }
+    finally { setBusy(false); }
+  }
+
+  async function confirmGroup() {
+    if (!base || !proposal || !currentGroupReport?.review_digest || busy || staleGroup) return;
+    setBusy(true); setSaveError(null);
+    try {
+      await saveGroup(base.cart, base.group.id, proposal, currentGroupReport.review_digest);
+      void client.invalidateQueries({ queryKey: cartKey(market) });
+      router.replace(`/${locale}/cart`);
+    } catch (error) {
+      setSaveError(error as Error);
+      setGroupReport(undefined);
+      void client.invalidateQueries({ queryKey: cartKey(market) });
+    } finally { setBusy(false); }
+  }
+
   async function confirmTransfer(current: BuildReview) {
     if (!current.review_digest || busy) return;
     if (transferAttempt.current?.digest !== current.review_digest) {
@@ -139,11 +203,24 @@ function BuildEditor({ products, locale, draft }: { products: Product[]; locale:
     <div className="workspace-panel build-session">
       <label className="field"><span>{text(locale,'نام سیستم','Build name')}</span><input value={name} maxLength={100} disabled={busy || Boolean(ambiguous)} onChange={event => setName(event.target.value)} /></label>
       <div className="detail-actions">
-        <button type="button" className="button primary" disabled={busy || !dirty || !content.name} onClick={() => void persist()}>{text(locale,'ذخیرهٔ پیش‌نویس','Save build')}</button>
-        <Link className="button secondary" href={`/${locale}/build/saved`}>{text(locale,'پیش‌نویس‌ها','Saved builds')}</Link>
-        {saved && <Link className="button secondary" href={`/${locale}/build`}>{text(locale,'سیستم جدید','New build')}</Link>}
+        {base ? <>
+          <button type="button" className="button primary" disabled={busy || staleGroup || !content.name} onClick={() => void checkGroup()}>{text(locale,'بازبینی تغییرات سیستم','Review system changes')}</button>
+          <Link className="button secondary" href={`/${locale}/cart`}>{text(locale,'بازگشت به سبد','Back to cart')}</Link>
+        </> : <>
+          <button type="button" className="button primary" disabled={busy || !dirty || !content.name} onClick={() => void persist()}>{text(locale,'ذخیرهٔ پیش‌نویس','Save build')}</button>
+          <Link className="button secondary" href={`/${locale}/build/saved`}>{text(locale,'پیش‌نویس‌ها','Saved builds')}</Link>
+          {saved && <Link className="button secondary" href={`/${locale}/build`}>{text(locale,'سیستم جدید','New build')}</Link>}
+        </>}
       </div>
       {saveError && <p role="alert">{cartErrorCopy(saveError, locale)}</p>}
+      {staleGroup && <div className="cart-notice"><p role="alert">{text(locale, 'سبد تغییر کرده است. برای ادامه، ترکیب فعلی سبد را بارگیری کن.', 'The cart changed. Load its current configuration to continue.')}</p>
+        <button type="button" className="button secondary" disabled={busy} onClick={reloadGroup}>{text(locale, 'بارگیری ترکیب فعلی و کنارگذاشتن ویرایش‌ها', 'Load current configuration and discard edits')}</button></div>}
+      {currentGroupReport && !staleGroup && <section className="build-transfer" aria-label={text(locale, 'نتیجهٔ بازبینی سیستم', 'System change review')}>
+        {currentGroupReport.evaluation && <><h3>{statuses[currentGroupReport.evaluation.status][locale === 'fa' ? 0 : 1]}</h3><ul>{currentGroupReport.evaluation.findings.map((finding, index) => <li key={`${finding.code}-${index}`}>{finding.message[locale]}</li>)}</ul></>}
+        <ul>{currentGroupReport.lines.map(line => <li key={line.slot_key}><bdi>{line.summary?.name ?? line.slot_key}</bdi> · {line.summary?.offer ? money(line.summary.offer.amount_minor) : text(locale, 'قیمت نامشخص', 'Price unavailable')} · {line.status === 'available' ? text(locale, 'موجود', 'Available') : text(locale, 'نیاز به بررسی', 'Check availability')}</li>)}</ul>
+        {currentGroupReport.blocker && <p role="alert">{text(locale, 'برای ثبت، نتیجهٔ سازگاری و موجودی اقلام را بررسی کن.', 'Resolve compatibility and availability before saving.')}</p>}
+        {currentGroupReport.review_digest && <button type="button" className="button primary" disabled={busy} onClick={() => void confirmGroup()}>{text(locale, 'تأیید و ثبت تغییرات سیستم', 'Confirm system changes')}</button>}
+      </section>}
       {saved && !dirty && <p role="status">{text(locale,'پیش‌نویس ذخیره شده است.','Build saved.')}</p>}
       {saved && !dirty && <section aria-label={text(locale,'بازبینی انتقال','Transfer review')} className="build-transfer">
         {review.isFetching && <p>{text(locale,'در حال بازبینی…','Checking the latest catalog…')}</p>}

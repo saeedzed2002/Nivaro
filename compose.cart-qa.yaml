@@ -1,5 +1,10 @@
 # Layer after compose.identity-qa.yaml for the disposable cart gateway check.
 services:
+  gateway:
+    environment:
+      NIVARO_WEB_UPSTREAM: ${NIVARO_CART_QA_WEB_UPSTREAM:-web:3000}
+  web:
+    image: ${NIVARO_CART_QA_WEB_IMAGE:-nivaro-web:release}
   identity:
     image: ${NIVARO_CART_QA_IDENTITY_IMAGE:-nivaro-identity:release}
   identity-init:

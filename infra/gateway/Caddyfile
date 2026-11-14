@@ -34,6 +34,6 @@
     reverse_proxy cart:8000
   }
   handle {
-    reverse_proxy web:3000
+    reverse_proxy {$NIVARO_WEB_UPSTREAM:web:3000}
   }
 }
