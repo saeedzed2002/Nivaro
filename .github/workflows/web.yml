@@ -43,7 +43,7 @@ jobs:
         working-directory: .
         run: |
           docker compose -f compose.yaml -f compose.dev.yaml config --quiet
-          docker compose build catalog-init identity-init web
+          docker compose build catalog-init identity-init cart-init web
           docker compose up -d --wait --wait-timeout 120
           curl --fail --silent http://127.0.0.1:8080/health/ready
       - name: Catalog checks and canonical OpenAPI drift
@@ -69,6 +69,10 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./scripts/Verify-CartFoundation.ps1 -TestImage 'nivaro-cart:test'
+      - name: Cart gateway and customer session integration
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-CartGateway.ps1
       - name: Build host preview against catalog gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080

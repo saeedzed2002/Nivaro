@@ -71,7 +71,12 @@ async def cart_lines(db: AsyncSession, cart: Cart) -> list[CartLine]:
 
 
 async def review_build(
-    catalog: Catalog, build: BuildView, cart: Cart, existing: list[CartLine]
+    catalog: Catalog,
+    build: BuildView,
+    cart: Cart,
+    existing: list[CartLine],
+    *,
+    purpose: Literal["transfer", "group_edit"] = "transfer",
 ) -> BuildReview:
     quantities: Counter[UUID] = Counter()
     for variant_id, quantity in chain(
@@ -131,15 +136,15 @@ async def review_build(
             prices.append(
                 (line.slot_key, str(line.variant_id), offer.amount_minor, offer.price_version)
             )
-        review_digest = digest(
-            {
-                "build": build.model_dump(mode="json"),
-                "cart": str(cart.id),
-                "cart_version": cart.version,
-                "evaluation": evaluation.model_dump(mode="json", exclude={"evaluated_at"}),
-                "prices": prices,
-            }
-        )
+        reviewed = {
+            "build": build.model_dump(mode="json"),
+            "cart": str(cart.id),
+            "cart_version": cart.version,
+            "evaluation": evaluation.model_dump(mode="json", exclude={"evaluated_at"}),
+            "prices": prices,
+        }
+        # Preserve the existing transfer fingerprint for in-flight reviews.
+        review_digest = digest(reviewed if purpose == "transfer" else {"group_edit": reviewed})
     return BuildReview(
         build=build,
         cart_id=cart.id,

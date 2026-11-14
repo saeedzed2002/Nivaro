@@ -162,17 +162,66 @@ services:
       IDENTITY_MOCK_PHONES: '["+12025550100","+12025550101"]'
       IDENTITY_TRUST_GATEWAY_CLIENT_IP: 'true'
       IDENTITY_CATALOG_SERVICE_KEY_FILE: /run/secrets/catalog_identity_service_key
+      IDENTITY_CART_SERVICE_KEY_FILE: /run/secrets/cart_identity_service_key
     secrets:
       - identity_db_password
       - redis_state_password
       - otp_pepper
       - identity_signing_key
       - catalog_identity_service_key
+      - cart_identity_service_key
     depends_on:
       identity-init:
         condition: service_completed_successfully
       redis-state:
         condition: service_healthy
+    expose:
+      - '8000'
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 6
+  cart-db-init:
+    image: ${POSTGRES_IMAGE:-postgres:18.6-bookworm@sha256:bbf83594798e144bff365a9c191c5d779f181fb3135902064ab8ff11918020fc}
+    environment:
+      PGHOST: postgres
+      POSTGRES_USER: postgres
+    secrets:
+      - postgres_admin_password
+      - cart_db_password
+    volumes:
+      - ./infra/postgres/30-cart.sh:/init-cart.sh:ro
+    command: [sh, /init-cart.sh]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+  cart-init:
+    image: ${NIVARO_CART_IMAGE:-nivaro-cart:release}
+    build:
+      context: ./services/cart
+      target: release
+    secrets:
+      - cart_db_password
+    depends_on:
+      cart-db-init:
+        condition: service_completed_successfully
+    command: [alembic, upgrade, head]
+    restart: 'no'
+  cart:
+    image: ${NIVARO_CART_IMAGE:-nivaro-cart:release}
+    environment:
+      CART_IDENTITY_SERVICE_KEY_FILE: /run/secrets/cart_identity_service_key
+    secrets:
+      - cart_db_password
+      - cart_identity_service_key
+    depends_on:
+      cart-init:
+        condition: service_completed_successfully
     expose:
       - '8000'
     init: true
@@ -195,6 +244,10 @@ secrets:
     file: ./work/secrets/postgres_admin_password.txt
   catalog_db_password:
     file: ./work/secrets/catalog_db_password.txt
+  cart_db_password:
+    file: ./work/secrets/cart_db_password.txt
+  cart_identity_service_key:
+    file: ./work/secrets/cart_identity_service_key.txt
   identity_db_password:
     file: ./work/secrets/identity_db_password.txt
   redis_state_password:

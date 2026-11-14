@@ -1,0 +1,10 @@
+# Layer after compose.identity-qa.yaml for the disposable cart gateway check.
+services:
+  identity:
+    image: ${NIVARO_CART_QA_IDENTITY_IMAGE:-nivaro-identity:release}
+  identity-init:
+    image: ${NIVARO_CART_QA_IDENTITY_IMAGE:-nivaro-identity:release}
+  catalog:
+    image: ${NIVARO_CART_QA_CATALOG_IMAGE:-nivaro-catalog:release}
+  catalog-init:
+    image: ${NIVARO_CART_QA_CATALOG_IMAGE:-nivaro-catalog:release}

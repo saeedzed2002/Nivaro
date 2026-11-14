@@ -563,6 +563,68 @@
         "title": "Comparison",
         "type": "object"
       },
+      "ConfirmGroupEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_group_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Group Version",
+            "type": "integer"
+          },
+          "expected_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "mode": {
+            "default": "complete_build",
+            "enum": [
+              "complete_build",
+              "parts_only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "requires_dedicated_gpu": {
+            "default": false,
+            "title": "Requires Dedicated Gpu",
+            "type": "boolean"
+          },
+          "review_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Review Digest",
+            "type": "string"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/BuildSelection"
+            },
+            "maxItems": 32,
+            "title": "Selections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "market",
+          "expected_version",
+          "expected_group_version",
+          "review_digest"
+        ],
+        "title": "ConfirmGroupEdit",
+        "type": "object"
+      },
       "CreateBuild": {
         "additionalProperties": false,
         "properties": {
@@ -845,6 +907,171 @@
           "corrective_action"
         ],
         "title": "Finding",
+        "type": "object"
+      },
+      "GroupEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_group_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Group Version",
+            "type": "integer"
+          },
+          "expected_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "mode": {
+            "default": "complete_build",
+            "enum": [
+              "complete_build",
+              "parts_only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "requires_dedicated_gpu": {
+            "default": false,
+            "title": "Requires Dedicated Gpu",
+            "type": "boolean"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/BuildSelection"
+            },
+            "maxItems": 32,
+            "title": "Selections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "market",
+          "expected_version",
+          "expected_group_version"
+        ],
+        "title": "GroupEdit",
+        "type": "object"
+      },
+      "GroupEditReceipt": {
+        "properties": {
+          "cart_id": {
+            "format": "uuid",
+            "title": "Cart Id",
+            "type": "string"
+          },
+          "group": {
+            "$ref": "#/components/schemas/GroupView"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cart_id",
+          "version",
+          "group"
+        ],
+        "title": "GroupEditReceipt",
+        "type": "object"
+      },
+      "GroupEditReview": {
+        "properties": {
+          "blocker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocker"
+          },
+          "cart_id": {
+            "format": "uuid",
+            "title": "Cart Id",
+            "type": "string"
+          },
+          "cart_version": {
+            "title": "Cart Version",
+            "type": "integer"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Evaluation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "group_id": {
+            "format": "uuid",
+            "title": "Group Id",
+            "type": "string"
+          },
+          "group_version": {
+            "title": "Group Version",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          },
+          "review_digest": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Digest"
+          }
+        },
+        "required": [
+          "group_id",
+          "cart_id",
+          "cart_version",
+          "group_version",
+          "evaluation",
+          "lines",
+          "blocker",
+          "review_digest"
+        ],
+        "title": "GroupEditReview",
         "type": "object"
       },
       "GroupView": {
@@ -2844,6 +3071,250 @@
           }
         },
         "summary": "Remove Group",
+        "tags": [
+          "cart"
+        ]
+      },
+      "patch": {
+        "operationId": "save_group_edit_api_v1_cart_groups__group_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmGroupEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupEditReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Save Group Edit",
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/groups/{group_id}/review": {
+      "post": {
+        "operationId": "review_group_edit_api_v1_cart_groups__group_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupEditReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Review Group Edit",
         "tags": [
           "cart"
         ]

@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from nivaro_cart.api.authorization import IdentityAuthorization
 from nivaro_cart.api.builds import router as builds_router
 from nivaro_cart.api.comparison import router as comparison_router
+from nivaro_cart.api.groups import router as groups_router
 from nivaro_cart.api.items import router as items_router
 from nivaro_cart.api.limits import BoundedBody
 from nivaro_cart.api.merge import router as merge_router
@@ -123,6 +124,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(merge_router)
     app.include_router(builds_router)
     app.include_router(comparison_router)
+    app.include_router(groups_router)
     app.include_router(transfers_router)
     app.add_middleware(BoundedBody)
     return app

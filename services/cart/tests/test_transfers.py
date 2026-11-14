@@ -272,3 +272,85 @@ async def test_comparison_rejects_cross_market_and_foreign_drafts(transfer):
     assert (
         await client.get(f"{path}/comparison", params={"other_id": str(uuid4())})
     ).status_code == 404
+
+
+async def transferred_group(client, path):
+    _, body = await reviewed(client, path)
+    created = await client.post(f"{path}/cart-transfers", json=body)
+    assert created.status_code == 201, created.text
+    return created.json()
+
+
+async def test_group_edit_retains_slot_identity_and_does_not_change_draft_or_other_system(transfer):
+    client, path, state, variant, draft = transfer
+    first = await transferred_group(client, path)
+    _, next_body = await reviewed(client, path)
+    second = (
+        await client.post(
+            f"{path}/cart-transfers", json=next_body, headers={"Idempotency-Key": "second"}
+        )
+    ).json()
+    basket = (await client.get("/api/v1/cart")).json()
+    first_line = next(line for line in basket["lines"] if line["group_id"] == first["group_id"])
+    second_line = next(line for line in basket["lines"] if line["group_id"] == second["group_id"])
+    url = f"/api/v1/cart/groups/{first['group_id']}"
+    state["stock"] = 5
+    proposed = {
+        **draft,
+        "name": "Edited system",
+        "market": "ir",
+        "expected_version": 3,
+        "expected_group_version": 1,
+        "selections": [{"slot_key": "storage:1", "variant_id": str(variant), "quantity": 3}],
+    }
+    review = await client.post(f"{url}/review", json=proposed)
+    assert review.status_code == 200 and review.json()["blocker"] is None, review.text
+    receipt = await client.patch(
+        url, json={**proposed, "review_digest": review.json()["review_digest"]}
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.json()["version"] == 4 and receipt.json()["group"]["version"] == 2
+    current = {line["id"]: line for line in (await client.get("/api/v1/cart")).json()["lines"]}
+    assert current[first_line["id"]]["quantity"] == 3 and current[first_line["id"]]["version"] == 2
+    assert (
+        current[second_line["id"]]["quantity"] == 2 and current[second_line["id"]]["version"] == 1
+    )
+    assert (await client.get(path)).json()["selections"][0]["quantity"] == 2
+
+
+async def test_group_edit_rejects_new_prices_and_loses_a_version_race_atomically(transfer):
+    client, path, state, _, draft = transfer
+    first = await transferred_group(client, path)
+    url = f"/api/v1/cart/groups/{first['group_id']}"
+    proposed = {
+        **draft,
+        "name": "Edited",
+        "market": "ir",
+        "expected_version": 2,
+        "expected_group_version": 1,
+        "selections": [
+            {**draft["selections"][0], "quantity": 3},
+            {"slot_key": "storage:2", "variant_id": str(uuid4())},
+        ],
+    }
+    review = (await client.post(f"{url}/review", json=proposed)).json()
+    assert review["review_digest"]
+    state["amount"], state["version"] = 15000, 2
+    stale = await client.patch(url, json={**proposed, "review_digest": review["review_digest"]})
+    assert stale.status_code == 409 and stale.json()["error"]["code"] == "build.review_changed"
+    assert len((await client.get("/api/v1/cart")).json()["lines"]) == 1
+    latest = (await client.post(f"{url}/review", json=proposed)).json()
+    confirmed = {**proposed, "review_digest": latest["review_digest"]}
+    one, two = await asyncio.gather(
+        client.patch(url, json=confirmed), client.patch(url, json=confirmed)
+    )
+    assert sorted([one.status_code, two.status_code]) == [200, 409]
+    cart = (await client.get("/api/v1/cart")).json()
+    assert cart["version"] == 3 and len(cart["lines"]) == 2
+    assert all(line["observed_price_minor"] == 15000 for line in cart["lines"])
+    bad = await client.post(f"{url}/review", json={**proposed, "expected_version": 3})
+    assert bad.status_code == 409 and bad.json()["error"]["code"] == "cart.group_version_conflict"
+    missing = await client.post(
+        f"/api/v1/cart/groups/{uuid4()}/review", json={**proposed, "expected_version": 3}
+    )
+    assert missing.status_code == 404

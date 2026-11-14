@@ -18,6 +18,10 @@ services:
   catalog:
     environment:
       CATALOG_ALLOWED_ORIGINS: '["http://127.0.0.1:8082"]'
+  cart:
+    environment:
+      CART_ENVIRONMENT: test
+      CART_ALLOWED_ORIGINS: '["http://127.0.0.1:8082"]'
   gateway:
     ports: !override
       - '127.0.0.1:8082:8080'

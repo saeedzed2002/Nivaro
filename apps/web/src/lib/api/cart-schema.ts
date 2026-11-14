@@ -136,6 +136,24 @@ export interface paths {
         delete: operations["remove_group_api_v1_cart_groups__group_id__delete"];
         options?: never;
         head?: never;
+        /** Save Group Edit */
+        patch: operations["save_group_edit_api_v1_cart_groups__group_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/cart/groups/{group_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Group Edit */
+        post: operations["review_group_edit_api_v1_cart_groups__group_id__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -475,6 +493,31 @@ export interface components {
             /** Slots */
             slots: components["schemas"]["ComparedSlot"][];
         };
+        /** ConfirmGroupEdit */
+        ConfirmGroupEdit: {
+            /** Expected Group Version */
+            expected_group_version: number;
+            /** Expected Version */
+            expected_version: number;
+            market: components["schemas"]["Market"];
+            /**
+             * Mode
+             * @default complete_build
+             * @enum {string}
+             */
+            mode: "complete_build" | "parts_only";
+            /** Name */
+            name: string;
+            /**
+             * Requires Dedicated Gpu
+             * @default false
+             */
+            requires_dedicated_gpu: boolean;
+            /** Review Digest */
+            review_digest: string;
+            /** Selections */
+            selections?: components["schemas"]["BuildSelection"][];
+        };
         /** CreateBuild */
         CreateBuild: {
             market: components["schemas"]["Market"];
@@ -578,6 +621,76 @@ export interface components {
              * @enum {string}
              */
             status: "compatible" | "incompatible" | "incomplete" | "needs_review";
+        };
+        /** GroupEdit */
+        GroupEdit: {
+            /** Expected Group Version */
+            expected_group_version: number;
+            /** Expected Version */
+            expected_version: number;
+            market: components["schemas"]["Market"];
+            /**
+             * Mode
+             * @default complete_build
+             * @enum {string}
+             */
+            mode: "complete_build" | "parts_only";
+            /** Name */
+            name: string;
+            /**
+             * Requires Dedicated Gpu
+             * @default false
+             */
+            requires_dedicated_gpu: boolean;
+            /** Selections */
+            selections?: components["schemas"]["BuildSelection"][];
+        };
+        /** GroupEditReceipt */
+        GroupEditReceipt: {
+            /**
+             * Cart Id
+             * Format: uuid
+             */
+            cart_id: string;
+            group: components["schemas"]["GroupView"];
+            /**
+             * Reserves Stock
+             * @default false
+             * @constant
+             */
+            reserves_stock: false;
+            /** Version */
+            version: number;
+        };
+        /** GroupEditReview */
+        GroupEditReview: {
+            /** Blocker */
+            blocker: string | null;
+            /**
+             * Cart Id
+             * Format: uuid
+             */
+            cart_id: string;
+            /** Cart Version */
+            cart_version: number;
+            evaluation: components["schemas"]["Evaluation"] | null;
+            /**
+             * Group Id
+             * Format: uuid
+             */
+            group_id: string;
+            /** Group Version */
+            group_version: number;
+            /** Lines */
+            lines: components["schemas"]["ReviewLine"][];
+            /**
+             * Reserves Stock
+             * @default false
+             * @constant
+             */
+            reserves_stock: false;
+            /** Review Digest */
+            review_digest: string | null;
         };
         /** GroupView */
         GroupView: {
@@ -1833,6 +1946,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MutationResult"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    save_group_edit_api_v1_cart_groups__group_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmGroupEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupEditReceipt"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    review_group_edit_api_v1_cart_groups__group_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupEditReview"];
                 };
             };
             /** @description Unauthorized */
