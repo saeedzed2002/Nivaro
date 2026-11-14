@@ -373,6 +373,113 @@
         ],
         "type": "string"
       },
+      "MergeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_guest_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Guest Version",
+            "type": "integer"
+          },
+          "expected_version": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "guest_cart_id": {
+            "format": "uuid",
+            "title": "Guest Cart Id",
+            "type": "string"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          }
+        },
+        "required": [
+          "market",
+          "guest_cart_id",
+          "expected_guest_version",
+          "expected_version"
+        ],
+        "title": "MergeRequest",
+        "type": "object"
+      },
+      "MergeResult": {
+        "properties": {
+          "cart_id": {
+            "format": "uuid",
+            "title": "Cart Id",
+            "type": "string"
+          },
+          "combined_lines": {
+            "title": "Combined Lines",
+            "type": "integer"
+          },
+          "guest_version": {
+            "title": "Guest Version",
+            "type": "integer"
+          },
+          "moved_groups": {
+            "title": "Moved Groups",
+            "type": "integer"
+          },
+          "moved_lines": {
+            "title": "Moved Lines",
+            "type": "integer"
+          },
+          "reserves_stock": {
+            "const": false,
+            "default": false,
+            "title": "Reserves Stock",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cart_id",
+          "version",
+          "guest_version",
+          "moved_groups",
+          "moved_lines",
+          "combined_lines"
+        ],
+        "title": "MergeResult",
+        "type": "object"
+      },
+      "MergeSource": {
+        "properties": {
+          "cart_id": {
+            "format": "uuid",
+            "title": "Cart Id",
+            "type": "string"
+          },
+          "group_count": {
+            "title": "Group Count",
+            "type": "integer"
+          },
+          "line_count": {
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cart_id",
+          "version",
+          "line_count",
+          "group_count"
+        ],
+        "title": "MergeSource",
+        "type": "object"
+      },
       "MutationResult": {
         "properties": {
           "cart_id": {
@@ -1193,6 +1300,253 @@
         ]
       }
     },
+    "/api/v1/cart/merge": {
+      "get": {
+        "operationId": "merge_source_api_v1_cart_merge_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ir",
+                "international"
+              ],
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MergeSource"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Merge Source Api V1 Cart Merge Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Merge Source",
+        "tags": [
+          "cart"
+        ]
+      },
+      "post": {
+        "operationId": "merge_guest_api_v1_cart_merge_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Merge Guest",
+        "tags": [
+          "cart"
+        ]
+      }
+    },
     "/api/v1/cart/session": {
       "get": {
         "operationId": "guest_csrf_api_v1_cart_session_get",
@@ -1295,6 +1649,18 @@
       },
       "post": {
         "operationId": "guest_session_api_v1_cart_session_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "recover_expired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Recover Expired",
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {

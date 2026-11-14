@@ -873,13 +873,25 @@ async def test_real_customer_and_guest_carts_stay_private_across_login_logout(ap
             started = await browser.post("/api/v1/cart/session", headers={"X-CSRF-Request": "1"})
             assert started.status_code == 200
             guest = (await browser.get("/api/v1/cart")).json()
+            variant_id = str(uuid4())
+            added = await browser.post(
+                "/api/v1/cart/items",
+                json={
+                    "market": "ir",
+                    "expected_version": guest["version"],
+                    "variant_id": variant_id,
+                    "quantity": 1,
+                },
+                headers={"X-CSRF-Token": started.json()["csrf_token"]},
+            )
+            assert added.status_code == 201
             customer = await login(browser)
             own = (await browser.get("/api/v1/cart")).json()
             assert own["owner_scope"] == "customer" and own["id"] != guest["id"]
             body = {
                 "market": "ir",
                 "expected_version": 1,
-                "variant_id": str(uuid4()),
+                "variant_id": variant_id,
                 "quantity": 2,
             }
             assert (
@@ -894,7 +906,25 @@ async def test_real_customer_and_guest_carts_stay_private_across_login_logout(ap
                     headers={"X-CSRF-Token": customer["csrf_token"]},
                 )
             ).status_code == 201
-            assert len((await browser.get("/api/v1/cart")).json()["lines"]) == 1
+            source = (await browser.get("/api/v1/cart/merge", params={"market": "ir"})).json()
+            merge = {
+                "market": "ir",
+                "guest_cart_id": source["cart_id"],
+                "expected_guest_version": source["version"],
+                "expected_version": 2,
+            }
+            headers = {"Idempotency-Key": "login-merge", "X-CSRF-Token": customer["csrf_token"]}
+            forbidden = await browser.post(
+                "/api/v1/cart/merge", json=merge, headers={**headers, "X-CSRF-Token": "wrong"}
+            )
+            assert forbidden.status_code == 403
+            merged = await browser.post("/api/v1/cart/merge", json=merge, headers=headers)
+            assert merged.status_code == 200 and merged.json()["combined_lines"] == 1
+            assert (
+                await browser.post("/api/v1/cart/merge", json=merge, headers=headers)
+            ).json() == merged.json()
+            lines = (await browser.get("/api/v1/cart")).json()["lines"]
+            assert len(lines) == 1 and lines[0]["quantity"] == 3
             old_access = browser.cookies.get("nivaro_customer_access")
             assert (
                 await browser.post(

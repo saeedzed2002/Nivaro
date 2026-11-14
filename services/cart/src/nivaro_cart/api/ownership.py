@@ -187,14 +187,21 @@ def _cookie(response: Response, raw: str, settings: Settings) -> None:
 
 
 @router.post("/session")
-async def guest_session(request: Request, response: Response) -> GuestSessionView:
+async def guest_session(
+    request: Request, response: Response, recover_expired: bool = False
+) -> GuestSessionView:
     _guest_request(request, creating=True)
     database: Database = request.app.state.database
     raw = request.cookies.get(GUEST_COOKIE, "")
     async with database.sessions.begin() as db:
+        owner = None
         if raw:
-            owner = await guest_owner(db, raw)
-        else:
+            try:
+                owner = await guest_owner(db, raw)
+            except AuthorizationError as exc:
+                if not recover_expired or exc.code not in {"guest.expired", "guest.required"}:
+                    raise
+        if owner is None:
             issued = await issue_guest(db)
             owner, raw = issued.owner, issued.cookie
         assert owner.guest_csrf is not None

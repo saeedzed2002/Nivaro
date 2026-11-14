@@ -186,3 +186,39 @@ async def test_legacy_guest_receives_csrf_without_replacing_owned_cart(api, data
     restored = (await client.get("/api/v1/cart")).json()
     assert restored["id"] == str(cart.id)
     assert restored["lines"][0]["id"] == str(line.id) and restored["lines"][0]["quantity"] == 2
+
+
+async def test_expired_guest_recovery_rotates_only_the_cookie_and_preserves_old_cart(api, database):
+    client, _ = api
+    started = await client.post("/api/v1/cart/session", headers=HEADERS)
+    old_cookie = client.cookies.get(GUEST_COOKIE)
+    view = (await client.get("/api/v1/cart")).json()
+    async with database.sessions.begin() as db:
+        cart = await db.get(Cart, UUID(view["id"]))
+        db.add(CartLine(cart_id=cart.id, variant_id=uuid4(), quantity=2))
+        await db.execute(
+            update(Owner)
+            .where(Owner.id == cart.owner_id)
+            .values(last_active_at=datetime.now(UTC) - timedelta(days=31))
+        )
+    blocked = await client.post("/api/v1/cart/session", headers=HEADERS)
+    assert blocked.status_code == 401 and blocked.json()["error"]["code"] == "guest.expired"
+    assert client.cookies.get(GUEST_COOKIE) == old_cookie
+    recovery_path = "/api/v1/cart/session?recover_expired=true"
+    assert (
+        await client.post(recovery_path, headers={**HEADERS, "Origin": "https://foreign.invalid"})
+    ).status_code == 403
+    recovered = await client.post(recovery_path, headers=HEADERS)
+    assert (
+        recovered.status_code == 200
+        and recovered.json()["csrf_token"] != started.json()["csrf_token"]
+    )
+    new_cookie = client.cookies.get(GUEST_COOKIE)
+    assert new_cookie != old_cookie
+    fresh = (await client.get("/api/v1/cart")).json()
+    assert fresh["id"] != view["id"] and fresh["lines"] == []
+    assert (await client.post(recovery_path, headers=HEADERS)).json() == recovered.json()
+    assert client.cookies.get(GUEST_COOKIE) == new_cookie
+    async with database.sessions() as db:
+        line = await db.scalar(select(CartLine).where(CartLine.cart_id == UUID(view["id"])))
+        assert line.quantity == 2

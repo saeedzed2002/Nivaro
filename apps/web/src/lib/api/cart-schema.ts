@@ -69,6 +69,24 @@ export interface paths {
         patch: operations["edit_item_api_v1_cart_items__line_id__patch"];
         trace?: never;
     };
+    "/api/v1/cart/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Merge Source */
+        get: operations["merge_source_api_v1_cart_merge_get"];
+        put?: never;
+        /** Merge Guest */
+        post: operations["merge_guest_api_v1_cart_merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cart/session": {
         parameters: {
             query?: never;
@@ -269,6 +287,57 @@ export interface components {
         };
         /** @enum {string} */
         Market: "ir" | "international";
+        /** MergeRequest */
+        MergeRequest: {
+            /** Expected Guest Version */
+            expected_guest_version: number;
+            /** Expected Version */
+            expected_version: number;
+            /**
+             * Guest Cart Id
+             * Format: uuid
+             */
+            guest_cart_id: string;
+            market: components["schemas"]["Market"];
+        };
+        /** MergeResult */
+        MergeResult: {
+            /**
+             * Cart Id
+             * Format: uuid
+             */
+            cart_id: string;
+            /** Combined Lines */
+            combined_lines: number;
+            /** Guest Version */
+            guest_version: number;
+            /** Moved Groups */
+            moved_groups: number;
+            /** Moved Lines */
+            moved_lines: number;
+            /**
+             * Reserves Stock
+             * @default false
+             * @constant
+             */
+            reserves_stock: false;
+            /** Version */
+            version: number;
+        };
+        /** MergeSource */
+        MergeSource: {
+            /**
+             * Cart Id
+             * Format: uuid
+             */
+            cart_id: string;
+            /** Group Count */
+            group_count: number;
+            /** Line Count */
+            line_count: number;
+            /** Version */
+            version: number;
+        };
         /** MutationResult */
         MutationResult: {
             /**
@@ -826,6 +895,198 @@ export interface operations {
             };
         };
     };
+    merge_source_api_v1_cart_merge_get: {
+        parameters: {
+            query: {
+                market: "ir" | "international";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeSource"] | null;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    merge_guest_api_v1_cart_merge_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeResult"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request Timeout */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     guest_csrf_api_v1_cart_session_get: {
         parameters: {
             query?: never;
@@ -920,7 +1181,9 @@ export interface operations {
     };
     guest_session_api_v1_cart_session_post: {
         parameters: {
-            query?: never;
+            query?: {
+                recover_expired?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;

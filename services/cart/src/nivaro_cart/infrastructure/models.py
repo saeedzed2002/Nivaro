@@ -120,7 +120,12 @@ class CartLine(Base):
     __tablename__ = "cart_lines"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["cart_id", "group_id"], ["cart_groups.cart_id", "cart_groups.id"], ondelete="CASCADE"
+            ["cart_id", "group_id"],
+            ["cart_groups.cart_id", "cart_groups.id"],
+            name="cart_line_group_owner",
+            ondelete="CASCADE",
+            deferrable=True,
+            initially="IMMEDIATE",
         ),
         UniqueConstraint("cart_id", "group_id", "slot_key", name="cart_group_slot"),
         Index(
