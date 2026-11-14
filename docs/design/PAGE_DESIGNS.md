@@ -130,3 +130,7 @@ Implemented from the registered reference and inspected Persian dark desktop and
 ### P05 cart reference — 2026-11-11
 
 Generated and inspected `pages/cart.png` before cart UI implementation. Retain the Blue RGB dark desktop/light mobile visual system, grouped component rows, standalone lines, explicit missing-price and availability states, estimated subtotal and non-reservation notice. The image is illustrative. Correct its complete-build label: compatibility mode does not promise physical assembly or delivery service. Use the same SKU in multiple systems/spare rows when demonstrating grouping. Empty cart is a separate state, never simultaneously shown below a populated cart. Calculate badge counts from actual lines/quantities, use actual catalog data, and do not present the reference's two-item badge as a requirement. Shipping/tax remain pending until authoritative checkout exists. Page implementation and runtime acceptance are pending.
+
+### P05 cart storefront implementation
+
+The cart template implements grouped and standalone rows, a separate estimated summary and explicit empty/unavailable states. Inspected Edge captures for dark English desktop and light Persian mobile. Browser fixtures supplied synthetic cart items to verify conflict recovery, removal, independent markets and responsive layout. See the progress log for the separate real gateway/session checks and outstanding build/group screens.

@@ -4,8 +4,17 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Search, Sun, Moon, Monitor, ShoppingBag, UserRound, ArrowUpRight, Cpu, SlidersHorizontal } from 'lucide-react';
 import { usePreferences } from './preferences';
-import { AvailabilityDialog } from './availability-dialog';
+import { useCart } from './cart-query';
 import { text, type Locale, type Market, type Theme } from '@/lib/content';
+
+function CartLink({ locale, market }: { locale: Locale; market: Market }) {
+  const { data } = useCart(market);
+  const count = data?.lines.reduce((sum, line) => sum + line.quantity, 0) ?? 0;
+  const label = text(locale, 'سبد خرید', 'Shopping cart');
+  return <Link href={`/${locale}/cart`} className="icon-button cart-link" aria-label={count ? `${label} (${new Intl.NumberFormat(locale).format(count)})` : label}>
+    <ShoppingBag size={22} />{count > 0 && <span aria-hidden="true">{new Intl.NumberFormat(locale).format(count)}</span>}
+  </Link>;
+}
 
 export function Header({ locale }: { locale: Locale }) {
   const { market, theme, setMarket, setTheme } = usePreferences();
@@ -33,7 +42,7 @@ export function Header({ locale }: { locale: Locale }) {
         {!minimal && <label className="select-control"><span className="sr-only">{text(locale, 'بازار فروش', 'Sales market')}</span><select value={market} onChange={e => setMarket(e.target.value as Market)} aria-label={text(locale, 'بازار فروش', 'Sales market')}><option value="ir">{text(locale, 'ایران · تومان', 'Iran · toman')}</option><option value="international">{text(locale, 'بین‌المللی · دلار', 'International · USD')}</option></select></label>}
         <label className="theme-control" title={text(locale, 'حالت نمایش', 'Appearance')}>{themeIcon}<span className="sr-only">{text(locale, 'حالت نمایش', 'Appearance')}</span><select value={theme} onChange={e => setTheme(e.target.value as Theme)} aria-label={text(locale, 'حالت نمایش', 'Appearance')}><option value="system">{text(locale, 'سیستم', 'System')}</option><option value="dark">{text(locale, 'تاریک', 'Dark')}</option><option value="light">{text(locale, 'روشن', 'Light')}</option></select></label>
         {!minimal && <><Link href={`/${locale}/account`} className="icon-button account-action" aria-label={text(locale, 'حساب کاربری', 'Your account')}><UserRound size={22}/></Link>
-        <AvailabilityDialog locale={locale} title={text(locale, 'سبد خرید', 'Shopping bag')} className="icon-button" label={text(locale, 'سبد خرید؛ هنوز فعال نیست', 'Shopping bag; not active yet')}><ShoppingBag size={22} /></AvailabilityDialog></>}
+        <CartLink locale={locale} market={market}/></>}
       </div>
     </div>
     {!minimal && <nav className="container main-nav" aria-label={text(locale, 'ناوبری اصلی', 'Main navigation')}>

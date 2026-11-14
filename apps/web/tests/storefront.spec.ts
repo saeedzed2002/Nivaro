@@ -59,14 +59,11 @@ test('language preserves market and route; explicit market changes prices',async
   await expect(page.getByRole('combobox',{name:'بازار فروش'})).toHaveValue('international');
 });
 
-test('feature dialog traps focus, closes with Escape, and returns focus',async({page})=>{
+test('header opens the localized cart page',async({page})=>{
   await page.goto('/en');
-  const trigger=page.getByRole('button',{name:'Shopping bag; not active yet'});
-  await trigger.click();
-  await expect(page.locator('dialog[open]')).toContainText('not active yet');
-  await page.keyboard.press('Escape');
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
-  await expect(trigger).toBeFocused();
+  await page.getByRole('link',{name:'Shopping cart',exact:true}).click();
+  await expect(page).toHaveURL('/en/cart');
+  await expect(page.getByRole('heading',{name:'Shopping cart',exact:true})).toBeVisible();
 });
 
 test('theme persists and reduced motion is respected',async({page})=>{

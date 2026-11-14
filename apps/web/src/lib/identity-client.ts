@@ -62,9 +62,21 @@ export async function authorized<T>(operation: (csrf: string) => Promise<T>, sco
   }
 }
 export const requestCode = async (phone: string) => unwrap(await client.POST('/api/v1/auth/otp/request', { body: { phone } }));
-export const verifyCode = async (phone: string, challenge_id: string, code: string) => unwrap(await client.POST('/api/v1/auth/otp/verify', { body: { phone, challenge_id, code } }));
+function notifyCustomerSession() {
+  window.dispatchEvent(new Event('nivaro-customer-session'));
+  try { localStorage.setItem('nivaro-customer-session', crypto.randomUUID()); } catch { /* Local notification remains available. */ }
+}
+export const verifyCode = async (phone: string, challenge_id: string, code: string) => {
+  const session = unwrap(await client.POST('/api/v1/auth/otp/verify', { body: { phone, challenge_id, code } }));
+  notifyCustomerSession();
+  return session;
+};
 export const adminLogin = async (email: string, password: string) => unwrap(await client.POST('/api/v1/admin/auth/login', { body: { email, password } }));
-export const logout = (scope: Scope, all_devices: boolean) => authorized(async csrf => unwrap(await client.POST(scope === 'admin' ? '/api/v1/admin/auth/logout' : '/api/v1/auth/logout', { body: { all_devices }, headers: { 'X-CSRF-Token': csrf } })), scope);
+export const logout = async (scope: Scope, all_devices: boolean) => {
+  const result = await authorized(async csrf => unwrap(await client.POST(scope === 'admin' ? '/api/v1/admin/auth/logout' : '/api/v1/auth/logout', { body: { all_devices }, headers: { 'X-CSRF-Token': csrf } })), scope);
+  if (scope === 'customer') notifyCustomerSession();
+  return result;
+};
 export const saveProfile = (name: string) => authorized(async csrf => unwrap(await client.PATCH('/api/v1/me', { body: { name }, headers: { 'X-CSRF-Token': csrf } })));
 export const listAddresses = () => authorized(async () => unwrap(await client.GET('/api/v1/me/addresses')));
 export const saveAddress = (body: AddressInput, existing?: Address) => authorized(async csrf => existing
