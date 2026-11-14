@@ -28,9 +28,9 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Page/template | Phase | Image status |
 | --- | --- | --- |
 | PC builder | P02/P05 | Reference completed above; durable saved builds remain P05 |
-| Saved builds | P05 | Pending |
+| Saved builds | P05 | [Reference](pages/saved-builds.png), generated and inspected before implementation |
 | Product comparison | P02 | Reference completed above |
-| System comparison | P05 | Pending |
+| System comparison | P05 | [Reference](pages/system-comparison.png), generated and inspected before implementation |
 | Gaming PCs landing | P02 | Pending; current nav opens the pictured products template with PC filter |
 | Guides | P10 | Pending |
 | Cart | P05 | Pending |
@@ -134,3 +134,7 @@ Generated and inspected `pages/cart.png` before cart UI implementation. Retain t
 ### P05 cart storefront implementation
 
 The cart template implements grouped and standalone rows, a separate estimated summary and explicit empty/unavailable states. Inspected Edge captures for dark English desktop and light Persian mobile. Browser fixtures supplied synthetic cart items to verify conflict recovery, removal, independent markets and responsive layout. See the progress log for the separate real gateway/session checks and outstanding build/group screens.
+
+### P05 saved builds and system comparison references
+
+The generated desktop dark and mobile light references are inspected and registered before page implementation. Keep the storefront header and existing market terminology. Saved-build cards use the draft name, mode and real actions; omit mock component counts and exact system imagery. Comparison uses two summary columns, clear slot differences and missing-value dashes. Compatibility and pricing come from catalog, and neither system is marked as the winner.
