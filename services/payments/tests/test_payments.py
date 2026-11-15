@@ -3,13 +3,18 @@ import os
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+import aio_pika
 import httpx
 import psycopg
 import pytest
+from aio_pika.exceptions import ChannelInvalidStateError
+from aiormq.exceptions import ChannelAccessRefused
+from pamqp.commands import Basic
 from sqlalchemy import func, select, update
 
 from nivaro_payments.attempts import reconcile_one
 from nivaro_payments.contracts import PaymentError
+from nivaro_payments.event_publisher import claim, finish, publish_one
 from nivaro_payments.models import Attempt, OutboxEvent
 from nivaro_payments.provider import ProviderAttempt, Simulator
 from nivaro_payments.settings import Database, Settings
@@ -365,3 +370,102 @@ async def test_reconciliation_resumes_only_previously_verified_attempts(clients,
     (event,) = await events(database, ambiguous["id"])
     assert (event.event_type, event.aggregate_version) == ("payment.succeeded", 3)
     assert not await events(database, untouched["id"])
+
+
+@integration
+async def test_publisher_retries_closed_channel_and_fences_expired_claims(clients, database):
+    payments, _, _ = clients
+    body = intent("USD")
+    expect(
+        await payments.post(
+            ROOT, headers=await headers(clients, "payments.start", str(uuid4())), json=body
+        )
+    )
+    expect(
+        await payments.post(
+            f"{ROOT}/{body['id']}/verify", headers=await headers(clients, "payments.verify")
+        )
+    )
+    (event,) = await events(database, body["id"])
+
+    async def make_due():
+        async with database.sessions.begin() as db:
+            row = await db.get(OutboxEvent, event.id)
+            assert row is not None
+            row.available_at = datetime.now(UTC) - timedelta(days=1)
+
+    class Exchange:
+        def __init__(self):
+            self.messages = []
+
+        async def publish(self, message, *, routing_key, mandatory):
+            self.messages.append(
+                (message.message_id, message.body, message.delivery_mode, routing_key, mandatory)
+            )
+            if len(self.messages) == 1:
+                raise ChannelInvalidStateError("closed during publish")
+            return Basic.Ack(delivery_tag=1)
+
+    exchange = Exchange()
+    await make_due()
+    assert await publish_one(database, exchange)
+    async with database.sessions() as db:
+        row = await db.get(OutboxEvent, event.id)
+        assert row is not None
+        assert (row.attempts, row.lease_until, row.published_at, row.last_error) == (
+            1,
+            None,
+            None,
+            "publish.unconfirmed",
+        )
+        assert row.available_at > row.created_at
+
+    await make_due()
+    async with database.sessions() as db:
+        old = await claim(db)
+        assert old is not None and old.id == event.id
+        async with db.begin():
+            row = await db.get(OutboxEvent, event.id)
+            assert row is not None
+            row.lease_until = datetime.now(UTC) - timedelta(seconds=1)
+        new = await claim(db)
+        assert new is not None and new.id == old.id and new.lease_id != old.lease_id
+        await finish(db, old, confirmed=True)
+        async with db.begin():
+            row = await db.get(OutboxEvent, event.id, populate_existing=True)
+            assert row is not None and row.published_at is None and row.lease_id == new.lease_id
+        await finish(db, new, confirmed=False)
+
+    await make_due()
+    assert await publish_one(database, exchange)
+    assert exchange.messages[0] == exchange.messages[1]
+    assert exchange.messages[1][0] == str(event.id)
+    assert exchange.messages[1][2:] == (aio_pika.DeliveryMode.PERSISTENT, "payment.succeeded", True)
+    async with database.sessions() as db:
+        row = await db.get(OutboxEvent, event.id)
+        assert row is not None and row.published_at is not None and row.attempts == 4
+
+
+@pytest.mark.skipif(os.getenv("PAYMENTS_EVENT_E2E") != "1", reason="Disposable broker required")
+@pytest.mark.parametrize(
+    ("actor", "forbidden"),
+    [
+        ("payments", "inventory.reservation.expired"),
+        ("catalog", "payment.succeeded"),
+    ],
+)
+async def test_event_publishers_are_isolated_by_topic(actor, forbidden):
+    key = (
+        Settings().db_password_file.with_name(f"{actor}_event_broker_password").read_text().strip()
+    )
+    async with await aio_pika.connect(
+        host="rabbitmq",
+        login=f"nivaro_{actor}_events",
+        password=key,
+        virtualhost="commerce-events",
+        timeout=5,
+    ) as broker:
+        async with broker.channel(publisher_confirms=True, on_return_raises=True) as channel:
+            exchange = await channel.get_exchange("nivaro.events", ensure=False)
+            with pytest.raises(ChannelAccessRefused):
+                await exchange.publish(aio_pika.Message(b"{}"), forbidden, mandatory=True)

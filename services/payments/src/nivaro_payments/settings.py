@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     db_password_file: Path = Path("/run/secrets/payments_db_password")
     identity_url: AnyHttpUrl = AnyHttpUrl("http://identity:8000")
     identity_issuer: str = "nivaro-identity"
+    event_broker_host: str = "rabbitmq"
+    event_broker_password_file: Path = Path("/run/secrets/payments_event_broker_password")
 
     def database_url(self) -> URL:
         password = self.db_password_file.read_text(encoding="utf-8").strip()

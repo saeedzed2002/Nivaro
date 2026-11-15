@@ -1,0 +1,16 @@
+# Layer after compose.media.yaml and compose.payments.yaml.
+services:
+  payments-event-publisher:
+    image: ${NIVARO_PAYMENTS_IMAGE:-nivaro-payments:release}
+    command: [python, -m, nivaro_payments.event_publisher]
+    secrets: [payments_db_password, payments_event_broker_password]
+    depends_on:
+      payments-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+secrets:
+  payments_event_broker_password:
+    file: ./work/secrets/payments_event_broker_password.txt

@@ -73,10 +73,13 @@ jobs:
         run: |
           docker build --target test -t nivaro-payments:test services/payments
           docker build --target release -t nivaro-payments:release services/payments
-      - name: Verify private payment simulation and database isolation
+      - name: Verify private payment simulation and broker recovery
         working-directory: .
         shell: pwsh
-        run: ./scripts/Verify-PaymentsFoundation.ps1
+        run: |
+          docker pull rabbitmq:4.4.0-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned broker image download failed.' }
+          ./scripts/Verify-PaymentsFoundation.ps1 -WithEvents
       - name: Build cart foundation test image
         working-directory: .
         run: docker build --target test -t nivaro-cart:test services/cart
@@ -93,10 +96,7 @@ jobs:
       - name: Orders checkout reservation recovery and durable broker events
         working-directory: .
         shell: pwsh
-        run: |
-          docker pull rabbitmq:4.4.0-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
-          if ($LASTEXITCODE -ne 0) { throw 'Pinned broker image download failed.' }
-          ./scripts/Verify-OrdersFoundation.ps1 -WithEvents -Browser
+        run: ./scripts/Verify-OrdersFoundation.ps1 -WithEvents -Browser
       - name: Build host preview against the local gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080

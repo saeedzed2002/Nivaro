@@ -26,7 +26,7 @@ from nivaro_payments.limits import BoundedBody
 from nivaro_payments.provider import Provider, Simulator
 from nivaro_payments.settings import Database, Settings
 
-SCHEMA = "0002_payment_outbox"
+SCHEMA = "0003_payment_delivery"
 router = APIRouter(prefix="/internal/v1/payments", tags=["payments"])
 
 

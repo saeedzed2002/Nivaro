@@ -105,6 +105,17 @@ class OutboxEvent(Base):
         UniqueConstraint(
             "event_type", "aggregate_id", "aggregate_version", name="uq_payment_outbox_transition"
         ),
+        CheckConstraint("attempts >= 0", name="payment_outbox_attempts"),
+        CheckConstraint("(lease_id IS NULL) = (lease_until IS NULL)", name="payment_outbox_lease"),
+        CheckConstraint(
+            "published_at IS NULL OR failed_at IS NULL", name="payment_outbox_terminal"
+        ),
+        Index(
+            "ix_payment_outbox_due",
+            "available_at",
+            "id",
+            postgresql_where=text("published_at IS NULL AND failed_at IS NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -112,4 +123,11 @@ class OutboxEvent(Base):
     aggregate_id: Mapped[UUID]
     aggregate_version: Mapped[int]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(server_default="0")
+    lease_id: Mapped[UUID | None]
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(80))
     envelope: Mapped[dict[str, Any]] = mapped_column(JSONB)

@@ -55,6 +55,7 @@ def outbox(event: AttemptOutcome | RefundCompleted) -> OutboxEvent:
         aggregate_id=event.aggregate_id,
         aggregate_version=event.aggregate_version,
         created_at=event.occurred_at,
+        available_at=event.occurred_at,
         envelope=event.model_dump(mode="json"),
     )
 

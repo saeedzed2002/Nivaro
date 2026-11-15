@@ -49,7 +49,7 @@ while ($true) {
     Start-Sleep -Seconds 5
 }
 
-$compose = @('compose', '-p', 'nivaro', '-f', 'compose.yaml', '-f', 'compose.media.yaml', '-f', 'compose.dev.yaml', '-f', 'compose.orders.yaml', '-f', 'compose.events.yaml', '-f', 'compose.payments.yaml', '-f', 'compose.local.yaml')
+$compose = @('compose', '-p', 'nivaro', '-f', 'compose.yaml', '-f', 'compose.media.yaml', '-f', 'compose.dev.yaml', '-f', 'compose.orders.yaml', '-f', 'compose.events.yaml', '-f', 'compose.payments.yaml', '-f', 'compose.payment-events.yaml', '-f', 'compose.local.yaml')
 docker image inspect nivaro-web:local-development *> $null
 if ($LASTEXITCODE -ne 0) {
     if ((Invoke-DockerLogged @compose build web) -ne 0) { exit 1 }

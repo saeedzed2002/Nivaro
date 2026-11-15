@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Payment results v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "event_type", "schema_version", "occurred_at", "producer",
+    "aggregate_id", "aggregate_version", "correlation_id", "causation_id", "payload"
+  ],
+  "properties": {
+    "event_id": { "$ref": "#/$defs/id" },
+    "event_type": { "enum": ["payment.succeeded", "payment.failed", "payment.amount_mismatch", "payment.refund.completed"] },
+    "schema_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "payments" },
+    "aggregate_id": { "$ref": "#/$defs/id" },
+    "aggregate_version": { "$ref": "#/$defs/version" },
+    "correlation_id": { "$ref": "#/$defs/id" },
+    "causation_id": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order_id", "order_version", "payment_attempt_id", "market", "currency", "amount_minor"],
+      "properties": {
+        "order_id": { "$ref": "#/$defs/id" },
+        "order_version": { "$ref": "#/$defs/version" },
+        "payment_attempt_id": { "$ref": "#/$defs/id" },
+        "market": { "enum": ["ir", "international"] },
+        "currency": { "enum": ["IRR", "USD"] },
+        "amount_minor": { "$ref": "#/$defs/amount" },
+        "refund_id": { "$ref": "#/$defs/id" },
+        "captured_minor": { "type": ["integer", "null"], "minimum": 1, "maximum": 9000000000000010 }
+      },
+      "oneOf": [
+        {
+          "properties": { "market": { "const": "ir" }, "currency": { "const": "IRR" }, "amount_minor": { "multipleOf": 10 }, "captured_minor": { "multipleOf": 10 } }
+        },
+        { "properties": { "market": { "const": "international" }, "currency": { "const": "USD" } } }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "event_type": { "const": "payment.refund.completed" } } },
+      "then": { "properties": { "aggregate_version": { "const": 1 }, "payload": { "required": ["refund_id"], "not": { "required": ["captured_minor"] } } } },
+      "else": { "properties": { "payload": { "required": ["captured_minor"], "not": { "required": ["refund_id"] } } } }
+    },
+    {
+      "if": { "properties": { "event_type": { "const": "payment.failed" } } },
+      "then": { "properties": { "payload": { "properties": { "captured_minor": { "type": "null" } } } } },
+      "else": { "properties": { "payload": { "properties": { "captured_minor": { "type": "integer" } } } } }
+    }
+  ],
+  "$defs": {
+    "id": { "type": "string", "format": "uuid" },
+    "version": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+    "amount": { "type": "integer", "minimum": 1, "maximum": 9000000000000000 }
+  }
+}
