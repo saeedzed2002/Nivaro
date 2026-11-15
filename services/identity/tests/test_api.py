@@ -105,6 +105,7 @@ async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allo
     credential = ("orders", app.state.orders_client_secret)
     path = "/internal/v1/orders/staff-context"
     access = {"staff_access": client.cookies["nivaro_admin_access"]}
+    del client.headers["Origin"]  # Orders authenticates directly without a browser header.
     assert (await client.post(path, json=access)).status_code == 401
     read = await client.post(path, json=access, auth=credential)
     mutation = {"origin": ORIGIN, "csrf_token": signed_in.json()["csrf_token"]}
@@ -127,7 +128,9 @@ async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allo
             wrong_origin.status_code == 403
             and wrong_origin.json()["error"]["code"] == "origin.forbidden"
         )
+    client.headers["Origin"] = ORIGIN
     await login(client, SECOND)
+    del client.headers["Origin"]
     customer = await client.post(
         path, json={"staff_access": client.cookies["nivaro_customer_access"]}, auth=credential
     )

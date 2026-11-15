@@ -151,3 +151,13 @@ Generated `pages/account-orders.png` with the built-in generator and inspected i
 ### P07 customer order details
 
 Generated `pages/account-order-details.png` with the built-in generator and inspected it before implementation. The prompt specified a single dark desktop account view with an order reference, status, grouped PC parts, original prices, delivery address and chronological timeline. Use the established account navigation and blue outlined panels, stack both columns for mobile and use logical alignment for RTL. All states, quantities, addresses, prices and tracking references come from the order API. The generated currency, example tracking journey and unrelated sidebar items are layout examples only.
+
+### P07 staff order list
+
+Generated and inspected `pages/admin-orders.png` before implementation. The prompt asked for the existing administration rail, a status select, an outlined table with reference, placement time, market, original total, status and detail links, and cursor pagination. Use the existing shell, fonts and both theme palettes. On a narrow viewport, keep the field labels visible in stacked rows. Use the original order currency and supported Iran and international market labels. The mockup's currencies and rows illustrate layout.
+
+### P07 staff order details
+
+Generated and inspected `pages/admin-order-detail.png` before implementation. The prompt specified the order reference and status, purchased items and original total above an audit timeline, and an adjacent delivery address and fulfillment panel. Use the shared administration shell and its existing typography and palette. Show the current permitted action only, and require a tracking reference when recording shipment. The timeline follows the committed sequence and displays the recorded staff identity where applicable. Example addresses, statuses, IDs and amounts in the mockup illustrate layout.
+
+Compared both desktop renders with their references at the reference widths and inspected Persian light renders at 360 pixels. Verified the selected administration rail, status filter and table columns, reference and totals, address and audit arrangement, and shipment input and action. The existing shell retains its wordmark, width, typography and token-based colors. The shipping form includes validation help and the timeline shows every committed state. The list shows the pagination button only when additional orders exist. The in-app browser verified the local sign-in gate, and the authenticated purchase and delivery ran through Playwright against disposable Docker. Captures are in `nivaro-p07-staff-orders/` in the visualization root.

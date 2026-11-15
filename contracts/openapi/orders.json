@@ -168,6 +168,79 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "FulfillmentDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_actions": {
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "title": "Allowed Actions",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/OrderSnapshot"
+          },
+          "status": {
+            "enum": [
+              "pending_reservation",
+              "awaiting_payment",
+              "expired",
+              "cancelled",
+              "payment_processing",
+              "payment_review",
+              "paid",
+              "refund_pending",
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/StaffTransition"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "tracking_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Reference"
+          },
+          "version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "version",
+          "tracking_reference",
+          "allowed_actions",
+          "timeline",
+          "snapshot"
+        ],
+        "title": "FulfillmentDetails",
+        "type": "object"
+      },
       "FulfillmentView": {
         "additionalProperties": false,
         "properties": {
@@ -421,6 +494,83 @@
           "next_before"
         ],
         "title": "OrderHistory",
+        "type": "object"
+      },
+      "OrderSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/DeliveryAddress"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/PurchasedGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "standalone": {
+            "items": {
+              "$ref": "#/components/schemas/PurchasedItem"
+            },
+            "title": "Standalone",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pending_reservation",
+              "awaiting_payment",
+              "expired",
+              "cancelled",
+              "payment_processing",
+              "payment_review",
+              "paid",
+              "refund_pending",
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_minor": {
+            "title": "Total Minor",
+            "type": "integer"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Totals"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "id",
+          "created_at",
+          "status",
+          "total_minor",
+          "totals",
+          "address",
+          "standalone",
+          "groups"
+        ],
+        "title": "OrderSnapshot",
         "type": "object"
       },
       "OrderStatus": {
@@ -1110,7 +1260,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FulfillmentView"
+                  "$ref": "#/components/schemas/FulfillmentDetails"
                 }
               }
             },

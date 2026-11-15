@@ -22,8 +22,11 @@ const labels: Record<OrderStatus['status'], [string, string]> = {
   delivered: ['تحویل‌شده', 'Delivered'],
 };
 
+export const orderStates = Object.keys(labels) as OrderStatus['status'][];
+export const orderStateText = (locale: Locale, status: OrderStatus['status']) => text(locale, ...labels[status]);
+
 export function OrderStateLabel({ locale, status }: { locale: Locale; status: OrderStatus['status'] }) {
-  return <span className="order-state" data-status={status}>{text(locale, ...labels[status])}</span>;
+  return <span className="order-state" data-status={status}>{orderStateText(locale, status)}</span>;
 }
 
 export function OrderLoadError({ locale, error, signIn, retry }: { locale: Locale; error: Error; signIn: string; retry: () => void }) {

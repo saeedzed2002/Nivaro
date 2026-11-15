@@ -9,6 +9,7 @@ export type CheckoutPreview = components['schemas']['PreviewResponse'];
 export type OrderStatus = components['schemas']['OrderStatus'];
 export type OrderHistory = components['schemas']['OrderHistory'];
 export type OrderDetails = components['schemas']['OrderDetails'];
+export type FulfillmentCommand = components['schemas']['Prepare' | 'Ship' | 'Deliver'];
 
 const client = createClient<paths>({ credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
@@ -49,3 +50,14 @@ export const listCustomerOrders = (before: string | undefined, signal?: AbortSig
 
 export const readCustomerOrderDetails = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/orders/{order_id}/details', { params: { path: { order_id: id } }, signal })));
+
+export const listStaffOrders = (status?: OrderStatus['status'], before?: string, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/orders/history', { params: { query: { status, before } }, signal })), 'admin');
+
+export const readOrderFulfillment = (id: string, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/orders/{order_id}/fulfillment', { params: { path: { order_id: id } }, signal })), 'admin');
+
+export const changeOrderFulfillment = (id: string, body: FulfillmentCommand) => authorized(async csrf =>
+  unwrap(await client.POST('/api/v1/admin/orders/{order_id}/fulfillment', {
+    params: { path: { order_id: id } }, body, headers: { 'X-CSRF-Token': csrf },
+  })), 'admin');

@@ -200,6 +200,28 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorDetail"];
         };
+        /** FulfillmentDetails */
+        FulfillmentDetails: {
+            /** Allowed Actions */
+            allowed_actions: components["schemas"]["Action"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            snapshot: components["schemas"]["OrderSnapshot"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
+            /** Timeline */
+            timeline: components["schemas"]["StaffTransition"][];
+            /** Tracking Reference */
+            tracking_reference: string | null;
+            /** Version */
+            version: number;
+        };
         /** FulfillmentView */
         FulfillmentView: {
             /** Allowed Actions */
@@ -283,6 +305,34 @@ export interface components {
             next_before: string | null;
             /** Orders */
             orders: components["schemas"]["HistoryEntry"][];
+        };
+        /** OrderSnapshot */
+        OrderSnapshot: {
+            address: components["schemas"]["DeliveryAddress"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            currency: components["schemas"]["Currency"];
+            /** Groups */
+            groups: components["schemas"]["PurchasedGroup"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            market: components["schemas"]["Market"];
+            /** Standalone */
+            standalone: components["schemas"]["PurchasedItem"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
+            /** Total Minor */
+            total_minor: number;
+            totals: components["schemas"]["Totals"];
         };
         /** OrderStatus */
         OrderStatus: {
@@ -579,7 +629,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FulfillmentView"];
+                    "application/json": components["schemas"]["FulfillmentDetails"];
                 };
             };
             /** @description Unauthorized */

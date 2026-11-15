@@ -16,6 +16,26 @@ function PurchasedItems({ items, currency, locale }: { items: OrderDetails['stan
   </li>)}</ul>;
 }
 
+export function OrderPurchasedItems({ order, locale }: { order: Pick<OrderDetails, 'groups' | 'standalone' | 'currency'>; locale: Locale }) {
+  return <>
+    {order.groups.map(group => <div className="purchased-group" key={group.id}>
+      <h3><bdi>{group.name}</bdi></h3><small className="muted">{group.mode === 'parts_only' ? text(locale, 'فقط قطعات', 'Parts only') : text(locale, 'پیکربندی کامل', 'Complete configuration')}</small>
+      <PurchasedItems items={group.items} currency={order.currency} locale={locale}/>
+    </div>)}
+    {order.standalone.length > 0 && <PurchasedItems items={order.standalone} currency={order.currency} locale={locale}/>}
+  </>;
+}
+
+export function OrderDeliveryAddress({ address, locale }: { address: OrderDetails['address']; locale: Locale }) {
+  const country = new Intl.DisplayNames([locale], { type: 'region' }).of(address.country);
+  return <address>
+    <strong><bdi>{address.recipient}</bdi></strong>
+    <span><bdi>{address.street}</bdi></span>
+    <span><bdi>{address.city}</bdi> · {country}</span>
+    <span><bdi>{address.postal_code}</bdi></span>
+  </address>;
+}
+
 export function CustomerOrderDetails({ locale, orderId, customerId }: { locale: Locale; orderId: string; customerId: string }) {
   const query = useQuery({
     queryKey: ['account', 'orders', customerId, 'detail', orderId],
@@ -38,7 +58,6 @@ function OrderSnapshot({ order, locale }: { order: OrderDetails; locale: Locale 
     totals.tax_included ? ['مالیات لحاظ‌شده', 'Included tax', totals.tax_minor] : ['مالیات', 'Tax', totals.tax_minor],
     ['مبلغ نهایی', 'Total', totals.total_minor],
   ];
-  const country = new Intl.DisplayNames([locale], { type: 'region' }).of(address.country);
   return <>
     <dl className="identity-panel order-snapshot-header">
       <div><dt>{text(locale, 'شناسهٔ سفارش', 'Order reference')}</dt><dd><bdi dir="ltr" className="order-reference">{order.id}</bdi></dd></div>
@@ -48,11 +67,7 @@ function OrderSnapshot({ order, locale }: { order: OrderDetails; locale: Locale 
     <div className="order-detail-grid">
       <section className="identity-panel order-detail-card" aria-labelledby="purchased-heading">
         <h2 id="purchased-heading">{text(locale, 'اقلام خریداری‌شده', 'Purchased items')}</h2>
-        {order.groups.map(group => <div className="purchased-group" key={group.id}>
-          <h3>{group.name}</h3><small className="muted">{group.mode === 'parts_only' ? text(locale, 'فقط قطعات', 'Parts only') : text(locale, 'پیکربندی کامل', 'Complete configuration')}</small>
-          <PurchasedItems items={group.items} currency={order.currency} locale={locale}/>
-        </div>)}
-        {order.standalone.length > 0 && <PurchasedItems items={order.standalone} currency={order.currency} locale={locale}/>}
+        <OrderPurchasedItems order={order} locale={locale}/>
         <dl className="checkout-totals order-price-summary">{amounts.map(([fa, en, amount]) => <div key={en} className={en === 'Total' ? 'order-total' : undefined}>
           <dt>{text(locale, fa, en)}</dt><dd><bdi>{en === 'Discount' && amount > 0 && '−'}{formatCommerceMoney(amount, order.currency, locale)}</bdi></dd>
         </div>)}</dl>
@@ -60,12 +75,7 @@ function OrderSnapshot({ order, locale }: { order: OrderDetails; locale: Locale 
       <div className="order-detail-side">
         <section className="identity-panel order-detail-card">
           <h2>{text(locale, 'نشانی ارسال', 'Delivery address')}</h2>
-          <address>
-            <strong><bdi>{address.recipient}</bdi></strong>
-            <span><bdi>{address.street}</bdi></span>
-            <span><bdi>{address.city}</bdi> · {country}</span>
-            <span><bdi>{address.postal_code}</bdi></span>
-          </address>
+          <OrderDeliveryAddress address={address} locale={locale}/>
           {order.tracking_reference && <p className="order-tracking">{text(locale, 'شناسهٔ رهگیری ', 'Tracking reference ')}<bdi dir="ltr">{order.tracking_reference}</bdi></p>}
         </section>
         <section className="identity-panel order-detail-card" aria-labelledby="order-timeline-heading">

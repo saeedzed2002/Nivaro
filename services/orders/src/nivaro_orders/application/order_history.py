@@ -65,11 +65,14 @@ class DeliveryAddress(Contract):
     postal_code: str
 
 
-class OrderDetails(HistoryEntry):
+class OrderSnapshot(HistoryEntry):
     totals: Totals
     address: DeliveryAddress
     standalone: list[PurchasedItem]
     groups: list[PurchasedGroup]
+
+
+class OrderDetails(OrderSnapshot):
     timeline: list[StateChange]
     tracking_reference: str | None = None
 
@@ -111,6 +114,20 @@ async def read_details(db: AsyncSession, customer_id: UUID, order_id: UUID) -> O
     )
     if order is None:
         raise CheckoutError("checkout.not_found")
+    snapshot = await read_snapshot(db, order)
+    changes = await db.scalars(
+        select(OrderTransition)
+        .where(OrderTransition.order_id == order.id)
+        .order_by(OrderTransition.version)
+    )
+    return OrderDetails(
+        **snapshot.model_dump(),
+        tracking_reference=order.tracking_reference,
+        timeline=[StateChange.model_validate(change, from_attributes=True) for change in changes],
+    )
+
+
+async def read_snapshot(db: AsyncSession, order: Order) -> OrderSnapshot:
     saved_address = await db.get(OrderAddress, order.id)
     assert saved_address is not None
     address = AddressSnapshot.model_validate(saved_address.snapshot)
@@ -129,15 +146,9 @@ async def read_details(db: AsyncSession, customer_id: UUID, order_id: UUID) -> O
         .where(OrderConfiguration.order_id == order.id)
         .order_by(OrderConfiguration.source_group_id)
     )
-    changes = await db.scalars(
-        select(OrderTransition)
-        .where(OrderTransition.order_id == order.id)
-        .order_by(OrderTransition.version)
-    )
-    return OrderDetails(
+    return OrderSnapshot(
         **HistoryEntry.model_validate(order, from_attributes=True).model_dump(),
         totals=Totals.model_validate(order, from_attributes=True),
-        tracking_reference=order.tracking_reference,
         address=DeliveryAddress.model_validate(address, from_attributes=True),
         standalone=by_group[None],
         groups=[
@@ -149,5 +160,4 @@ async def read_details(db: AsyncSession, customer_id: UUID, order_id: UUID) -> O
             )
             for group in groups
         ],
-        timeline=[StateChange.model_validate(change, from_attributes=True) for change in changes],
     )

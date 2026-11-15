@@ -5,7 +5,7 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nivaro_orders.application.order_history import StateChange
+from nivaro_orders.application.order_history import OrderSnapshot, StateChange, read_snapshot
 from nivaro_orders.application.reservations import record_order_transition
 from nivaro_orders.domain.checkout import CheckoutError, Contract, OrderState, Version
 from nivaro_orders.infrastructure.models import Order, OrderTransition
@@ -51,6 +51,10 @@ class FulfillmentView(Contract):
     timeline: list[StaffTransition]
 
 
+class FulfillmentDetails(FulfillmentView):
+    snapshot: OrderSnapshot
+
+
 async def fulfillment_view(db: AsyncSession, order: Order) -> FulfillmentView:
     changes = await db.scalars(
         select(OrderTransition)
@@ -73,11 +77,12 @@ async def fulfillment_view(db: AsyncSession, order: Order) -> FulfillmentView:
     )
 
 
-async def read_fulfillment(db: AsyncSession, order_id: UUID) -> FulfillmentView:
+async def read_fulfillment(db: AsyncSession, order_id: UUID) -> FulfillmentDetails:
     order = await db.scalar(select(Order).where(Order.id == order_id).with_for_update(read=True))
     if order is None:
         raise CheckoutError("checkout.not_found")
-    return await fulfillment_view(db, order)
+    view = await fulfillment_view(db, order)
+    return FulfillmentDetails(**view.model_dump(), snapshot=await read_snapshot(db, order))
 
 
 async def change_fulfillment(

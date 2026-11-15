@@ -7,6 +7,7 @@ from nivaro_orders.api.checkout import ErrorResponse, mutation_context
 from nivaro_orders.application.checkout_flow import CheckoutFlow
 from nivaro_orders.application.fulfillment import (
     FulfillmentCommand,
+    FulfillmentDetails,
     FulfillmentView,
     change_fulfillment,
     read_fulfillment,
@@ -45,7 +46,7 @@ async def history(
 
 
 @router.get("/{order_id}/fulfillment", operation_id="readOrderFulfillment")
-async def read(request: Request, order_id: UUID) -> FulfillmentView:
+async def read(request: Request, order_id: UUID) -> FulfillmentDetails:
     flow: CheckoutFlow = request.app.state.checkout
     await staff_actor(request, flow, mutating=False)
     async with flow.database.sessions() as db:

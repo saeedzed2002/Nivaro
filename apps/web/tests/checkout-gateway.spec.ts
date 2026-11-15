@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 
 const project = process.env.NIVARO_CHECKOUT_QA_PROJECT ?? '';
 test.skip(!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project), 'Requires the disposable Orders stack and its synthetic delivery policy');
 
 test('checkout reviews the owned cart, rejects a stale address and recovers an interrupted confirmation', async ({ page, baseURL }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const origin = new URL(baseURL!).origin;
   const exceptions: string[] = [];
   page.on('pageerror', error => exceptions.push(error.message));
@@ -140,6 +142,82 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
     await page.screenshot({ path: test.info().outputPath('order-detail-fa-light-mobile.png'), fullPage: true });
     await page.getByRole('link', { name: 'بازگشت به سفارش‌ها' }).click();
     await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
+
+    expect((await page.request.get('/api/v1/admin/orders/history')).status()).toBe(401);
+    const password = randomBytes(24).toString('base64url');
+    if (!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project)) throw new Error('Disposable Orders stack required');
+    const setup = spawnSync('docker', ['exec', '-i', `${project}-identity-1`, 'python', '-c', `
+import asyncio, builtins, getpass, sys
+from nivaro_identity.settings import Settings
+from nivaro_identity.manage import manage
+assert Settings().environment == 'test'
+answers = iter(['+12025550100', 'fulfillment@example.com'])
+builtins.input = lambda _: next(answers)
+password = sys.stdin.read()
+getpass.getpass = lambda _: password
+asyncio.run(manage('bootstrap-admin'))
+`], { input: password, encoding: 'utf8', timeout: 20_000 });
+    expect(setup.status, 'Disposable staff bootstrap').toBe(0);
+
+    const staffContext = await page.context().browser()!.newContext({ baseURL, viewport: { width: 1487, height: 1058 } });
+    try {
+      const staff = await staffContext.newPage();
+      staff.on('pageerror', error => exceptions.push(error.message));
+      await staff.goto('/en/admin/login');
+      await staff.getByLabel('Email').fill('fulfillment@example.com');
+      await staff.getByLabel('Password', { exact: true }).fill(password);
+      await staff.getByRole('button', { name: 'Sign in as administrator', exact: true }).click();
+      await staff.getByRole('link', { name: 'Manage orders' }).click();
+      await staff.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
+      await staff.getByLabel('Status', { exact: true }).selectOption('paid');
+      const row = staff.getByRole('row').filter({ hasText: submittedId });
+      await expect(row.getByText('Paid', { exact: true })).toBeVisible();
+      await staff.setViewportSize({ width: 1983, height: 793 });
+      await staff.screenshot({ path: test.info().outputPath('staff-orders-en-dark-desktop.png'), fullPage: true });
+      await row.getByRole('link', { name: 'View order' }).click();
+      await staff.setViewportSize({ width: 1487, height: 1058 });
+      await expect(staff.getByText('22 Example Street', { exact: true })).toBeVisible();
+      await expect(staff.getByText('AMD Ryzen 7 9800X3D', { exact: true })).toBeVisible();
+      const fulfillment = staff.getByRole('region', { name: 'Fulfillment', exact: true });
+      const audit = staff.getByRole('list', { name: 'Order audit timeline' });
+      await fulfillment.getByRole('button', { name: 'Start preparation' }).click();
+      const tracking = fulfillment.getByLabel('Tracking reference');
+      await expect(tracking).toBeVisible();
+      await expect(audit).toContainText('Preparing');
+      await tracking.fill('A2-5105');
+      await staff.screenshot({ path: test.info().outputPath('staff-order-en-dark-desktop.png'), fullPage: true });
+
+      const staffUrl = `/api/v1/admin/orders/${submittedId}/fulfillment`;
+      await staff.route(`**${staffUrl}`, async route => {
+        if (route.request().method() !== 'POST') { await route.continue(); return; }
+        const response = await route.fetch();
+        expect(response.status()).toBe(200);
+        await route.abort('failed');
+      }, { times: 1 });
+      await fulfillment.getByRole('button', { name: 'Record shipment' }).click();
+      await expect(fulfillment.getByRole('alert')).toContainText('No response received.');
+      await expect(tracking).toHaveValue('A2-5105');
+      await fulfillment.getByRole('button', { name: 'Record shipment' }).click();
+      await expect(audit.getByText('Shipped', { exact: true })).toHaveCount(1);
+      await fulfillment.getByRole('button', { name: 'Record delivery' }).click();
+      await expect(audit.getByText('Delivered', { exact: true })).toBeVisible();
+      await expect(audit.getByText(/Staff ID/)).toHaveCount(3);
+      await staff.goto(`/fa/admin/orders/${submittedId}`);
+      await staff.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
+      await staff.setViewportSize({ width: 360, height: 800 });
+      await expect(staff.getByRole('region', { name: 'عملیات ارسال و تحویل' })).toContainText('A2-5105');
+      expect(await staff.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+      await staff.screenshot({ path: test.info().outputPath('staff-order-fa-light-mobile.png'), fullPage: true });
+      await staff.getByRole('link', { name: 'بازگشت به سفارش‌ها' }).click();
+      await expect(staff.locator('tr').filter({ hasText: submittedId }).getByText('تحویل‌شده', { exact: true })).toBeVisible();
+      expect(await staff.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+      await staff.screenshot({ path: test.info().outputPath('staff-orders-fa-light-mobile.png'), fullPage: true });
+    } finally {
+      await staffContext.close();
+    }
+    await page.goto(`/fa/account/orders/${submittedId}`);
+    await expect(page.getByText('A2-5105', { exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'تاریخچهٔ وضعیت' })).toContainText('تحویل‌شده');
   }
   expect(exceptions).toEqual([]);
 });

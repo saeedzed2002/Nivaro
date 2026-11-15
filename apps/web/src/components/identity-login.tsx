@@ -14,6 +14,7 @@ const digits = (value: string) => value.replace(/[۰-۹٠-٩]/g, c => String('۰
 const permissionLabels: Record<string, [string, string]> = {
   'catalog.write': ['مدیریت کاتالوگ', 'Catalog management'], 'reviews.moderate': ['مدیریت دیدگاه‌ها', 'Review moderation'],
   'orders.read': ['مشاهدهٔ سفارش‌ها', 'Order access'], 'orders.manage': ['مدیریت سفارش‌ها', 'Order management'],
+  'orders.fulfill': ['آماده‌سازی، ارسال و تحویل سفارش', 'Order fulfillment'],
   'payments.refund': ['بازپرداخت', 'Refunds'], 'support.reply': ['پاسخ‌گویی پشتیبانی', 'Support replies'],
   'users.manage': ['مدیریت کاربران', 'User management'], 'roles.manage': ['مدیریت دسترسی‌ها', 'Access management'],
 };
@@ -75,6 +76,7 @@ export function IdentityLogin({ locale, admin = false, initial, mock = false, de
           <p className="muted">{text(locale, 'این نشست از حساب خرید شما جداست.', 'This session is separate from your shopping account.')}</p>
           <Link className="button secondary" href={`/${locale}/admin/profile`}>{text(locale, 'پروفایل من', 'My profile')}</Link>
           {session.permissions.includes('catalog.write') && <Link className="button primary" href={`/${locale}/admin/products`}>{text(locale, 'مدیریت محصولات', 'Manage products')}</Link>}
+          {session.permissions.includes('orders.read') && <Link className="button primary" href={`/${locale}/admin/orders`}>{text(locale, 'مدیریت سفارش‌ها', 'Manage orders')}</Link>}
           <IdentityNotice error={error} locale={locale}/><button className="button secondary" disabled={busy} onClick={() => void run(async () => { await logout('admin', false); setSession(null); router.refresh(); })}>{text(locale, 'خروج از نشست مدیریت', 'Sign out of staff session')}</button>
         </> : <>
           <p className="muted">{admin ? text(locale, 'ویژهٔ کارکنان مجاز؛ با ایمیل و رمز عبور خود وارد شوید.', 'For authorized staff. Sign in with your email and password.') : challenge ? <>{text(locale, 'کد شش‌رقمی مربوط به این شماره را وارد کنید:', 'Enter the six-digit code for:')} <bdi dir="ltr">{phone}</bdi></> : text(locale, 'برای دسترسی به حساب، شمارهٔ موبایل خود را وارد کنید.', 'Enter your mobile number to access your account.')}</p>
