@@ -1,6 +1,6 @@
 # Implementation progress
 
-Current status, 2026-11-15: **P01–P05 verified, P06 locally verified with phase-end CI pending**. P05 implementation revision `68424c6746d12684b76541e2eaf451ee41076c55` passed both jobs in [GitHub Actions run 43629141240](https://github.com/saeedzed2002/Nivaro/actions/runs/43629141240). The owner's local storefront follows the working tree with Compose Watch and API source reload. Historical incomplete statuses below describe their original checkpoints.
+Current status, 2026-11-15: **P01–P06 verified, P07 next**. P06 implementation revision `411337e17eb9452b40e80795aff225ad4b873040` passed both jobs in [GitHub Actions run 43715004046](https://github.com/saeedzed2002/Nivaro/actions/runs/43715004046). The owner's local storefront follows the working tree with Compose Watch and API source reload. Historical incomplete statuses below describe their original checkpoints.
 
 ## 2026-10-27 — P00/P01 in progress
 
@@ -519,4 +519,4 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 
 - [GitHub Actions run 43712689273](https://github.com/saeedzed2002/Nivaro/actions/runs/43712689273) reached the host browser suite. A cart test still expected the disabled pre-P06 checkout button. It now checks the actual links in both locales and their absence when the cart is empty. The production host build and all 26 applicable browser tests passed locally.
 - A real disposable RabbitMQ restart exposed two failure paths. Catalog now releases and reschedules the outbox lease if its channel closes during publish. Orders establishes a new queue subscription after a disconnect. A disposable Iran checkout verified flat shipping below the threshold and zero shipping at equality. During broker downtime, Catalog committed the expiry and retained one unpublished outbox event. After restart, it published that same event, and Orders applied one expiry transition and recorded one inbox row.
-- The regression checks passed with 139 Catalog tests, 16 Orders tests, and the complete checkout browser journey on disposable Docker. Phase acceptance still requires the final implementation revision to pass GitHub Actions.
+- The regression checks passed with 139 Catalog tests, 16 Orders tests, and the complete checkout browser journey on disposable Docker. The owner's local Docker runs the corrected workers and has one active expiry subscription. The PostgreSQL and RabbitMQ containers were retained. The complete web and image-processing jobs passed for `411337e17eb9452b40e80795aff225ad4b873040` in [GitHub Actions run 43715004046](https://github.com/saeedzed2002/Nivaro/actions/runs/43715004046).
