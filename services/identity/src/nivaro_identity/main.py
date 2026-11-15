@@ -46,6 +46,8 @@ from nivaro_identity.api.schemas import (
     StaffProfile,
     VerifyCode,
 )
+from nivaro_identity.api.service_tokens import SERVICE_TOKEN_PATH
+from nivaro_identity.api.service_tokens import router as service_tokens_router
 from nivaro_identity.domain.errors import IdentityError
 from nivaro_identity.domain.security import SessionKind, Tokens, authenticate_value, digest
 from nivaro_identity.infrastructure import avatars
@@ -186,6 +188,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if settings.cart_service_key_file
             else None
         )
+        app.state.orders_client_secret = (
+            settings.secret(settings.orders_client_secret_file)
+            if settings.orders_client_secret_file
+            else None
+        )
         app.state.dummy_password = await run_in_threadpool(
             passwords.hash, secrets.token_urlsafe(48)
         )
@@ -232,6 +239,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path not in {
             "/internal/v1/catalog/admin-check",
             "/internal/v1/cart/customer-check",
+            SERVICE_TOKEN_PATH,
         }:
             try:
                 origin(request)
@@ -628,6 +636,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return CartPrincipal(user_id=auth.user.id, session_id=auth.session.id)
 
     app.include_router(router)
+    app.include_router(service_tokens_router)
     app.add_middleware(BoundedBody, max_bytes=16384)
     return app
 

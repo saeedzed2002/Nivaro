@@ -3,7 +3,7 @@ import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -100,8 +100,6 @@ class Tokens:
         permissions: list[str],
         expires_at: datetime,
     ) -> str:
-        from uuid import uuid4
-
         if kind == "customer" and permissions:
             raise ValueError("Customer sessions cannot carry administrator permissions")
         now = datetime.now(UTC)
@@ -118,6 +116,24 @@ class Tokens:
         )
         return jwt.encode(
             claims.model_dump(mode="json"),
+            self.private_key,
+            algorithm="RS256",
+            headers={"kid": self.kid},
+        )
+
+    def issue_service(self, client_id: str, audience: str, scope: str) -> str:
+        issued_at = int(datetime.now(UTC).timestamp())
+        return jwt.encode(
+            {
+                "iss": self.settings.jwt_issuer,
+                "sub": client_id,
+                "aud": audience,
+                "kind": "service",
+                "scope": scope,
+                "iat": issued_at,
+                "exp": issued_at + 30,
+                "jti": str(uuid4()),
+            },
             self.private_key,
             algorithm="RS256",
             headers={"kid": self.kid},

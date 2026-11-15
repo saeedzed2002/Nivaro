@@ -18,6 +18,7 @@ from starlette.responses import Response
 from nivaro_catalog.api.admin import router as admin_router
 from nivaro_catalog.api.authorization import AuthorizationError, IdentityAuthorization
 from nivaro_catalog.api.categories import router as categories_router
+from nivaro_catalog.api.checkout import router as checkout_router
 from nivaro_catalog.api.limits import BoundedBody
 from nivaro_catalog.api.media import router as media_router
 from nivaro_catalog.api.schemas import (
@@ -30,6 +31,7 @@ from nivaro_catalog.api.schemas import (
     SummaryResponse,
 )
 from nivaro_catalog.domain.administration import AdministrationError
+from nivaro_catalog.domain.checkout import CheckoutError
 from nivaro_catalog.domain.contracts import (
     Category,
     Evaluation,
@@ -140,9 +142,12 @@ async def database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse
 
 @app.exception_handler(AuthorizationError)
 async def authorization_error(request: Request, exc: AuthorizationError) -> JSONResponse:
-    return error(
-        request, exc.status, exc.code, "Administrator authorization could not be established"
+    message = (
+        "Service authorization could not be established"
+        if request.url.path.startswith("/internal/")
+        else "Administrator authorization could not be established"
     )
+    return error(request, exc.status, exc.code, message)
 
 
 @app.exception_handler(ValidationError)
@@ -154,6 +159,11 @@ async def invalid_catalog_data(request: Request, exc: ValidationError) -> JSONRe
 @app.exception_handler(AdministrationError)
 async def administration_error(request: Request, exc: AdministrationError) -> JSONResponse:
     return error(request, exc.status, exc.code, exc.message)
+
+
+@app.exception_handler(CheckoutError)
+async def checkout_error(request: Request, exc: CheckoutError) -> JSONResponse:
+    return error(request, exc.status, exc.code, exc.message, exc.details)
 
 
 async def session(request: Request) -> AsyncIterator[AsyncSession]:
@@ -181,7 +191,7 @@ async def live() -> dict[str, str]:
 @app.get("/health/ready", include_in_schema=False)
 async def ready(db: SessionDep) -> dict[str, str]:
     revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-    if revision != "0006_public_cache":
+    if revision != "0007_checkout_inventory":
         raise HTTPException(503, "Catalog schema revision is not ready")
     return {"status": "ok", "service": "catalog", "schema": revision}
 
@@ -284,4 +294,5 @@ app.include_router(router)
 app.include_router(admin_router)
 app.include_router(categories_router)
 app.include_router(media_router)
+app.include_router(checkout_router)
 app.add_middleware(BoundedBody)

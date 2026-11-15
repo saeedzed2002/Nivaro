@@ -49,6 +49,8 @@ async def api(tmp_path):
     settings.catalog_service_key_file.write_text(secrets.token_hex(48))
     settings.cart_service_key_file = tmp_path / "cart-service-key"
     settings.cart_service_key_file.write_text(secrets.token_hex(48))
+    settings.orders_client_secret_file = tmp_path / "orders-client-secret"
+    settings.orders_client_secret_file.write_text(secrets.token_hex(48))
     db = Database(settings)
     async with db.engine.begin() as conn:
         await conn.execute(text("TRUNCATE users CASCADE"))
@@ -59,6 +61,37 @@ async def api(tmp_path):
         ) as client:
             yield client, app, db
     await db.engine.dispose()
+
+
+async def test_identity_issues_only_downscoped_orders_tokens_accepted_by_catalog(api):
+    from nivaro_catalog.api.authorization import AuthorizationError, IdentityAuthorization
+    from nivaro_catalog.main import app as catalog_app
+    from nivaro_catalog.settings import Settings as CatalogSettings
+
+    client, identity_app, _ = api
+    path = "/internal/v1/service-tokens"
+    secret = identity_app.state.orders_client_secret
+    grant = {"audience": "nivaro-catalog", "scope": "catalog.quote"}
+    assert (await client.post(path, json=grant)).status_code == 401
+    assert (await client.post(path, json=grant, auth=("cart", secret))).status_code == 401
+    for denied in ({**grant, "audience": "nivaro-browser"}, {**grant, "scope": "catalog.admin"}):
+        assert (await client.post(path, json=denied, auth=("orders", secret))).status_code == 403
+    issued = await client.post(path, json=grant, auth=("orders", secret))
+    assert issued.status_code == 200
+    auth = IdentityAuthorization(CatalogSettings(), client)
+    bearer = f"Bearer {issued.json()['access_token']}"
+    await auth.check_checkout(bearer, "catalog.quote")
+    with pytest.raises(AuthorizationError) as wrong_scope:
+        await auth.check_checkout(bearer, "catalog.reserve")
+    assert wrong_scope.value.status == 403
+    await login(client)
+    with pytest.raises(AuthorizationError) as browser:
+        await auth.check_checkout(
+            f"Bearer {client.cookies['nivaro_customer_access']}", "catalog.quote"
+        )
+    assert browser.value.status == 401
+    assert path not in identity_app.openapi()["paths"]
+    assert not any(path.startswith("/internal/") for path in catalog_app.openapi()["paths"])
 
 
 async def login(client, phone=PHONE):

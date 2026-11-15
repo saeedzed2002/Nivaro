@@ -13,3 +13,5 @@ services:
     image: ${NIVARO_CART_QA_CATALOG_IMAGE:-nivaro-catalog:release}
   catalog-init:
     image: ${NIVARO_CART_QA_CATALOG_IMAGE:-nivaro-catalog:release}
+  catalog-reservation-expiry:
+    image: ${NIVARO_CART_QA_CATALOG_IMAGE:-nivaro-catalog:release}

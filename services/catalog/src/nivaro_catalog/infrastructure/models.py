@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -142,6 +143,45 @@ class OfferRow(Timestamps, Base):
     reference_only: Mapped[bool] = mapped_column(Boolean, default=True)
     source: Mapped[dict[str, Any]] = mapped_column(JSONB)
     seller: Mapped[str] = mapped_column(String(120))
+
+
+class QuoteRow(Timestamps, Base):
+    __tablename__ = "checkout_quotes"
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+class ReservationRow(Timestamps, Base):
+    __tablename__ = "stock_reservations"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('held','committed','released','expired')", name="reservation_state"
+        ),
+        Index(
+            "ix_reservations_held_expiry",
+            "expires_at",
+            "operation_id",
+            postgresql_where=text("state = 'held'"),
+        ),
+    )
+    operation_id: Mapped[UUID] = mapped_column(primary_key=True)
+    quote_id: Mapped[UUID] = mapped_column(
+        ForeignKey("checkout_quotes.id", ondelete="RESTRICT"), unique=True
+    )
+    state: Mapped[str] = mapped_column(String(12))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AllocationRow(Base):
+    __tablename__ = "stock_allocations"
+    __table_args__ = (CheckConstraint("quantity > 0", name="allocation_quantity"),)
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("stock_reservations.operation_id", ondelete="RESTRICT"), primary_key=True
+    )
+    variant_id: Mapped[UUID] = mapped_column(
+        ForeignKey("variants.id", ondelete="RESTRICT"), primary_key=True, index=True
+    )
+    quantity: Mapped[int] = mapped_column(Integer)
 
 
 class AuditRow(Base):

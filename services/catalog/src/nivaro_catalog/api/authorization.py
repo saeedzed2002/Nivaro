@@ -12,7 +12,7 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from fastapi import Depends, Request
 from jwt.algorithms import RSAAlgorithm
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, StrictInt, ValidationError
 
 from nivaro_catalog.settings import Settings
 
@@ -40,6 +40,21 @@ class AdminClaims(BaseModel):
     aud: str
     iat: int
     exp: int
+    jti: UUID
+
+
+CheckoutScope = Literal["catalog.quote", "catalog.reserve", "catalog.finalize"]
+
+
+class ServiceClaims(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sub: Literal["orders"]
+    kind: Literal["service"]
+    scope: str
+    iss: str
+    aud: str
+    iat: StrictInt
+    exp: StrictInt
     jti: UUID
 
 
@@ -114,6 +129,39 @@ class IdentityAuthorization:
                 raise AuthorizationError("auth.required", 401)
             return self.keys[kid]
 
+    async def signed_claims[T: BaseModel](self, access: str, audience: str, contract: type[T]) -> T:
+        header = jwt.get_unverified_header(access)
+        kid = header.get("kid")
+        if header.get("alg") != "RS256" or not isinstance(kid, str) or not 1 <= len(kid) <= 128:
+            raise AuthorizationError("auth.required", 401)
+        key = await self._public_key(kid)
+        return contract.model_validate(
+            jwt.decode(
+                access,
+                key,
+                algorithms=["RS256"],
+                issuer=self.settings.jwt_issuer,
+                audience=audience,
+                options={"require": list(contract.model_fields), "strict_aud": True},
+            )
+        )
+
+    async def check_checkout(self, authorization: str, scope: CheckoutScope) -> None:
+        scheme, _, access = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not access or len(access) > 8192:
+            raise AuthorizationError("auth.required", 401)
+        try:
+            async with asyncio.timeout(4):
+                claims = await self.signed_claims(access, "nivaro-catalog", ServiceClaims)
+                if not 0 < claims.exp - claims.iat <= 30:
+                    raise AuthorizationError("auth.required", 401)
+                if claims.scope != scope:
+                    raise AuthorizationError("auth.forbidden", 403)
+        except (jwt.InvalidTokenError, ValidationError) as exc:
+            raise AuthorizationError("auth.required", 401) from exc
+        except (httpx.HTTPError, TimeoutError, ValueError, TypeError, KeyError) as exc:
+            raise AuthorizationError("auth.unavailable", 503) from exc
+
     async def check(self, access: str, *, mutating: bool, origin: str, csrf: str) -> AdminPrincipal:
         if not access or len(access) > 8192:
             raise AuthorizationError("auth.required", 401)
@@ -127,25 +175,7 @@ class IdentityAuthorization:
             origin, csrf = "", ""
         try:
             async with asyncio.timeout(4):
-                header = jwt.get_unverified_header(access)
-                kid = header.get("kid")
-                if (
-                    header.get("alg") != "RS256"
-                    or not isinstance(kid, str)
-                    or not 1 <= len(kid) <= 128
-                ):
-                    raise AuthorizationError("auth.required", 401)
-                key = await self._public_key(kid)
-                claims = AdminClaims.model_validate(
-                    jwt.decode(
-                        access,
-                        key,
-                        algorithms=["RS256"],
-                        issuer=self.settings.jwt_issuer,
-                        audience=self.settings.jwt_audience,
-                        options={"require": list(AdminClaims.model_fields), "strict_aud": True},
-                    )
-                )
+                claims = await self.signed_claims(access, self.settings.jwt_audience, AdminClaims)
                 if "catalog.write" not in claims.permissions:
                     raise AuthorizationError("auth.forbidden", 403)
                 body: dict[str, object] = {

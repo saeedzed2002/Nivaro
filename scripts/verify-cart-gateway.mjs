@@ -24,11 +24,17 @@ async function call(path, { method = 'GET', body, headers = {}, status = 200 } =
     if (value && value !== '""' && !/;\s*max-age=0(?:;|$)/i.test(header)) cookies.set(key, value);
     else cookies.delete(key);
   }
-  if (status === 204 || path.startsWith('/internal/')) return;
+  if (path.startsWith('/internal/')) {
+    assert.equal(await response.text(), '', `Gateway must handle ${path} without an upstream`);
+    return;
+  }
+  if (status === 204) return;
   return response.json();
 }
 
 await call('/internal/v1/cart/customer-check', { method: 'POST', status: 404 });
+await call('/internal/v1/service-tokens', { method: 'POST', status: 404 });
+await call('/internal/v1/catalog/quotes', { method: 'POST', status: 404 });
 await call('/api/v1/cart', { status: 401 });
 const guest = await call('/api/v1/cart/session', { method: 'POST', headers: { 'X-CSRF-Request': '1' } });
 const guestCart = await call('/api/v1/cart?market=ir');

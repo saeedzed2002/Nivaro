@@ -4,8 +4,10 @@
 }
 
 :8080 {
-  @private path /internal/* /api/internal/*
-  respond @private 404
+  @private path /internal /internal/* /api/internal /api/internal/*
+  handle @private {
+    respond 404
+  }
   header {
     X-Content-Type-Options nosniff
     Referrer-Policy strict-origin-when-cross-origin

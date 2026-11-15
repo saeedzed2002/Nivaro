@@ -95,6 +95,18 @@ services:
       timeout: 5s
       start_period: 15s
       retries: 6
+  catalog-reservation-expiry:
+    image: nivaro-catalog:release
+    environment:
+      CATALOG_DB_HOST: postgres
+    secrets:
+      - catalog_db_password
+    depends_on:
+      catalog-init:
+        condition: service_completed_successfully
+    command: [python, -m, nivaro_catalog.reservation_expiry]
+    init: true
+    restart: unless-stopped
   redis-cache:
     image: redis:8.10.3@sha256:0c257ce8b2f31f9f7595f587edf8ac259a248ba3ced82badc8c7aa826a85224f
     user: redis
@@ -163,6 +175,7 @@ services:
       IDENTITY_TRUST_GATEWAY_CLIENT_IP: 'true'
       IDENTITY_CATALOG_SERVICE_KEY_FILE: /run/secrets/catalog_identity_service_key
       IDENTITY_CART_SERVICE_KEY_FILE: /run/secrets/cart_identity_service_key
+      IDENTITY_ORDERS_CLIENT_SECRET_FILE: /run/secrets/orders_client_secret
     secrets:
       - identity_db_password
       - redis_state_password
@@ -170,6 +183,7 @@ services:
       - identity_signing_key
       - catalog_identity_service_key
       - cart_identity_service_key
+      - orders_client_secret
     depends_on:
       identity-init:
         condition: service_completed_successfully
@@ -248,6 +262,8 @@ secrets:
     file: ./work/secrets/cart_db_password.txt
   cart_identity_service_key:
     file: ./work/secrets/cart_identity_service_key.txt
+  orders_client_secret:
+    file: ./work/secrets/orders_client_secret.txt
   identity_db_password:
     file: ./work/secrets/identity_db_password.txt
   redis_state_password:

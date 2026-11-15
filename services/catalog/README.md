@@ -108,7 +108,7 @@ Research seed: twelve products, thirteen physical variants, six independently so
 
 Typed specifications reject arbitrary unknown attributes. Specification/offer revisions are guarded by PostgreSQL triggers; changed technical facts/evidence require a newer specification revision, and changed price/eligibility requires a newer offer revision. Physical stock invariants, currency/toman rules, variant/market uniqueness and category depth are also database-enforced.
 
-See [compatibility policy](../../docs/catalog/COMPATIBILITY_RULES.md) for sources, limitations and the power estimate. Synthetic complete-build fixtures demonstrate rule behavior, not a verified real retail configuration. Liquid radiator layouts deliberately remain `needs_review`. Saved drafts, two-system comparison, cart transfers, checkout quotes and atomic reservations belong to subsequent phase work.
+See [compatibility policy](../../docs/catalog/COMPATIBILITY_RULES.md) for sources, limitations and the power estimate. Synthetic complete-build fixtures demonstrate rule behavior, not a verified real retail configuration. Liquid radiator layouts deliberately remain `needs_review`.
 
 ## Bounded-download local recovery
 
@@ -129,7 +129,7 @@ Canonical contract check: run `python -m nivaro_catalog.export_openapi /contract
 
 Migration `0006_public_cache` adds a commit-visible UUID generation. Statement triggers on categories, products, variants, offers and media slots advance it with the data. Public list/detail keys include the generation and all effective query inputs, with a 60-second TTL. A slow reader fills only its obsolete namespace after a competing commit. This costs one database lookup on cache hits and serializes generation writes. Reassess contention as write volume grows.
 
-The independent `redis-cache` instance has a 128 MiB all-keys LRU limit, its own secret and no persistence. Reads/writes have bounded timeouts and a two-second local cooldown after failure. API reads fall back to the bounded SQL pool. Personal/admin responses, variant reads, comparisons and build evaluation bypass caching. Checkout authority remains a P06 requirement.
+The independent `redis-cache` instance has a 128 MiB all-keys LRU limit, its own secret and no persistence. Reads/writes have bounded timeouts and a two-second local cooldown after failure. API reads fall back to the bounded SQL pool. Personal/admin responses, variant reads, comparisons, build evaluation and checkout authority bypass caching.
 
 Run `scripts/Verify-CatalogCache.ps1` for disposable cache, invalidation, rollback, late-writer, price/stock, expiry, access-control, outage and recovery checks.
 
@@ -138,3 +138,17 @@ Run `scripts/Verify-CatalogCache.ps1` for disposable cache, invalidation, rollba
 `POST /api/v1/catalog/variant-summaries` accepts 1–50 distinct variant IDs plus the market/currency pair. One bounded SQL query returns only requested published/image-ready variants and their selected market offer. It does not load sibling variants, consult the listing/detail cache, reserve stock or alter inventory. Unknown stock is null; hidden/missing variants are explicitly listed in `missing_ids`. The response preserves request order and does not convert between Iran and international price books. The cart client validates the complete partition, currency, integer money, stock and response size before using it.
 
 `Verify-CatalogFresh.ps1 -CatalogImage <image> -TestImage <test-image>` can now verify the packaged test image, its schema and the real cart HTTP consumer contract. This is disposable SQL/ASGI verification; see progress for browser/runtime acceptance.
+
+## Private checkout contracts — P06
+
+The gateway blocks `/internal/*`. Call catalog directly with an Identity-issued service bearer token for audience `nivaro-catalog`, subject `orders`, and the exact scope in the table.
+
+| Method and path under `/internal/v1/catalog` | Scope | Contract |
+| --- | --- | --- |
+| `POST /quotes` | `catalog.quote` | Supply a new `quote_id`, `operation_id`, `customer_id`, and an authorized cart snapshot including versions, lines and groups. The receipt freezes market prices, specifications and group evaluations for five minutes. |
+| `POST /reservations` | `catalog.reserve` | Supply the operation ID, quote ID, customer ID and cart fingerprint. A replay with the same inputs returns the current reservation. Use a fresh quote ID after a revision conflict or quote expiry. |
+| `GET /reservations/{operation_id}?customer_id=…` | `catalog.reserve` | Recover state after an ambiguous response. A missing response or a lookup before the original transaction commits must be retried with the same operation ID. |
+| `POST /reservations/{operation_id}/commit?customer_id=…` | `catalog.finalize` | Commit a live hold. A successful HTTP response can carry `expired`. Only state `committed` confirms stock was sold. |
+| `POST /reservations/{operation_id}/release?customer_id=…` | `catalog.finalize` | End a live hold. Replays return the terminal state. Releasing a committed hold returns a conflict. |
+
+The checkout operation ID is the reservation ID. The hold lasts 15 minutes and stores one allocation per physical SKU, independent of the quote's group and line identities. PostgreSQL evaluates stock and deadlines under locks. The Compose service `catalog-reservation-expiry` runs the bounded expiration scan and uses the catalog database role. The same expiry transition runs on lookup or finalization. A stocked prebuilt allocates its finished SKU only. Payment-related extensions and late-payment reallocation are assigned to P07.
