@@ -51,6 +51,7 @@ const workspaces = {
   orders: { title: ['مدیریت سفارش‌ها', 'Order workspace'], access: ['دسترسی مدیریت سفارش‌ها', 'Order administration access'], denied: ['این حساب مجوز مشاهدهٔ سفارش‌ها را ندارد.', 'This account does not have permission to view orders.'] },
   reviews: { title: ['مدیریت دیدگاه‌ها', 'Review workspace'], access: ['دسترسی بررسی دیدگاه‌ها', 'Review moderation access'], denied: ['این حساب مجوز بررسی دیدگاه‌ها را ندارد.', 'This account does not have permission to moderate reviews.'] },
   support: { title: ['صندوق پشتیبانی', 'Support inbox'], access: ['دسترسی صندوق پشتیبانی', 'Support inbox access'], denied: ['این حساب مجوز پاسخ‌گویی پشتیبانی ندارد.', 'This account does not have permission to reply to support conversations.'] },
+  accounts: { title: ['حساب‌ها و ممیزی', 'Accounts & audit'], access: ['دسترسی مدیریت حساب‌ها', 'Account management access'], denied: ['این حساب مجوز مدیریت حساب‌ها و مشاهدهٔ ممیزی ندارد.', 'This account cannot manage accounts or view their audit history.'] },
 } as const;
 
 export function AdminShell({ locale, initial, children, selfProfile = false, workspace = 'catalog' }: { locale: Locale; initial: InitialIdentity; selfProfile?: boolean; workspace?: keyof typeof workspaces; children: ReactNode }) {
@@ -72,7 +73,8 @@ export function AdminShell({ locale, initial, children, selfProfile = false, wor
   const ordersAllowed = identity?.permissions.includes('orders.read');
   const reviewsAllowed = identity?.permissions.includes('reviews.moderate');
   const supportAllowed = identity?.permissions.includes('support.reply');
-  const allowed = { catalog: catalogAllowed, orders: ordersAllowed, reviews: reviewsAllowed, support: supportAllowed }[workspace];
+  const accountsAllowed = identity?.permissions.includes('users.manage');
+  const allowed = { catalog: catalogAllowed, orders: ordersAllowed, reviews: reviewsAllowed, support: supportAllowed, accounts: accountsAllowed }[workspace];
   const { title, access, denied } = workspaces[workspace];
   async function signOut() {
     if (document.querySelector('[data-unsaved="true"]') && !window.confirm(text(locale, 'تغییرات ذخیره‌نشده کنار گذاشته شوند؟', 'Leave and discard unsaved changes?'))) return;
@@ -88,6 +90,7 @@ export function AdminShell({ locale, initial, children, selfProfile = false, wor
         {ordersAllowed && <Link href={`/${locale}/admin/orders`} aria-current={workspace === 'orders' ? 'page' : undefined}><PackageCheck size={19}/>{text(locale, 'سفارش‌ها', 'Orders')}</Link>}
         {reviewsAllowed && <Link href={`/${locale}/admin/reviews`} aria-current={workspace === 'reviews' ? 'page' : undefined}><MessageSquare size={19}/>{text(locale, 'دیدگاه‌ها', 'Reviews')}</Link>}
         {supportAllowed && <Link href={`/${locale}/admin/support`} aria-current={workspace === 'support' ? 'page' : undefined}><MessageSquare size={19}/>{text(locale, 'پشتیبانی', 'Support inbox')}</Link>}
+        {accountsAllowed && <Link href={`/${locale}/admin/users`} aria-current={workspace === 'accounts' ? 'page' : undefined}><UserRound size={19}/>{text(locale, 'حساب‌ها و ممیزی', 'Accounts & audit')}</Link>}
         {identity && <Link href={`/${locale}/admin/profile`} aria-current={pathname.endsWith('/admin/profile') ? 'page' : undefined}><UserRound size={19}/>{text(locale, 'پروفایل من', 'My profile')}</Link>}
         <Link href={`/${locale}/admin/login`}><ShieldCheck size={19}/>{text(locale, 'نشست و دسترسی‌ها', 'Session & permissions')}</Link>
         <Link href={`/${locale}`}><ExternalLink size={19}/>{text(locale, 'مشاهدهٔ فروشگاه', 'View storefront')}</Link>

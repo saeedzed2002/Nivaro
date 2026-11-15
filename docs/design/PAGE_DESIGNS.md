@@ -53,11 +53,15 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Administrator orders | P07 | Pending |
 | Administrator order detail | P07 | Pending |
 | Payments / reconciliation | P07 | Pending |
-| Users / permissions | P10 | Pending |
+| Users / permissions | P10 | [Accounts and audit](pages/admin-accounts.png), generated and inspected before implementation |
 | Administrator profile / avatar | P04 | [Staff profile](pages/admin-profile.png), generated and inspected 2026-11-07 before implementation; own avatar/name, read-only staff email/role, dark desktop and light mobile |
 | Support inbox | P09 | [Inbox](pages/admin-support-inbox.png), generated and inspected before implementation |
 
 Record reference creation and inspection before starting each template. Carry empty, loading, error, keyboard, mobile and localized variations into implementation QA. Dialogs explaining inactive P01 features do not pretend to implement those pages.
+
+### P10 accounts and audit reference
+
+- The built-in image generator produced a light English desktop workspace. Inspected before implementation. Retain the two labeled filters, account table with a marked selected row, detail actions and account audit history. Use the existing administration shell and theme tokens, and stack panels on narrow screens. Reference people, labels and events are illustrative; the interface uses Identity's actual roles and audit fields.
 
 ### P09 support inbox reference
 

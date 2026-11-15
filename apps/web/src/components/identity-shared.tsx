@@ -26,10 +26,10 @@ export function errorText(error: unknown, locale: Locale): string {
 export function IdentityNotice({ error, locale }: { error: unknown; locale: Locale }) {
   return error ? <div className="identity-notice error" role="alert"><AlertCircle size={20}/><span>{errorText(error, locale)}</span></div> : null;
 }
-export function ConfirmAction({ locale, label, title, children, onConfirm, busy }: { locale: Locale; label: string; title: string; children: ReactNode; onConfirm: () => Promise<void>; busy?: boolean }) {
+export function ConfirmAction({ locale, label, title, children, onConfirm, busy, appearance = 'danger' }: { locale: Locale; label: string; title: string; children: ReactNode; onConfirm: () => Promise<void>; busy?: boolean; appearance?: 'danger' | 'primary' }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
-  return <><button type="button" className="button danger" disabled={busy} onClick={() => ref.current?.showModal()}>{label}</button><dialog className="feature-dialog" ref={ref} aria-labelledby={id}>
-    <div className="dialog-content"><form method="dialog"><button className="icon-button close" aria-label={text(locale, 'بستن', 'Close')} disabled={busy}><X size={20}/></button></form><h2 id={id}>{title}</h2><p>{children}</p><div className="identity-actions"><button type="button" className="button secondary" disabled={busy} onClick={() => ref.current?.close()}>{text(locale, 'انصراف', 'Cancel')}</button><button type="button" className="button danger" disabled={busy} onClick={async () => { await onConfirm(); ref.current?.close(); }}>{text(locale, 'تأیید', 'Confirm')}</button></div></div>
+  return <><button type="button" className={`button ${appearance}`} disabled={busy} onClick={() => ref.current?.showModal()}>{label}</button><dialog className="feature-dialog" ref={ref} aria-labelledby={id}>
+    <div className="dialog-content"><form method="dialog"><button className="icon-button close" aria-label={text(locale, 'بستن', 'Close')} disabled={busy}><X size={20}/></button></form><h2 id={id}>{title}</h2><p>{children}</p><div className="identity-actions"><button type="button" className="button secondary" disabled={busy} onClick={() => ref.current?.close()}>{text(locale, 'انصراف', 'Cancel')}</button><button type="button" className={`button ${appearance}`} disabled={busy} onClick={async () => { await onConfirm(); ref.current?.close(); }}>{text(locale, 'تأیید', 'Confirm')}</button></div></div>
   </dialog></>;
 }

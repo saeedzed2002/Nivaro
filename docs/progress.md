@@ -701,3 +701,10 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - The 57-test disposable Identity suite passed, covering pagination, guest and restricted-staff access, stale revisions, session revocation, normalized audit output and concurrent updates between super administrators. The three Support regression tests passed with the updated Identity image. Strict typing, format, OpenAPI drift and the TypeScript contract check passed.
 - Local Docker applied `0003_identity_account_management`. Existing account, session and audit row counts were preserved. Both management endpoints returned HTTP 401 with `Cache-Control: no-store` for an anonymous request. Storefront and customer support returned HTTP 200.
 - The browser management and audit views, remaining P10 workflows and phase-level GitHub Actions verification remain open.
+
+### P10 account management and audit workspace
+
+- Staff with `users.manage` can filter and page through customer and staff accounts, inspect individual accounts and their audit history, and confirm status or staff role changes. The browser prompts for an explicit reload when it encounters a stale revision. Audit entries display the actor identifier and the before and after values.
+- The disposable Docker browser test used separate administrator and support sessions. It covered restricted navigation and direct access, filtering, pagination, keyboard selection, stale revision recovery, role changes, disabling and re-enabling accounts, and audit updates. The English light desktop and Persian dark mobile layouts were inspected, and the 390-pixel layout had no horizontal overflow.
+- TypeScript, ESLint, OpenAPI contract drift checks, and the Docker web release build passed. The local Docker preview returned HTTP 200 at `/fa/admin/users`, and the account component in the running container matched the workspace source.
+- Order, payment, reconciliation, refund, and reporting workflows and final phase-level GitHub Actions verification remain open.

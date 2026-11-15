@@ -1,0 +1,31 @@
+.accounts-filters { max-width:620px; margin-block:0 22px; }
+.accounts-layout { display:grid; grid-template-columns:minmax(0, 1.18fr) minmax(0,1fr); align-items:start; gap:14px; }
+.accounts-table { table-layout:fixed; }
+.accounts-table th:first-child { width:46%; }
+.accounts-table th:last-child { width:19%; }
+.accounts-table td,.accounts-table th { padding:12px 9px; overflow-wrap:anywhere; font-size:13px; }
+.accounts-table th { white-space:normal; }
+.accounts-table tr[data-selected=true] { background:color-mix(in srgb,var(--blue) 14%,var(--panel-soft)); }
+.accounts-select { border:0; padding:5px 0; background:transparent; color:var(--text); cursor:pointer; display:block; width:100%; text-align:start; font:inherit; overflow-wrap:anywhere; }
+.accounts-select small { display:block; margin-block-start:4px; color:var(--muted); }
+.accounts-table .admin-badge { white-space:normal; margin-inline-end:0; padding:4px 6px; }
+.accounts-more { margin-block-start:14px; }
+.accounts-summary { display:grid; grid-template-columns:auto minmax(0,1fr); margin:0; gap:8px 16px; font-size:14px; }
+.accounts-summary dt,.accounts-audit dt,.accounts-audit time,.accounts-audit small { color:var(--muted); }
+.accounts-summary dd,.accounts-audit dd { margin:0; overflow-wrap:anywhere; }
+.accounts-actions>section,.accounts-audit { border-block-start:1px solid var(--line); padding-block-start:16px; margin-block-start:17px; }
+.accounts-actions .field { margin-block:10px; }
+.accounts-actions select { font-size:14px; }
+.accounts-audit ol { list-style:none; margin:8px 0 14px; padding:0; }
+.accounts-audit li { padding:11px 0; border-block-end:1px solid var(--line); overflow-wrap:anywhere; font-size:13px; }
+.accounts-audit li>div,.accounts-audit-values { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 10px; }
+.accounts-audit-values { justify-content:flex-start; }
+.accounts-audit-values>div { display:flex; gap:4px 6px; }
+@media(max-width:1120px) {
+  .accounts-layout { grid-template-columns:1fr; }
+}
+@media(max-width:560px) {
+  .accounts-list,.accounts-detail { padding:14px; }
+  .accounts-table td,.accounts-table th { font-size:11px; padding-inline:5px; }
+  .accounts-filters label { min-width:110px; }
+}
