@@ -1,15 +1,18 @@
 import asyncio
 import os
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import psycopg
 import pytest
+from sqlalchemy import func, select, update
 
+from nivaro_payments.attempts import reconcile_one
 from nivaro_payments.contracts import PaymentError
+from nivaro_payments.models import Attempt, OutboxEvent
 from nivaro_payments.provider import ProviderAttempt, Simulator
-from nivaro_payments.settings import Settings
+from nivaro_payments.settings import Database, Settings
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 ROOT = "/internal/v1/payments/attempts"
@@ -99,6 +102,26 @@ def expect(response, status=200, *, code=None):
     return body
 
 
+@pytest.fixture
+async def database():
+    settings = Settings()
+    assert settings.db_host.startswith("nivaro-payments-qa-")
+    database = Database(settings)
+    try:
+        yield database
+    finally:
+        await database.engine.dispose()
+
+
+async def events(database, aggregate_id):
+    async with database.sessions() as db:
+        return (
+            await db.scalars(
+                select(OutboxEvent).where(OutboxEvent.aggregate_id == UUID(aggregate_id))
+            )
+        ).all()
+
+
 @integration
 async def test_payment_authorization_and_network_boundary(clients):
     payments, _, _ = clients
@@ -150,7 +173,7 @@ async def test_payment_authorization_and_network_boundary(clients):
 
 @integration
 @pytest.mark.parametrize("currency", ["IRR", "USD"])
-async def test_concurrent_start_and_verify_share_one_persisted_attempt(clients, currency):
+async def test_concurrent_start_and_verify_share_one_persisted_attempt(clients, currency, database):
     payments, _, _ = clients
     body = intent(currency, scenario="duplicate")
     auth = await headers(clients, "payments.start", str(uuid4()))
@@ -193,10 +216,14 @@ async def test_concurrent_start_and_verify_share_one_persisted_attempt(clients, 
     ) == (currency, "succeeded", 1000, 2)
     assert verified["verified_at"] is not None
     assert expect(await payments.get(path, headers=read)) == verified
+    (event,) = await events(database, body["id"])
+    assert (event.event_type, event.aggregate_version) == ("payment.succeeded", 2)
+    assert event.envelope["payload"]["currency"] == currency
+    assert event.envelope["payload"]["captured_minor"] == 1000
 
 
 @integration
-async def test_unknown_results_remain_unsettled_and_mismatches_are_visible(clients):
+async def test_unknown_results_remain_unsettled_and_mismatches_are_visible(clients, database):
     payments, _, _ = clients
     start = await headers(clients, "payments.start")
     verify = await headers(clients, "payments.verify")
@@ -228,11 +255,19 @@ async def test_unknown_results_remain_unsettled_and_mismatches_are_visible(clien
         current = expect(await payments.get(path, headers=read))
         assert (current["status"], current["captured_minor"]) == (status, capture)
         assert (current["verified_at"] is None) == (status == "pending")
+        stored = await events(database, body["id"])
+        if status == "pending":
+            assert not stored
+            async with database.sessions() as db:
+                row = await db.get(Attempt, UUID(body["id"]))
+                assert row is not None and row.reconcile_at is not None
+        else:
+            assert [event.event_type for event in stored] == [f"payment.{status}"]
 
 
 @integration
 @pytest.mark.parametrize("currency", ["IRR", "USD"])
-async def test_concurrent_refunds_preserve_capture_limit_and_currency(clients, currency):
+async def test_concurrent_refunds_preserve_capture_limit_and_currency(clients, currency, database):
     payments, _, _ = clients
     body = intent(currency)
     expect(
@@ -274,3 +309,59 @@ async def test_concurrent_refunds_preserve_capture_limit_and_currency(clients, c
     assert expect(await refund(600, request_id=accepted["id"])) == accepted
     expect(await refund(400, request_id=accepted["id"]), 409, code="refund.idempotency_conflict")
     assert expect(await refund(400))["amount_minor"] == 400
+    (event,) = await events(database, accepted["id"])
+    assert event.event_type == "payment.refund.completed"
+    assert event.envelope["payload"]["amount_minor"] == 600
+
+
+@integration
+async def test_reconciliation_resumes_only_previously_verified_attempts(clients, database):
+    payments, _, _ = clients
+    start = await headers(clients, "payments.start")
+    verify = await headers(clients, "payments.verify")
+    untouched = intent("USD")
+    ambiguous = intent("USD", scenario="ambiguous")
+    for body in (untouched, ambiguous):
+        expect(
+            await payments.post(ROOT, headers={**start, "Idempotency-Key": str(uuid4())}, json=body)
+        )
+    async with database.sessions.begin() as db:
+        row = await db.get(Attempt, UUID(ambiguous["id"]))
+        assert row is not None
+        row.created_at = datetime.now(UTC) + timedelta(seconds=15)
+    receipt = expect(await payments.post(f"{ROOT}/{ambiguous['id']}/verify", headers=verify))
+    assert (receipt["status"], receipt["verified_at"]) == ("ambiguous", None)
+    assert not await events(database, ambiguous["id"])
+
+    async with database.sessions.begin() as db:
+        await db.execute(
+            update(Attempt)
+            .where(Attempt.id == UUID(ambiguous["id"]))
+            .values(
+                created_at=func.clock_timestamp() - timedelta(seconds=10),
+                reconcile_at=func.clock_timestamp() - timedelta(seconds=1),
+            )
+        )
+
+    async def run_one():
+        async with database.sessions() as db:
+            return await reconcile_one(db, Simulator())
+
+    await asyncio.gather(*(run_one() for _ in range(8)))
+    async with database.sessions() as db:
+        done = await db.get(Attempt, UUID(ambiguous["id"]))
+        other = await db.get(Attempt, UUID(untouched["id"]))
+        assert done is not None and (
+            done.status,
+            done.version,
+            done.reconcile_at,
+            done.reconciliation_attempts,
+        ) == ("succeeded", 3, None, 1)
+        assert other is not None and (
+            other.status,
+            other.reconcile_at,
+            other.reconciliation_attempts,
+        ) == ("pending", None, 0)
+    (event,) = await events(database, ambiguous["id"])
+    assert (event.event_type, event.aggregate_version) == ("payment.succeeded", 3)
+    assert not await events(database, untouched["id"])

@@ -22,8 +22,18 @@ Supported scenarios are `success`, `failure`, `ambiguous`, `duplicate`, `delay`,
 after 30 seconds when queried again. Overpayment records `amount_mismatch` with
 the actual simulated amount. Duplicate verification keeps the original receipt
 and version. Unavailability yields a retryable response and preserves the
-last persisted result. The Orders integration will own when to verify an
-attempt and how to apply payment events and compensation.
+last persisted result. An explicit verification schedules an unresolved attempt
+for reconciliation. The `payments-reconciler` service uses database time and
+locked claims to query the simulator with bounded backoff. It stops after eight
+automatic queries if the result remains unresolved. The route can still verify
+the attempt explicitly. Attempts created without a verification request remain
+outside the queue. The migration schedules existing ambiguous attempts.
+
+The attempt or refund and its event commit together in PostgreSQL. The outbox
+retains versioned `payment.succeeded`, `payment.failed`,
+`payment.amount_mismatch` and `payment.refund.completed` envelopes. Success
+requires matching captured and expected amounts. Orders and RabbitMQ integration
+will publish and apply these results in a later step.
 
 `IRR` amounts are expressed in rials in whole tomans. `USD` amounts are in
 cents. Refunds use the original currency and the verified captured amount as

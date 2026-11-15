@@ -40,6 +40,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+  payments-reconciler:
+    image: ${NIVARO_PAYMENTS_IMAGE:-nivaro-payments:release}
+    secrets: [payments_db_password]
+    depends_on:
+      payments-init:
+        condition: service_completed_successfully
+    command: [python, -m, nivaro_payments.reconciliation]
+    init: true
+    restart: unless-stopped
 secrets:
   payments_db_password:
     file: ./work/secrets/payments_db_password.txt

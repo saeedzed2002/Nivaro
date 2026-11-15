@@ -8,8 +8,16 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nivaro_payments.contracts import AttemptState, PaymentError, PaymentIntent, RefundIntent
+from nivaro_payments.events import Outcome, outcome, refund_completed
 from nivaro_payments.models import Attempt, Refund
 from nivaro_payments.provider import Provider, ProviderAttempt
+
+RECONCILIATION_LIMIT = 8
+OUTCOMES: dict[AttemptState, Outcome] = {
+    "failed": "payment.failed",
+    "succeeded": "payment.succeeded",
+    "amount_mismatch": "payment.amount_mismatch",
+}
 
 
 def fingerprint(body: dict[str, object]) -> str:
@@ -78,44 +86,93 @@ def provider_attempt(row: Attempt) -> ProviderAttempt:
     )
 
 
+def apply_observation(
+    db: AsyncSession, provider: Provider, row: Attempt, now: datetime, *, query: bool
+) -> None:
+    attempt = provider_attempt(row)
+    report = (
+        provider.query_payment(attempt, now) if query else provider.verify_payment(attempt, now)
+    )
+    if (report.reference, report.order_id, report.currency) != (
+        row.provider_reference,
+        row.order_id,
+        row.currency,
+    ):
+        raise PaymentError("provider.evidence_mismatch", 502)
+    state: AttemptState = report.state
+    captured = report.captured_minor
+    if report.state == "succeeded":
+        if (
+            captured is None
+            or not 0 < captured <= 9_000_000_000_000_010
+            or (row.currency == "IRR" and captured % 10)
+        ):
+            raise PaymentError("provider.evidence_mismatch", 502)
+        if captured != row.amount_minor:
+            state = "amount_mismatch"
+    elif captured is not None:
+        raise PaymentError("provider.evidence_mismatch", 502)
+    if state != row.status:
+        row.status = state
+        row.version += 1
+    name = OUTCOMES.get(state)
+    if name is not None:
+        row.verified_at = now
+        row.captured_minor = captured
+        row.reconcile_at = None
+        db.add(outcome(row, name, now))
+
+
 async def verify_payment(db: AsyncSession, provider: Provider, attempt_id: UUID) -> Attempt:
+    unavailable: PaymentError | None = None
     async with db.begin():
         row = await read_attempt(db, attempt_id, lock=True)
         if row.verified_at is not None:
             return row
         now = await database_time(db)
-        attempt = provider_attempt(row)
-        report = (
-            provider.query_payment(attempt, now)
-            if row.status == "ambiguous"
-            else provider.verify_payment(attempt, now)
-        )
-        if (report.reference, report.order_id, report.currency) != (
-            row.provider_reference,
-            row.order_id,
-            row.currency,
+        try:
+            apply_observation(db, provider, row, now, query=row.status == "ambiguous")
+        except PaymentError as exc:
+            if exc.code != "provider.unavailable":
+                raise
+            unavailable = exc
+        if (
+            row.verified_at is None
+            and row.reconcile_at is None
+            and row.reconciliation_attempts < RECONCILIATION_LIMIT
         ):
-            raise PaymentError("provider.evidence_mismatch", 502)
-        state: AttemptState = report.state
-        captured = report.captured_minor
-        if report.state == "succeeded":
-            if (
-                captured is None
-                or not 0 < captured <= 9_000_000_000_000_010
-                or (row.currency == "IRR" and captured % 10)
-            ):
-                raise PaymentError("provider.evidence_mismatch", 502)
-            if captured != row.amount_minor:
-                state = "amount_mismatch"
-        elif captured is not None:
-            raise PaymentError("provider.evidence_mismatch", 502)
-        if state in {"failed", "succeeded", "amount_mismatch"}:
-            row.verified_at = now
-            row.captured_minor = captured
-        if state != row.status:
-            row.status = state
-            row.version += 1
-        return row
+            row.reconcile_at = now + timedelta(seconds=2)
+    if unavailable is not None:
+        raise unavailable
+    return row
+
+
+async def reconcile_one(db: AsyncSession, provider: Provider) -> bool:
+    async with db.begin():
+        row = await db.scalar(
+            select(Attempt)
+            .where(
+                Attempt.reconcile_at <= func.statement_timestamp(), Attempt.verified_at.is_(None)
+            )
+            .order_by(Attempt.reconcile_at, Attempt.id)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        if row is None:
+            return False
+        now = await database_time(db)
+        row.reconciliation_attempts += 1
+        try:
+            apply_observation(db, provider, row, now, query=True)
+        except PaymentError as exc:
+            if exc.code not in {"provider.unavailable", "provider.evidence_mismatch"}:
+                raise
+        if row.verified_at is None:
+            if row.reconciliation_attempts < RECONCILIATION_LIMIT:
+                row.reconcile_at = now + timedelta(seconds=min(60, 2**row.reconciliation_attempts))
+            else:
+                row.reconcile_at = None
+        return True
 
 
 async def refund_replay(
@@ -178,4 +235,5 @@ async def refund_payment(
             if existing is None:
                 raise PaymentError("refund.idempotency_conflict")
             return existing
+        db.add(refund_completed(payment, row))
         return row
