@@ -41,7 +41,7 @@ test('cart shows groups and exact estimates, reconciles conflicts, and isolates 
   await expect(page.getByRole('heading', { name: 'Example PC' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Shopping cart (3)' })).toBeVisible();
   await expect(page.getByText('$389.97', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Checkout unavailable' })).toBeDisabled();
+  await expect(page.getByRole('link', { name: 'Continue to checkout' })).toHaveAttribute('href', '/en/checkout');
   await page.getByRole('button', { name: 'Increase quantity: Example NVMe SSD' }).first().click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('Your cart changed');
   await expect(page.getByRole('link', { name: 'Shopping cart (4)' })).toBeVisible();
@@ -54,9 +54,11 @@ test('cart shows groups and exact estimates, reconciles conflicts, and isolates 
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.getByRole('heading', { name: 'Example PC' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'ادامه به تسویه' })).toHaveAttribute('href', '/fa/checkout');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
   await page.screenshot({ path: test.info().outputPath('cart-mobile-fa.png'), fullPage: true });
   await page.getByRole('combobox', { name: 'بازار فروش' }).selectOption('ir');
   await expect(page.getByRole('heading', { name: 'سبد خرید خالی است' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'ادامه به تسویه' })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
