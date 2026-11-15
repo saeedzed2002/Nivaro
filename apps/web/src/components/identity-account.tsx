@@ -4,15 +4,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, CheckCircle2, Home, LogOut, MapPin, Plus, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Home, LogOut, MapPin, Package, Plus, ShieldCheck, UserRound } from 'lucide-react';
 import { deleteAddress, IdentityError, listAddresses, logout, readSession, saveAddress, saveProfile, type Address, type AddressInput, type IdentitySession } from '@/lib/identity-client';
 import type { InitialIdentity } from '@/lib/identity-server';
 import { text, type Locale } from '@/lib/content';
 import { ConfirmAction, IdentityNotice } from './identity-shared';
 
 import { AvatarEditor } from './avatar-editor';
+import { OrderHistory } from './order-history';
 
-export type AccountView = 'overview' | 'profile' | 'addresses';
+export type AccountView = 'overview' | 'profile' | 'addresses' | 'orders';
 export function IdentityAccount({ locale, initial, view, fromCheckout = false }: { locale: Locale; initial: InitialIdentity; view: AccountView; fromCheckout?: boolean }) {
   const [session, setSession] = useState(initial.session);
   const [error, setError] = useState<unknown>(initial.unavailable ? new IdentityError('identity.unavailable') : null);
@@ -33,12 +34,16 @@ export function IdentityAccount({ locale, initial, view, fromCheckout = false }:
     try { await logout('customer', all); setSession(null); router.replace(`/${locale}/login`); router.refresh(); }
     catch (e) { setError(e); } finally { setBusy(false); }
   }
-  const title = view === 'profile' ? text(locale, 'اطلاعات حساب', 'Account details') : view === 'addresses' ? text(locale, 'نشانی‌های من', 'My addresses') : text(locale, 'حساب من', 'My account');
-  if (!session) return <main id="main-content" className="container account-page"><section className="identity-panel account-guard"><ShieldCheck size={36}/><h1>{title}</h1>{checking ? <p role="status">{text(locale, 'در حال بررسی نشست…', 'Checking your session…')}</p> : <><IdentityNotice error={error} locale={locale}/><div className="identity-actions"><Link className="button primary" href={`/${locale}/login`}>{text(locale, 'ورود به حساب', 'Sign in')}</Link><button className="button secondary" onClick={() => void recover()}>{text(locale, 'تلاش مجدد', 'Retry')}</button></div></>}</section></main>;
+  const titles: Record<AccountView, [string, string]> = {
+    overview: ['حساب من', 'My account'], profile: ['اطلاعات حساب', 'Account details'],
+    addresses: ['نشانی‌های من', 'My addresses'], orders: ['سفارش‌های من', 'Order history'],
+  };
+  const title = text(locale, ...titles[view]);
+  if (!session) return <main id="main-content" className="container account-page"><section className="identity-panel account-guard"><ShieldCheck size={36}/><h1>{title}</h1>{checking ? <p role="status">{text(locale, 'در حال بررسی نشست…', 'Checking your session…')}</p> : <><IdentityNotice error={error} locale={locale}/><div className="identity-actions"><Link className="button primary" href={`/${locale}/login${view === 'orders' ? '?next=orders' : ''}`}>{text(locale, 'ورود به حساب', 'Sign in')}</Link><button className="button secondary" onClick={() => void recover()}>{text(locale, 'تلاش مجدد', 'Retry')}</button></div></>}</section></main>;
   return <main id="main-content" className="container account-page">
     <div className="breadcrumb"><Link href={`/${locale}`}>{text(locale, 'خانه', 'Home')}</Link><span>/</span><Link href={`/${locale}/account`}>{text(locale, 'حساب من', 'My account')}</Link>{view !== 'overview' && <><span>/</span><span>{title}</span></>}</div>
     <div className="account-layout"><aside className="account-sidebar identity-panel"><div className="account-person"><UserRound size={30}/><strong>{session.profile.name || text(locale, 'حساب نیوارو', 'Nivaro account')}</strong><bdi dir="ltr">{session.profile.phone}</bdi></div><nav aria-label={text(locale, 'ناوبری حساب', 'Account navigation')}>
-      {([{ id: 'overview', path: '', fa: 'نمای کلی', en: 'Overview', icon: Home }, { id: 'profile', path: '/profile', fa: 'اطلاعات حساب', en: 'Account details', icon: UserRound }, { id: 'addresses', path: '/addresses', fa: 'نشانی‌ها', en: 'Addresses', icon: MapPin }] as const).map(item => <Link key={item.id} aria-current={view === item.id ? 'page' : undefined} href={`/${locale}/account${item.path}`}><item.icon size={20}/>{text(locale, item.fa, item.en)}</Link>)}
+      {([{ id: 'overview', path: '', fa: 'نمای کلی', en: 'Overview', icon: Home }, { id: 'profile', path: '/profile', fa: 'اطلاعات حساب', en: 'Account details', icon: UserRound }, { id: 'addresses', path: '/addresses', fa: 'نشانی‌ها', en: 'Addresses', icon: MapPin }, { id: 'orders', path: '/orders', fa: 'سفارش‌ها', en: 'Orders', icon: Package }] as const).map(item => <Link key={item.id} aria-current={view === item.id ? 'page' : undefined} href={`/${locale}/account${item.path}`}><item.icon size={20}/>{text(locale, item.fa, item.en)}</Link>)}
       <button disabled={busy} onClick={() => void signOut(false)}><LogOut size={20}/>{text(locale, 'خروج از حساب', 'Sign out')}</button>
     </nav></aside>
     <section className="account-content"><h1>{title}</h1><IdentityNotice error={error} locale={locale}/>
@@ -48,7 +53,7 @@ export function IdentityAccount({ locale, initial, view, fromCheckout = false }:
         <div className="account-shortcuts"><Link className="identity-panel" href={`/${locale}/account/profile`}><UserRound size={30}/><span><strong>{text(locale, 'اطلاعات حساب', 'Account details')}</strong><small>{text(locale, 'مشاهده و ویرایش اطلاعات شخصی', 'View and edit personal information')}</small></span><ArrowRight size={19}/></Link><Link className="identity-panel" href={`/${locale}/account/addresses`}><MapPin size={30}/><span><strong>{text(locale, 'نشانی‌ها', 'Addresses')}</strong><small>{text(locale, 'مدیریت نشانی‌های ذخیره‌شده', 'Manage your saved addresses')}</small></span><ArrowRight size={19}/></Link></div>
         <div className="account-promo"><Image src="/images/showroom.webp" alt="" fill sizes="(max-width: 760px) 100vw, 70vw"/><div><h2>{text(locale, 'برای ستاپ بعدی آماده شو', 'Ready for your next setup?')}</h2><p>{text(locale, 'قطعات و تجهیزات گیمینگ را بررسی کن.', 'Explore gaming hardware and peripherals.')}</p><Link className="button primary" href={`/${locale}/products`}>{text(locale, 'مشاهدهٔ قطعات', 'Explore components')}<ArrowRight size={18}/></Link></div></div>
         <div className="identity-panel account-security"><ShieldCheck size={30}/><div><h2>{text(locale, 'امنیت حساب', 'Account security')}</h2><p className="muted">{text(locale, 'نشست‌های خرید خود را در همهٔ دستگاه‌ها، شامل همین دستگاه، ببندید.', 'End your shopping sessions on every device, including this one.')}</p></div><ConfirmAction locale={locale} label={text(locale, 'خروج از همهٔ دستگاه‌ها', 'Sign out everywhere')} title={text(locale, 'از همهٔ دستگاه‌ها خارج شوید؟', 'Sign out on every device?')} busy={busy} onConfirm={() => signOut(true)}>{text(locale, 'این دستگاه نیز خارج می‌شود. نشست‌های مدیریتی جداگانه باقی می‌مانند.', 'This device will also be signed out. Separate staff sessions are unaffected.')}</ConfirmAction></div>
-      </> : view === 'profile' ? <div className="profile-workspace"><AvatarEditor locale={locale} scope="customer"/><ProfileForm locale={locale} session={session} onSaved={profile => setSession({ ...session, profile })}/></div> : <Addresses locale={locale} phone={session.profile.phone}/>}
+      </> : view === 'profile' ? <div className="profile-workspace"><AvatarEditor locale={locale} scope="customer"/><ProfileForm locale={locale} session={session} onSaved={profile => setSession({ ...session, profile })}/></div> : view === 'orders' ? <OrderHistory locale={locale} customerId={session.profile.id}/> : <Addresses locale={locale} phone={session.profile.phone}/>}
     </section></div>
   </main>;
 }

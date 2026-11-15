@@ -578,3 +578,8 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 
 - The customer session scopes both history and detailed order reads. History uses the existing customer/date index and a stable creation-time and ID cursor. Detail reads use the original delivery address, totals, purchased group and line snapshots, and committed status history.
 - **22 Orders tests passed** on disposable Docker. The gateway rejected another customer's detail and pagination cursor. Tests covered tied creation times, grouped snapshots, original prices, and the order timeline. The local Docker backend is active, and the gateway returned HTTP 401 for a history request without a session. Phase-end CI review remains pending.
+
+### P07 customer order history page
+
+- The customer account navigation now links to the order history in both locales. The list displays the original total and current status, supports cursor pagination and links to the existing order status page. The separate detail page is awaiting its image reference.
+- The real Docker browser journey paid an order, verified broker-driven cart cleanup, located that order in history and opened its paid status. Inspected Persian dark desktop and light mobile captures. The mobile history was checked at 360 pixels without horizontal overflow. The local Docker Watch synchronized the updated component and both locale routes returned HTTP 200.

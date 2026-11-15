@@ -1,0 +1,21 @@
+.order-history { list-style:none; padding:0; margin-block:22px; display:grid; gap:8px; }
+.order-history-entry { display:grid; grid-template-columns:minmax(120px,1.45fr) minmax(90px,1fr) minmax(70px,.7fr) auto auto; gap:16px; align-items:center; padding:16px 18px; font-size:14px; }
+.order-history-entry>div { display:grid; gap:5px; min-width:0; }
+.order-reference { display:block; overflow-wrap:anywhere; font-weight:650; }
+[dir="rtl"] .order-reference { text-align:right; }
+.order-history-entry .muted { font-size:12px; }
+.order-state { justify-self:start; padding:4px 9px; color:var(--accent); border:1px solid var(--line); background:var(--input); border-radius:99px; font-size:12px; }
+.order-state[data-status="paid"],.order-state[data-status="refunded"] { color:var(--text); border-color:color-mix(in srgb,#2ca373 65%,var(--line)); background:color-mix(in srgb,#2ca373 13%,var(--panel)); }
+.order-state[data-status="expired"],.order-state[data-status="cancelled"] { color:var(--text); border-color:color-mix(in srgb,#e06b78 55%,var(--line)); background:color-mix(in srgb,#e06b78 11%,var(--panel)); }
+.order-open { display:inline-flex; align-items:center; min-height:40px; }
+.order-pages { display:flex; flex-wrap:wrap; gap:10px; }
+.order-empty { margin-block:20px; }
+.order-empty p { margin-block:0 14px; }
+@media(max-width:1060px) {
+  .order-history-entry { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .order-history-entry>div:first-child { grid-column:1 / -1; }
+}
+@media(max-width:500px) {
+  .order-history-entry { padding:15px; }
+  .order-history-entry .order-open { justify-self:end; }
+}

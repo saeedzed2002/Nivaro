@@ -143,3 +143,7 @@ The generated desktop dark and mobile light references are inspected and registe
 ### Checkout and order submission result
 
 Generated separate checkout and order-result references with the built-in image generator and inspected both before implementation. Use the existing storefront shell, the Blue RGB palette, outlined panels, native address radios, a desktop order summary beside the checkout details, and a compact mobile stack. The result uses a centered status panel and a real order reference. The images illustrate independent market prices and layout only. Use the API's real quote deadline and amounts, preserve grouped line IDs, keep quantities read-only, and represent order submission and stock reservation without marking a payment complete.
+
+### P07 customer order history
+
+Generated `pages/account-orders.png` with the built-in generator and inspected it before implementing the page. The prompt specified a dark English desktop and light Persian mobile layout, with a compact masthead, the account sidebar, thin outlined order rows and status indicators. The implementation uses the real reference, date, original amount and status, with stacked rows on narrow screens. The mockup's filter and unrelated navigation are omitted because they have no implemented behavior.

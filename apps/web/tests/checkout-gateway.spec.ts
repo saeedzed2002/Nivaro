@@ -120,6 +120,20 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
       expect(cart.status()).toBe(200);
       return (await cart.json()).lines;
     }, { timeout: 12_000 }).toEqual([]);
+    await page.goto('/fa/account/orders');
+    await expect(page.getByRole('heading', { name: 'سفارش‌های من' })).toBeVisible();
+    const orders = page.getByRole('listitem').filter({ hasText: submittedId });
+    await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
+    const orderStatus = orders.getByRole('link', { name: 'وضعیت سفارش' });
+    await expect(orderStatus).toHaveAttribute('href', `/fa/checkout/result?order=${submittedId}`);
+    await page.screenshot({ path: test.info().outputPath('orders-fa-dark-desktop.png'), fullPage: true });
+    await page.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.setViewportSize({ width: 360, height: 800 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    await page.screenshot({ path: test.info().outputPath('orders-fa-light-mobile.png'), fullPage: true });
+    await orderStatus.click();
+    await expect(page.getByRole('heading', { name: 'پرداخت و موجودی سفارش تأیید شد' })).toBeVisible();
   }
   expect(exceptions).toEqual([]);
 });

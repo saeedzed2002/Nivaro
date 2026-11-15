@@ -109,7 +109,7 @@
   .account-layout { grid-template-columns:1fr; gap:24px; }
   .account-sidebar { position:static; padding:8px; }
   .account-person { display:none; }
-  .account-sidebar nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding:0; gap:0; }
+  .account-sidebar nav { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); padding:0; gap:0; }
   .account-sidebar nav a,.account-sidebar nav button { flex-direction:column; justify-content:center; gap:6px; font-size:11px; padding:10px 4px; text-align:center; }
   .account-sidebar nav button { border:0; margin:0; }
   .identity-panel { padding:22px; }
