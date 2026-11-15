@@ -1,0 +1,45 @@
+# Private simulator. Compose publishes no host port for Payments.
+services:
+  payments-db-init:
+    image: ${POSTGRES_IMAGE:-postgres:18.6-bookworm@sha256:bbf83594798e144bff365a9c191c5d779f181fb3135902064ab8ff11918020fc}
+    environment:
+      PGHOST: postgres
+      POSTGRES_USER: postgres
+    secrets: [postgres_admin_password, payments_db_password]
+    volumes:
+      - ./infra/postgres/50-payments.sh:/init-payments.sh:ro
+    command: [sh, /init-payments.sh]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+  payments-init:
+    image: ${NIVARO_PAYMENTS_IMAGE:-nivaro-payments:release}
+    build:
+      context: ./services/payments
+      target: release
+    secrets: [payments_db_password]
+    command: [alembic, upgrade, head]
+    depends_on:
+      payments-db-init:
+        condition: service_completed_successfully
+    restart: 'no'
+  payments:
+    image: ${NIVARO_PAYMENTS_IMAGE:-nivaro-payments:release}
+    secrets: [payments_db_password]
+    depends_on:
+      payments-init:
+        condition: service_completed_successfully
+      identity:
+        condition: service_healthy
+    expose: ['8000']
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+secrets:
+  payments_db_password:
+    file: ./work/secrets/payments_db_password.txt

@@ -68,6 +68,15 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./scripts/Verify-IdentityService.ps1 -TestImage 'nivaro-identity:test'
+      - name: Build frozen Payments images
+        working-directory: .
+        run: |
+          docker build --target test -t nivaro-payments:test services/payments
+          docker build --target release -t nivaro-payments:release services/payments
+      - name: Verify private payment simulation and database isolation
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-PaymentsFoundation.ps1
       - name: Build cart foundation test image
         working-directory: .
         run: docker build --target test -t nivaro-cart:test services/cart

@@ -1,4 +1,4 @@
-# Use last with compose.media.yaml, compose.dev.yaml, compose.orders.yaml and compose.events.yaml.
+# Use last with the media, development, orders, events and payments overlays.
 services:
   web:
     image: nivaro-web:local-development
@@ -27,3 +27,9 @@ services:
     volumes:
       - ./services/orders/src:/workspace/src:ro
     command: [uvicorn, nivaro_orders.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]
+  payments:
+    environment:
+      PYTHONPATH: /workspace/src
+    volumes:
+      - ./services/payments/src:/workspace/src:ro
+    command: [uvicorn, nivaro_payments.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]

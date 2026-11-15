@@ -16,7 +16,12 @@ SERVICE_TOKEN_PATH = "/internal/v1/service-tokens"
 CHECKOUT_CONTEXT_PATH = "/internal/v1/orders/checkout-context"
 router = APIRouter(include_in_schema=False)
 basic = HTTPBasic(auto_error=False)
-ORDERS_CATALOG_SCOPES = frozenset({"catalog.quote", "catalog.reserve", "catalog.finalize"})
+ORDERS_SERVICE_SCOPES = {
+    "nivaro-catalog": frozenset({"catalog.quote", "catalog.reserve", "catalog.finalize"}),
+    "nivaro-payments": frozenset(
+        {"payments.start", "payments.read", "payments.verify", "payments.refund"}
+    ),
+}
 ORDERS_DELEGATED_GRANTS = {
     ("nivaro-cart", "cart.checkout_snapshot"),
     ("nivaro-identity", "identity.address_snapshot"),
@@ -53,7 +58,7 @@ async def issue_token(
 ) -> ServiceToken:
     require_orders(request, credentials)
     tokens: Tokens = request.app.state.sessions.tokens
-    if body.audience == "nivaro-catalog" and body.scope in ORDERS_CATALOG_SCOPES:
+    if body.scope in ORDERS_SERVICE_SCOPES.get(body.audience, ()):
         if body.customer_access is not None:
             raise IdentityError("service.forbidden", 403)
         return ServiceToken(access_token=tokens.issue_service("orders", body.audience, body.scope))
