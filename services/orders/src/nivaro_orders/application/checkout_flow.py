@@ -66,6 +66,8 @@ class OrderStatus(Contract):
         "payment_processing",
         "payment_review",
         "paid",
+        "refund_pending",
+        "refunded",
     ]
     version: int
     totals: Totals

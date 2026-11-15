@@ -102,8 +102,15 @@ the order to `paid`. For expired holds, Catalog checks the original allocations
 together. Orders protects any applied coupon quota throughout the request and
 requires available quota to restore an expired claim. A definitive stock or
 coupon rejection moves the order to `payment_review`. Mismatched and additional
-captures retain a financial review reason on their attempt. Running this worker
-does not issue refunds.
+captures retain a financial review reason on their attempt.
+
+The worker schedules simulated compensation for definitive stock or coupon
+rejections, accepted cancellations followed by capture, duplicate captures and
+wrong amounts. It persists one request per attempt before invoking Payments and
+reuses the same refund ID after ambiguous responses. The broker's refund events
+must account for the entire capture before Orders completes compensation.
+Refunding an extra capture preserves an already paid order. Captures with an
+uncertain stock sale or mismatched evidence retain a record for manual review.
 
 Run `./scripts/Verify-OrdersFoundation.ps1 -WithPaymentResults` with the current
 Orders, Payments and Catalog images to verify both event queues, scoped simulator

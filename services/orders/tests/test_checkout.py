@@ -21,6 +21,7 @@ from nivaro_orders.application.checkout import (
     review_checkout,
     stage_order,
 )
+from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.reservations import advance_reservation, expire_unpaid, transition
 from nivaro_orders.domain.checkout import (
@@ -52,9 +53,11 @@ from nivaro_orders.infrastructure.models import (
     OrderConfiguration,
     OrderItem,
     OrderPaymentAttempt,
+    OrderPaymentCompensation,
     OrderPaymentRefund,
     OrderTransition,
 )
+from nivaro_orders.infrastructure.payment_compensations import PaymentCompensations
 from nivaro_orders.infrastructure.reservations import (
     CatalogReservations,
     Receipt,
@@ -513,6 +516,29 @@ class LoseSuccessfulStockResponses(httpx.AsyncBaseTransport):
         await self.inner.aclose()
 
 
+class LoseSuccessfulCompensationResponse(httpx.AsyncBaseTransport):
+    def __init__(self):
+        self.inner = httpx.AsyncHTTPTransport()
+        self.lost = False
+
+    async def handle_async_request(self, request):
+        response = await self.inner.handle_async_request(request)
+        if (
+            request.url.path.endswith("/compensation")
+            and response.status_code == 200
+            and not self.lost
+        ):
+            self.lost = True
+            await response.aclose()
+            raise httpx.ReadTimeout(
+                "Synthetic loss after Payments committed a refund", request=request
+            )
+        return response
+
+    async def aclose(self):
+        await self.inner.aclose()
+
+
 @pytest.mark.skipif(
     os.getenv("ORDERS_CATALOG_E2E") != "1", reason="Disposable catalog stack required"
 )
@@ -632,6 +658,10 @@ async def test_lost_reservation_and_paid_stock_responses_recover_by_operation_id
             assert (
                 await db.get(OrderPaymentAttempt, extra.aggregate_id)
             ).disposition == "payment.duplicate_capture"
+        async with database.sessions() as db:
+            assert await schedule_compensation(db, operation)
+            assert not (await db.get(OrderPaymentCompensation, extra.aggregate_id)).closes_order
+            assert (await db.get(Order, operation)).status == "paid"
         assert not await advance_payment_stock(database.sessions, client, operation)
         assert transport.payment_writes == 2
 
@@ -835,6 +865,52 @@ def verified_capture(order):
             },
         }
     )
+
+
+async def test_capture_after_cancellation_is_refunded_without_reopening_the_order(database):
+    order = await CheckoutFixture(database).payable("cancelled-capture")
+    capture = verified_capture(order)
+    now = datetime.now(UTC)
+    async with database.sessions() as db, db.begin():
+        current = await db.get(Order, order.id, with_for_update=True)
+        await transition(db, current, "cancelled", "reservation.released", now)
+    async with database.sessions() as db:
+        await apply_payment_result(db, capture)
+        assert await prepare_payment(db, order.id)
+        assert await schedule_compensation(db, order.id)
+        attempt = await db.get(OrderPaymentAttempt, capture.aggregate_id)
+        refund = await db.get(OrderPaymentCompensation, attempt.id)
+        assert attempt.stock_retry_at is None and refund.reason == "payment.cancelled_order"
+        assert not refund.closes_order
+    event = payment_result_adapter.validate_python(
+        {
+            "event_id": uuid4(),
+            "event_type": "payment.refund.completed",
+            "schema_version": 1,
+            "occurred_at": now,
+            "producer": "payments",
+            "aggregate_id": refund.refund_id,
+            "aggregate_version": 1,
+            "correlation_id": order.id,
+            "causation_id": None,
+            "payload": {
+                "order_id": order.id,
+                "order_version": order.version,
+                "payment_attempt_id": attempt.id,
+                "market": order.market,
+                "currency": order.currency,
+                "amount_minor": order.total_minor,
+                "refund_id": refund.refund_id,
+            },
+        }
+    )
+    async with database.sessions() as db:
+        await apply_payment_result(db, event)
+        await apply_payment_result(db, event)
+        saved = await db.get(OrderPaymentCompensation, attempt.id)
+        current = await db.get(Order, order.id)
+        assert saved.state == "completed" and saved.attempts == 0
+        assert (current.status, current.version) == ("cancelled", order.version + 1)
 
 
 async def test_expired_paid_order_cannot_take_coupon_quota_from_a_new_hold(database):
@@ -1051,3 +1127,36 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
     async with database.sessions() as db:
         current = await db.get(Order, order.id)
         assert (current.status, current.version) == ("awaiting_payment", order.version)
+
+    async with database.sessions() as db:
+        assert await prepare_payment(db, order.id)
+        assert await prepare_payment(db, order.id)
+        assert await schedule_compensation(db, order.id)
+        assert await schedule_compensation(db, order.id)
+        assert not await schedule_compensation(db, order.id)
+        current = await db.get(Order, order.id)
+        assert current.status == "refund_pending"
+        original = await db.get(OrderPaymentCompensation, attempts["success"])
+        extra = await db.get(OrderPaymentCompensation, attempts["overpayment"])
+        assert original.closes_order and not extra.closes_order
+
+    transport = LoseSuccessfulCompensationResponse()
+    async with httpx.AsyncClient(timeout=8, trust_env=False, transport=transport) as http:
+        client = PaymentCompensations(http, Settings(), secret)
+        for _ in range(50):
+            await advance_refund(database.sessions, client, order.id)
+            async with database.sessions() as db:
+                first = await db.get(OrderPaymentCompensation, original.attempt_id)
+                second = await db.get(OrderPaymentCompensation, extra.attempt_id)
+            if first.state == second.state == "completed":
+                break
+            await asyncio.sleep(0.2)
+    assert transport.lost
+    assert first.state == second.state == "completed"
+    async with database.sessions() as db:
+        primary_receipt = await db.get(OrderPaymentRefund, original.refund_id)
+        additional_receipt = await db.get(OrderPaymentRefund, extra.refund_id)
+        assert primary_receipt.amount_minor == order.total_minor - 100
+        assert additional_receipt.amount_minor == order.total_minor + 10
+        current = await db.get(Order, order.id)
+        assert (current.status, current.version) == ("refunded", order.version + 3)

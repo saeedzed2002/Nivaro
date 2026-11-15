@@ -16,6 +16,7 @@ has no published host port.
 | `GET /attempts/{attempt_id}` | `payments.read` | Read the persisted status and captured amount, if any. |
 | `POST /attempts/{attempt_id}/verify` | `payments.verify` | Ask the simulator for evidence and apply a matching result once. An ambiguous attempt is queried on retry. |
 | `POST /attempts/{attempt_id}/refunds` | `payments.refund` | Complete a simulated refund using a separate key. Concurrent refunds share one capture limit. |
+| `POST /attempts/{attempt_id}/compensation` | `payments.refund` | Match the original order, currency and capture, then refund its remaining balance under the same payment lock. Repeating the operation with the same ID and key returns the original receipt. A fully refunded capture reports `refund.already_refunded` without adding another refund. |
 
 Supported scenarios are `success`, `failure`, `ambiguous`, `duplicate`, `delay`,
 `overpayment` and `unavailable`. Ambiguity resolves after 5 seconds and delay

@@ -107,7 +107,7 @@ class Order(Timestamps, Base):
         CheckConstraint(MARKET_CURRENCY, name="order_market_currency"),
         CheckConstraint(
             "status IN ('pending_reservation','awaiting_payment','expired','cancelled',"
-            "'payment_processing','payment_review','paid')",
+            "'payment_processing','payment_review','paid','refund_pending','refunded')",
             name="order_status",
         ),
         CheckConstraint("version > 0 AND cart_version > 0", name="order_versions"),
@@ -333,3 +333,32 @@ class OrderPaymentRefund(Base):
     )
     amount_minor: Mapped[int] = mapped_column(BigInteger)
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class OrderPaymentCompensation(Base):
+    __tablename__ = "order_payment_compensations"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('pending','awaiting_evidence','completed','manual_review') "
+            "AND captured_minor > 0 AND attempts >= 0 AND (state = 'pending') = (retry_at IS NOT NULL)",
+            name="order_compensation_state",
+        ),
+        Index(
+            "ix_order_compensation_due",
+            "retry_at",
+            "attempt_id",
+            postgresql_where=text("retry_at IS NOT NULL"),
+        ),
+    )
+
+    attempt_id: Mapped[UUID] = mapped_column(
+        ForeignKey("order_payment_attempts.id", ondelete="RESTRICT"), primary_key=True
+    )
+    refund_id: Mapped[UUID] = mapped_column(unique=True)
+    captured_minor: Mapped[int] = mapped_column(BigInteger)
+    closes_order: Mapped[bool] = mapped_column(Boolean)
+    reason: Mapped[str] = mapped_column(String(80))
+    state: Mapped[str] = mapped_column(String(20))
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    last_error: Mapped[str | None] = mapped_column(String(80))

@@ -27,7 +27,7 @@
         "payment_attempt_id": { "$ref": "#/$defs/id" },
         "market": { "enum": ["ir", "international"] },
         "currency": { "enum": ["IRR", "USD"] },
-        "amount_minor": { "$ref": "#/$defs/amount" },
+        "amount_minor": { "type": "integer", "minimum": 1, "maximum": 9000000000000010 },
         "refund_id": { "$ref": "#/$defs/id" },
         "captured_minor": { "type": ["integer", "null"], "minimum": 1, "maximum": 9000000000000010 }
       },
@@ -43,7 +43,7 @@
     {
       "if": { "properties": { "event_type": { "const": "payment.refund.completed" } } },
       "then": { "properties": { "aggregate_version": { "const": 1 }, "payload": { "required": ["refund_id"], "not": { "required": ["captured_minor"] } } } },
-      "else": { "properties": { "payload": { "required": ["captured_minor"], "not": { "required": ["refund_id"] } } } }
+      "else": { "properties": { "payload": { "required": ["captured_minor"], "properties": { "amount_minor": { "$ref": "#/$defs/amount" } }, "not": { "required": ["refund_id"] } } } }
     },
     {
       "if": { "properties": { "event_type": { "const": "payment.failed" } } },

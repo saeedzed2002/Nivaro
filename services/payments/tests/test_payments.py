@@ -320,6 +320,98 @@ async def test_concurrent_refunds_preserve_capture_limit_and_currency(clients, c
 
 
 @integration
+@pytest.mark.parametrize("currency", ["IRR", "USD"])
+async def test_compensation_returns_only_remaining_capture_and_replays_same_refund(
+    clients, currency, database
+):
+    payments, _, _ = clients
+    body = intent(currency, scenario="overpayment")
+    expect(
+        await payments.post(
+            ROOT, headers=await headers(clients, "payments.start", str(uuid4())), json=body
+        )
+    )
+    path = f"{ROOT}/{body['id']}"
+    verified = expect(
+        await payments.post(path + "/verify", headers=await headers(clients, "payments.verify"))
+    )
+    captured = verified["captured_minor"]
+    partial = str(uuid4())
+    expect(
+        await payments.post(
+            path + "/refunds",
+            headers=await headers(clients, "payments.refund", partial),
+            json={
+                "id": partial,
+                "currency": currency,
+                "amount_minor": 100,
+                "reason": "test.partial",
+            },
+        )
+    )
+    refund_id = str(uuid4())
+    request = {
+        "id": refund_id,
+        "order_id": body["order_id"],
+        "currency": currency,
+        "captured_minor": captured,
+        "reason": "payment.amount_mismatch",
+    }
+    expect(
+        await payments.post(
+            path + "/compensation",
+            headers=await headers(clients, "payments.read", refund_id),
+            json=request,
+        ),
+        403,
+        code="service.forbidden",
+    )
+    refund_auth = await headers(clients, "payments.refund", refund_id)
+    expect(
+        await payments.post(
+            path + "/compensation", headers=refund_auth, json={**request, "order_id": str(uuid4())}
+        ),
+        409,
+        code="refund.capture_mismatch",
+    )
+    replies = await asyncio.gather(
+        *(
+            payments.post(path + "/compensation", headers=refund_auth, json=request)
+            for _ in range(6)
+        )
+    )
+    receipt = expect(replies[0])
+    assert all(expect(reply) == receipt for reply in replies)
+    assert (receipt["id"], receipt["amount_minor"], receipt["currency"]) == (
+        refund_id,
+        captured - 100,
+        currency,
+    )
+    expect(
+        await payments.post(
+            path + "/compensation",
+            headers=refund_auth,
+            json={**request, "reason": "payment.duplicate_capture"},
+        ),
+        409,
+        code="refund.idempotency_conflict",
+    )
+    extra = str(uuid4())
+    expect(
+        await payments.post(
+            path + "/compensation",
+            headers=await headers(clients, "payments.refund", extra),
+            json={**request, "id": extra},
+        ),
+        409,
+        code="refund.already_refunded",
+    )
+    (event,) = await events(database, refund_id)
+    assert event.envelope["payload"]["amount_minor"] == captured - 100
+    assert not await events(database, extra)
+
+
+@integration
 async def test_reconciliation_resumes_only_previously_verified_attempts(clients, database):
     payments, _, _ = clients
     start = await headers(clients, "payments.start")

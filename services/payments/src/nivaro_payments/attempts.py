@@ -7,7 +7,13 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nivaro_payments.contracts import AttemptState, PaymentError, PaymentIntent, RefundIntent
+from nivaro_payments.contracts import (
+    AttemptState,
+    CompensationIntent,
+    PaymentError,
+    PaymentIntent,
+    RefundIntent,
+)
 from nivaro_payments.events import Outcome, outcome, refund_completed
 from nivaro_payments.models import Attempt, Refund
 from nivaro_payments.provider import Provider, ProviderAttempt
@@ -176,11 +182,11 @@ async def reconcile_one(db: AsyncSession, provider: Provider) -> bool:
 
 
 async def refund_replay(
-    db: AsyncSession, key: str, body: RefundIntent, payment_id: UUID, digest: str
+    db: AsyncSession, key: str, refund_id: UUID, payment_id: UUID, digest: str
 ) -> Refund | None:
     existing = (
         await db.scalars(
-            select(Refund).where(or_(Refund.id == body.id, Refund.idempotency_key == key))
+            select(Refund).where(or_(Refund.id == refund_id, Refund.idempotency_key == key))
         )
     ).all()
     if not existing:
@@ -188,7 +194,7 @@ async def refund_replay(
     if len(existing) == 1:
         row = existing[0]
         if (row.id, row.idempotency_key, row.payment_id, row.fingerprint) == (
-            body.id,
+            refund_id,
             key,
             payment_id,
             digest,
@@ -198,16 +204,20 @@ async def refund_replay(
 
 
 async def refund_payment(
-    db: AsyncSession, provider: Provider, payment_id: UUID, key: str, body: RefundIntent
+    db: AsyncSession,
+    provider: Provider,
+    payment_id: UUID,
+    key: str,
+    body: RefundIntent | CompensationIntent,
 ) -> Refund:
     digest = fingerprint(body.model_dump(mode="json"))
     async with db.begin():
         # Serializes all refund amount decisions for this captured payment.
         payment = await read_attempt(db, payment_id, lock=True)
-        existing = await refund_replay(db, key, body, payment_id, digest)
+        existing = await refund_replay(db, key, body.id, payment_id, digest)
         if existing is not None:
             return existing
-        if body.currency != payment.currency or (body.currency == "IRR" and body.amount_minor % 10):
+        if body.currency != payment.currency:
             raise PaymentError("refund.currency_or_amount")
         if payment.captured_minor is None:
             raise PaymentError("refund.not_captured")
@@ -216,22 +226,36 @@ async def refund_payment(
                 select(func.sum(Refund.amount_minor)).where(Refund.payment_id == payment_id)
             )
         ) or 0
-        if refunded + body.amount_minor > payment.captured_minor:
+        # PostgreSQL returns NUMERIC from SUM(bigint), even for integral minor units.
+        remaining = payment.captured_minor - int(refunded)
+        if isinstance(body, CompensationIntent):
+            if (body.order_id, body.captured_minor) != (payment.order_id, payment.captured_minor):
+                raise PaymentError("refund.capture_mismatch")
+            if remaining == 0:
+                raise PaymentError("refund.already_refunded")
+            request = RefundIntent(
+                id=body.id, currency=body.currency, amount_minor=remaining, reason=body.reason
+            )
+        else:
+            request = body
+        if request.currency == "IRR" and request.amount_minor % 10:
+            raise PaymentError("refund.currency_or_amount")
+        if request.amount_minor > remaining:
             raise PaymentError("refund.exceeds_capture")
         row: Refund | None = await db.scalar(
             insert(Refund)
             .values(
-                **body.model_dump(),
+                **request.model_dump(),
                 payment_id=payment_id,
                 idempotency_key=key,
                 fingerprint=digest,
-                provider_reference=provider.refund_payment(provider_attempt(payment), body),
+                provider_reference=provider.refund_payment(provider_attempt(payment), request),
             )
             .on_conflict_do_nothing()
             .returning(Refund)
         )
         if row is None:
-            existing = await refund_replay(db, key, body, payment_id, digest)
+            existing = await refund_replay(db, key, request.id, payment_id, digest)
             if existing is None:
                 raise PaymentError("refund.idempotency_conflict")
             return existing

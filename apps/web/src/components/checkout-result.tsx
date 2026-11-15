@@ -18,6 +18,8 @@ const headings: Record<OrderStatus['status'], [string, string]> = {
   payment_processing: ['پرداخت تأیید شد؛ موجودی در حال نهایی‌سازی است', 'Payment verified, confirming stock'],
   payment_review: ['پرداخت نیازمند بررسی است', 'Payment needs review'],
   paid: ['پرداخت و موجودی سفارش تأیید شد', 'Payment and stock confirmed'],
+  refund_pending: ['بازپرداخت در حال انجام است', 'Refund in progress'],
+  refunded: ['بازپرداخت تأیید شد', 'Refund confirmed'],
 };
 
 export function CheckoutResult({ locale, id }: { locale: Locale; id: string | null }) {
@@ -29,7 +31,7 @@ export function CheckoutResult({ locale, id }: { locale: Locale; id: string | nu
     queryFn: ({ signal }) => orderStatus(id!, signal),
     refetchInterval: ({ state }) => {
       const status = state.data?.status;
-      if (status === 'pending_reservation' || status === 'payment_processing') return 3_000;
+      if (status === 'pending_reservation' || status === 'payment_processing' || status === 'refund_pending') return 3_000;
       return status === 'awaiting_payment' || status === 'expired' ? 15_000 : false;
     },
   });

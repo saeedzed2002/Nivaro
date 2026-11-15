@@ -10,7 +10,9 @@ type Scenario = Literal[
 ]
 type AttemptState = Literal["pending", "ambiguous", "failed", "succeeded", "amount_mismatch"]
 Amount = Annotated[int, Field(strict=True, gt=0, le=9_000_000_000_000_000)]
+CapturedAmount = Annotated[int, Field(strict=True, gt=0, le=9_000_000_000_000_010)]
 OperationKey = Annotated[str, Field(pattern=r"^[A-Za-z0-9._-]{1,128}$")]
+RefundReason = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_.-]{0,79}$")]
 
 
 class PaymentError(Exception):
@@ -60,8 +62,16 @@ class AttemptView(Contract):
 class RefundIntent(Contract):
     id: UUID
     currency: Currency
-    amount_minor: Amount
-    reason: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_.-]{0,79}$")]
+    amount_minor: CapturedAmount
+    reason: RefundReason
+
+
+class CompensationIntent(Contract):
+    id: UUID
+    order_id: UUID
+    currency: Currency
+    captured_minor: CapturedAmount
+    reason: RefundReason
 
 
 class RefundView(Contract):

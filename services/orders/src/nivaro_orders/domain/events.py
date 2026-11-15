@@ -56,6 +56,7 @@ class PaymentOutcomePayload(PaymentPayload):
 
 class RefundPayload(PaymentPayload):
     refund_id: UUID
+    amount_minor: CapturedAmount
 
 
 class PaymentEnvelope(Contract):

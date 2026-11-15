@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nivaro_orders.application.payment_compensation import confirm_compensation
 from nivaro_orders.domain.events import (
     PAYMENT_RESULTS_QUEUE,
     PaymentOutcome,
@@ -118,6 +119,7 @@ async def apply_payment_result(db: AsyncSession, event: PaymentResult) -> None:
             raise PaymentResultRejected("payment.attempt_binding_conflict")
         if isinstance(event, PaymentRefund):
             await record_refund(db, event)
+            await confirm_compensation(db, order, attempt.id)
         else:
             record_outcome(attempt, event)
 

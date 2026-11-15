@@ -150,7 +150,9 @@
               "cancelled",
               "payment_processing",
               "payment_review",
-              "paid"
+              "paid",
+              "refund_pending",
+              "refunded"
             ],
             "title": "Status",
             "type": "string"

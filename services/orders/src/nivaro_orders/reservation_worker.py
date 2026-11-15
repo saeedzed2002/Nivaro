@@ -6,9 +6,11 @@ import logging
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
 
+from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.reservations import advance_reservation, expire_unpaid
 from nivaro_orders.infrastructure.database import Database
+from nivaro_orders.infrastructure.payment_compensations import PaymentCompensations
 from nivaro_orders.infrastructure.reservations import CatalogReservations
 from nivaro_orders.settings import Settings
 
@@ -26,17 +28,24 @@ async def run() -> None:
             timeout=httpx.Timeout(5, connect=2), trust_env=False, follow_redirects=False
         ) as http:
             catalog = CatalogReservations(http, settings, secret)
+            payments = PaymentCompensations(http, settings, secret)
             while True:
                 try:
                     async with database.sessions() as db:
                         for _ in range(10):
                             if not await prepare_payment(db):
                                 break
+                        for _ in range(10):
+                            if not await schedule_compensation(db):
+                                break
                         for _ in range(20):
                             if not await expire_unpaid(db):
                                 break
                     for _ in range(10):
                         if not await advance_payment_stock(database.sessions, catalog):
+                            break
+                    for _ in range(5):
+                        if not await advance_refund(database.sessions, payments):
                             break
                     for _ in range(10):
                         if not await advance_reservation(database.sessions, catalog):

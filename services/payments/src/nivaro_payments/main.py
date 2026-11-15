@@ -16,6 +16,7 @@ from nivaro_payments import attempts
 from nivaro_payments.authorization import OrdersAuthorization, require
 from nivaro_payments.contracts import (
     AttemptView,
+    CompensationIntent,
     OperationKey,
     PaymentError,
     PaymentIntent,
@@ -78,6 +79,17 @@ async def verify(attempt_id: UUID, db: DB, adapter: Adapter) -> AttemptView:
 )
 async def refund(
     attempt_id: UUID, body: RefundIntent, key: Key, db: DB, adapter: Adapter
+) -> RefundView:
+    return RefundView.model_validate(
+        await attempts.refund_payment(db, adapter, attempt_id, key, body)
+    )
+
+
+@router.post(
+    "/attempts/{attempt_id}/compensation", dependencies=[Depends(require("payments.refund"))]
+)
+async def compensate(
+    attempt_id: UUID, body: CompensationIntent, key: Key, db: DB, adapter: Adapter
 ) -> RefundView:
     return RefundView.model_validate(
         await attempts.refund_payment(db, adapter, attempt_id, key, body)

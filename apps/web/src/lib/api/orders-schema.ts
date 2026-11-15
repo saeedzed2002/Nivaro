@@ -106,7 +106,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid";
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
             totals: components["schemas"]["Totals"];
             /** Version */
             version: number;
