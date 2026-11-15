@@ -54,7 +54,7 @@ try {
     if ($WithEvents) {
         & "$PSScriptRoot/Initialize-MediaSecrets.ps1"
         $env:NIVARO_EVENT_CATALOG_IMAGE = $CatalogImage
-        $services += @('catalog-event-publisher', 'orders-expiry-consumer')
+        $services += @('catalog-event-publisher', 'catalog-delivery-consumer', 'orders-expiry-consumer')
     }
     if ($WithPaymentResults) { $services += @('payments', 'payments-event-publisher', 'orders-payment-consumer', 'orders-event-publisher', 'cart-paid-consumer') }
     docker compose @config up -d --no-build --pull never --wait --wait-timeout 60 @services
@@ -69,14 +69,15 @@ try {
     if ($WithEvents) {
         $integration += @('-e', 'ORDERS_EVENT_E2E=1',
             '-v', "${root}/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro",
-            '-v', "${root}/work/secrets/catalog_event_broker_password.txt:/run/secrets/catalog_event_broker_password:ro")
+            '-v', "${root}/work/secrets/catalog_event_broker_password.txt:/run/secrets/catalog_event_broker_password:ro",
+            '-v', "${root}/work/secrets/orders_publish_broker_password.txt:/run/secrets/orders_publish_broker_password:ro")
     }
     if ($WithCheckout) { $integration += @('-e', 'ORDERS_CHECKOUT_E2E=1') }
     if ($WithPaymentResults) { $integration += @('-e', 'ORDERS_PAYMENT_E2E=1') }
     docker run --rm --pull never --network "${project}_default" -e "ORDERS_DB_HOST=$project-postgres-1" -e ORDERS_DISPOSABLE_TESTS=1 -e PYTHONPATH=/app/src -v "${root}/work/secrets/orders_db_password.txt:/run/secrets/orders_db_password:ro" -v "${root}/contracts/openapi/orders.json:/contracts/orders.json:ro" @integration $TestImage sh -ec 'alembic upgrade head && alembic check && ruff check . && ruff format --check . && mypy src && pytest -q && python -m nivaro_orders.export_openapi /contracts/orders.json --check'
     if ($LASTEXITCODE -ne 0) { throw 'Orders foundation checks failed.' }
     if ($WithEvents) {
-        $expectedDeadLetters = @('orders.inventory.reservation.expired.v1')
+        $expectedDeadLetters = @('orders.inventory.reservation.expired.v1', 'catalog.order.delivered.v1')
         if ($WithPaymentResults) { $expectedDeadLetters += 'orders.payment.results.v1' }
         $deadLettered = $false
         foreach ($attempt in 1..10) {
@@ -112,7 +113,7 @@ try {
 } catch {
     if ($WithPaymentResults) { docker compose @config logs --no-color --tail 40 orders-payment-consumer payments-event-publisher payments orders-event-publisher cart-paid-consumer }
     if ($WithEvents) {
-        docker compose @config logs --no-color --tail 40 catalog-event-publisher orders-expiry-consumer rabbitmq
+        docker compose @config logs --no-color --tail 40 catalog-event-publisher catalog-delivery-consumer orders-expiry-consumer rabbitmq
     }
     if ($WithCheckout) { docker compose @config logs --no-color --tail 40 orders gateway cart identity }
     throw

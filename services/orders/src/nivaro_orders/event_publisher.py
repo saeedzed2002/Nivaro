@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 class Delivery:
     id: UUID
     lease_id: UUID
+    event_type: str
     envelope: dict[str, Any]
 
 
@@ -60,7 +61,7 @@ async def claim(db: AsyncSession) -> Delivery | None:
         lease = uuid4()
         row.attempts += 1
         row.lease_id, row.lease_until = lease, now + timedelta(seconds=30)
-        return Delivery(row.id, lease, row.envelope)
+        return Delivery(row.id, lease, row.event_type, row.envelope)
 
 
 async def finish(db: AsyncSession, delivery: Delivery, *, confirmed: bool) -> None:
@@ -97,7 +98,7 @@ async def publish_one(database: Database, exchange: AbstractExchange) -> bool:
                     content_type="application/json",
                     delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
                 ),
-                routing_key="order.paid",
+                routing_key=delivery.event_type,
                 mandatory=True,
             )
             confirmed = isinstance(result, Basic.Ack)

@@ -21,7 +21,7 @@ from nivaro_orders.infrastructure.http_json import UpstreamUnavailable
 from nivaro_orders.infrastructure.reservations import CatalogReservations
 from nivaro_orders.settings import Settings
 
-SCHEMA = "0010_order_fulfillment"
+SCHEMA = "0011_order_delivered"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

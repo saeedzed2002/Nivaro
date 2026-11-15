@@ -27,7 +27,10 @@ $paymentQueue = 'orders.payment.results.v1'
 $paymentErrorQueue = "$paymentQueue.error"
 $cartQueue = 'cart.order.paid.v1'
 $cartErrorQueue = "$cartQueue.error"
+$deliveryQueue = 'catalog.order.delivered.v1'
+$deliveryErrorQueue = "$deliveryQueue.error"
 $users += New-BrokerUser 'nivaro_catalog_events' 'catalog_event_broker_password.txt'
+$users += New-BrokerUser 'nivaro_catalog_deliveries' 'catalog_delivery_broker_password.txt'
 $users += New-BrokerUser 'nivaro_orders_events' 'orders_event_broker_password.txt'
 $users += New-BrokerUser 'nivaro_payments_events' 'payments_event_broker_password.txt'
 $users += New-BrokerUser 'nivaro_orders_publish' 'orders_publish_broker_password.txt'
@@ -35,6 +38,7 @@ $users += New-BrokerUser 'nivaro_cart_events' 'cart_event_broker_password.txt'
 $vhosts += @{ name=$eventHost }
 $permissions += @(
     @{ user='nivaro_catalog_events'; vhost=$eventHost; configure='^$'; write='^nivaro[.]events$'; read='^$' }
+    @{ user='nivaro_catalog_deliveries'; vhost=$eventHost; configure='^$'; write='^$'; read='^catalog[.]order[.]delivered[.]v1$' }
     @{ user='nivaro_orders_events'; vhost=$eventHost; configure='^$'; write='^$'; read='^orders[.](inventory[.]reservation[.]expired|payment[.]results)[.]v1$' }
     @{ user='nivaro_payments_events'; vhost=$eventHost; configure='^$'; write='^nivaro[.]events$'; read='^$' }
     @{ user='nivaro_orders_publish'; vhost=$eventHost; configure='^$'; write='^nivaro[.]events$'; read='^$' }
@@ -46,7 +50,7 @@ $definitions = @{
     topic_permissions=@(
         @{ user='nivaro_catalog_events'; vhost=$eventHost; exchange='nivaro.events'; write='^(inventory|catalog)[.]'; read='^$' }
         @{ user='nivaro_payments_events'; vhost=$eventHost; exchange='nivaro.events'; write='^payment[.](succeeded|failed|amount_mismatch|refund[.]completed)$'; read='^$' }
-        @{ user='nivaro_orders_publish'; vhost=$eventHost; exchange='nivaro.events'; write='^order[.]paid$'; read='^$' }
+        @{ user='nivaro_orders_publish'; vhost=$eventHost; exchange='nivaro.events'; write='^order[.](paid|delivered)$'; read='^$' }
     )
     exchanges=@(
         @{ name='nivaro.events'; vhost=$eventHost; type='topic'; durable=$true; auto_delete=$false; internal=$false; arguments=@{} }
@@ -59,6 +63,8 @@ $definitions = @{
         @{ name=$paymentErrorQueue; vhost=$eventHost; durable=$true; auto_delete=$false; arguments=@{'x-queue-type'='quorum'} }
         @{ name=$cartQueue; vhost=$eventHost; durable=$true; auto_delete=$false; arguments=@{'x-queue-type'='quorum'} }
         @{ name=$cartErrorQueue; vhost=$eventHost; durable=$true; auto_delete=$false; arguments=@{'x-queue-type'='quorum'} }
+        @{ name=$deliveryQueue; vhost=$eventHost; durable=$true; auto_delete=$false; arguments=@{'x-queue-type'='quorum'} }
+        @{ name=$deliveryErrorQueue; vhost=$eventHost; durable=$true; auto_delete=$false; arguments=@{'x-queue-type'='quorum'} }
     )
     bindings=@(
         @{ source='nivaro.events'; vhost=$eventHost; destination=$expiryQueue; destination_type='queue'; routing_key='inventory.reservation.expired'; arguments=@{} }
@@ -66,6 +72,8 @@ $definitions = @{
         @{ source='nivaro.events.errors'; vhost=$eventHost; destination=$paymentErrorQueue; destination_type='queue'; routing_key=$paymentErrorQueue; arguments=@{} }
         @{ source='nivaro.events'; vhost=$eventHost; destination=$cartQueue; destination_type='queue'; routing_key='order.paid'; arguments=@{} }
         @{ source='nivaro.events.errors'; vhost=$eventHost; destination=$cartErrorQueue; destination_type='queue'; routing_key=$cartErrorQueue; arguments=@{} }
+        @{ source='nivaro.events'; vhost=$eventHost; destination=$deliveryQueue; destination_type='queue'; routing_key='order.delivered'; arguments=@{} }
+        @{ source='nivaro.events.errors'; vhost=$eventHost; destination=$deliveryErrorQueue; destination_type='queue'; routing_key=$deliveryErrorQueue; arguments=@{} }
         foreach ($route in $paymentRoutes) {
             @{ source='nivaro.events'; vhost=$eventHost; destination=$paymentQueue; destination_type='queue'; routing_key=$route; arguments=@{} }
         }
@@ -77,6 +85,8 @@ $definitions = @{
            definition=@{'delivery-limit'=5; 'dead-letter-exchange'='nivaro.events.errors'; 'dead-letter-routing-key'=$paymentErrorQueue; 'dead-letter-strategy'='at-least-once'; overflow='reject-publish'} }
         @{ name='cart-paid-delivery'; vhost=$eventHost; pattern='^cart[.]order[.]paid[.]v1$'; 'apply-to'='quorum_queues'; priority=0
            definition=@{'delivery-limit'=5; 'dead-letter-exchange'='nivaro.events.errors'; 'dead-letter-routing-key'=$cartErrorQueue; 'dead-letter-strategy'='at-least-once'; overflow='reject-publish'} }
+        @{ name='catalog-order-delivery'; vhost=$eventHost; pattern='^catalog[.]order[.]delivered[.]v1$'; 'apply-to'='quorum_queues'; priority=0
+           definition=@{'delivery-limit'=5; 'dead-letter-exchange'='nivaro.events.errors'; 'dead-letter-routing-key'=$deliveryErrorQueue; 'dead-letter-strategy'='at-least-once'; overflow='reject-publish'} }
     )
 } | ConvertTo-Json -Depth 8
 [IO.File]::WriteAllText((Join-Path $directory 'media_broker_definitions.json'), $definitions)

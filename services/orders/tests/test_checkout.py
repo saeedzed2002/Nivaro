@@ -387,7 +387,12 @@ async def test_staff_fulfillment_requires_commit_order_and_preserves_audited_rep
     assert (await change(ship)).status == "shipped"
     with pytest.raises(CheckoutError, match="orders.version_conflict"):
         await change(ship.model_copy(update={"tracking_reference": "CHANGED"}))
-    delivered = await change(Deliver(action="deliver", expected_version=paid_version + 2))
+    async with database.sessions() as db:
+        assert not await db.scalar(select(OutboxEvent).where(OutboxEvent.order_id == order.id))
+    delivery = Deliver(action="deliver", expected_version=paid_version + 2)
+    deliveries = await asyncio.gather(*(change(delivery) for _ in range(5)))
+    delivered = deliveries[0]
+    assert all(view.version == delivered.version for view in deliveries)
     assert delivered.tracking_reference == "TEST-482" and delivered.allowed_actions == []
     assert (await change(ship)).status == "delivered"
     assert [(row.status, row.staff_actor_id) for row in delivered.timeline[-3:]] == [
@@ -399,6 +404,16 @@ async def test_staff_fulfillment_requires_commit_order_and_preserves_audited_rep
         details = await read_details(db, order.customer_id, order.id)
         assert details.tracking_reference == delivered.tracking_reference
         assert details.timeline[-1].status == "delivered"
+        event = await db.scalar(select(OutboxEvent).where(OutboxEvent.order_id == order.id))
+        assert event.event_type == "order.delivered"
+        assert event.envelope["aggregate_version"] == delivered.version
+        expected_products = await db.scalars(
+            select(OrderItem.product_id).where(OrderItem.order_id == order.id).distinct()
+        )
+        assert event.envelope["payload"] == {
+            "customer_id": str(order.customer_id),
+            "product_ids": sorted(str(product) for product in expected_products),
+        }
 
 
 async def test_shipping_policy_is_bound_to_confirmation_and_order_snapshot(database):
@@ -862,6 +877,31 @@ async def verify_broker_expiry(database, client, current):
                 await exchange.publish(
                     aio_pika.Message(b"{}"), "inventory.no-binding", mandatory=True
                 )
+
+
+@pytest.mark.skipif(os.getenv("ORDERS_EVENT_E2E") != "1", reason="Dedicated event broker required")
+async def test_invalid_delivery_is_routed_to_catalog_error_queue():
+    settings = Settings()
+    secret = settings.event_publish_password_file.read_text().strip()
+    async with await aio_pika.connect(
+        host=settings.event_broker_host,
+        login="nivaro_orders_publish",
+        password=secret,
+        virtualhost="commerce-events",
+        timeout=5,
+    ) as broker:
+        async with broker.channel(publisher_confirms=True, on_return_raises=True) as channel:
+            exchange = await channel.get_exchange("nivaro.events", ensure=False)
+            await exchange.publish(
+                aio_pika.Message(
+                    b"{}",
+                    content_type="application/json",
+                    message_id=str(uuid4()),
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                ),
+                "order.delivered",
+                mandatory=True,
+            )
 
 
 async def test_replayed_expiry_records_one_inbox_effect(database):

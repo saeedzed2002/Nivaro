@@ -405,6 +405,11 @@ class OrderPaymentInitiation(Base):
 class OutboxEvent(Base):
     __tablename__ = "event_outbox"
     __table_args__ = (
+        UniqueConstraint("order_id", "event_type", name="uq_orders_outbox_order_event"),
+        CheckConstraint(
+            "event_type IN ('order.paid','order.delivered') AND (envelope->>'event_type') IS NOT DISTINCT FROM event_type",
+            name="orders_outbox_event_type",
+        ),
         CheckConstraint(
             "attempts >= 0 AND (lease_id IS NULL) = (lease_until IS NULL) AND (published_at IS NULL OR failed_at IS NULL)",
             name="orders_outbox_delivery",
@@ -417,9 +422,8 @@ class OutboxEvent(Base):
         ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    order_id: Mapped[UUID] = mapped_column(
-        ForeignKey("orders.id", ondelete="RESTRICT"), unique=True
-    )
+    order_id: Mapped[UUID] = mapped_column(ForeignKey("orders.id", ondelete="RESTRICT"))
+    event_type: Mapped[str] = mapped_column(String(32))
     available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     envelope: Mapped[dict[str, Any]] = mapped_column(JSONB)
     attempts: Mapped[int] = mapped_column(Integer, server_default="0")

@@ -17,6 +17,7 @@ async def record_paid_event(db: AsyncSession, order: Order) -> None:
         OutboxEvent(
             id=event_id,
             order_id=order.id,
+            event_type="order.paid",
             available_at=now,
             envelope={
                 "event_id": str(event_id),

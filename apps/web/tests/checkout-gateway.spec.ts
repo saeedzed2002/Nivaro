@@ -5,6 +5,20 @@ import { randomBytes } from 'node:crypto';
 const project = process.env.NIVARO_CHECKOUT_QA_PROJECT ?? '';
 test.skip(!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project), 'Requires the disposable Orders stack and its synthetic delivery policy');
 
+function purchaseEntitlements(orderId: string, customerId: string) {
+  if (!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project)) throw new Error('Disposable Orders stack required');
+  const query = spawnSync('docker', [
+    'exec', '-i', `${project}-postgres-1`, 'psql', '-U', 'postgres', '-d', 'nivaro_catalog',
+    '-At', '-v', 'ON_ERROR_STOP=1', '-v', `order_id=${orderId}`, '-v', `customer_id=${customerId}`,
+  ], { encoding: 'utf8', timeout: 10_000, input: `
+    SELECT (SELECT count(*) FROM purchase_entitlements e JOIN products p ON p.id = e.product_id
+            WHERE e.customer_id = :'customer_id'::uuid AND p.slug = 'amd-ryzen-7-9800x3d'),
+           (SELECT count(*) FROM delivered_order_inbox WHERE order_id = :'order_id'::uuid);
+  ` });
+  expect(query.status, 'Read entitlement from the disposable catalog').toBe(0);
+  return query.stdout.trim();
+}
+
 test('checkout reviews the owned cart, rejects a stale address and recovers an interrupted confirmation', async ({ page, baseURL }) => {
   test.setTimeout(120_000);
   const origin = new URL(baseURL!).origin;
@@ -199,9 +213,11 @@ asyncio.run(manage('bootstrap-admin'))
       await expect(tracking).toHaveValue('A2-5105');
       await fulfillment.getByRole('button', { name: 'Record shipment' }).click();
       await expect(audit.getByText('Shipped', { exact: true })).toHaveCount(1);
+      expect(purchaseEntitlements(submittedId, session.profile.id)).toBe('0|0');
       await fulfillment.getByRole('button', { name: 'Record delivery' }).click();
       await expect(audit.getByText('Delivered', { exact: true })).toBeVisible();
       await expect(audit.getByText(/Staff ID/)).toHaveCount(3);
+      await expect.poll(() => purchaseEntitlements(submittedId, session.profile.id), { timeout: 15_000 }).toBe('1|1');
       await staff.goto(`/fa/admin/orders/${submittedId}`);
       await staff.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
       await staff.setViewportSize({ width: 360, height: 800 });

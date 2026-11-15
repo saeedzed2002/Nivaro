@@ -153,3 +153,9 @@ The gateway blocks `/internal/*`. Call catalog directly with an Identity-issued 
 | `POST /reservations/{operation_id}/release?customer_id=…` | `catalog.finalize` | End a live hold. Replays return the terminal state. Releasing a committed hold returns a conflict. |
 
 The checkout operation ID is the reservation ID. The hold lasts 15 minutes and stores one allocation per physical SKU, independent of the quote's group and line identities. PostgreSQL evaluates stock and deadlines under locks. The Compose service `catalog-reservation-expiry` runs the bounded expiration scan and uses the catalog database role. The same expiry transition runs on lookup or finalization. A stocked prebuilt allocates its finished SKU only. Payment-related extensions and late-payment reallocation are assigned to P07.
+
+## Verified purchase evidence — P08
+
+`catalog-delivery-consumer` reads `catalog.order.delivered.v1` using a read-only broker account for that queue. It commits the delivered-order inbox record and buyer/product entitlements together before acknowledging the message. An entitlement retains the earliest recorded delivery when purchases arrive out of order. The event contract is `contracts/events/order.delivered.v1.json`.
+
+Inspect `catalog.order.delivered.v1.error` and the consumer logs for rejected messages. Check the broker message ID, routing key and canonical Orders outbox record before replaying. After fixing a transient fault, an Orders database operator can lock the specific idle `order.delivered` outbox row by its ID, confirm the underlying delivered transition, and reset `attempts`, `published_at`, `failed_at`, `last_error` and `available_at` to zero, null, null, null and the current time, respectively. The regular publisher resends the stored envelope with its original ID. Confirm inbox acceptance before handling additional messages. A conflicting or malformed envelope requires investigation before replay.

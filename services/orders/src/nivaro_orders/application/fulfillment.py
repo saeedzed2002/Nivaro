@@ -5,6 +5,7 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nivaro_orders.application.delivered_events import record_delivered_event
 from nivaro_orders.application.order_history import OrderSnapshot, StateChange, read_snapshot
 from nivaro_orders.application.reservations import record_order_transition
 from nivaro_orders.domain.checkout import CheckoutError, Contract, OrderState, Version
@@ -111,5 +112,7 @@ async def change_fulfillment(
         if isinstance(command, Ship):
             order.tracking_reference = command.tracking_reference
         record_order_transition(db, order, target, reason, staff_actor_id=actor_id)
+        if isinstance(command, Deliver):
+            await record_delivered_event(db, order)
         await db.flush()
         return await fulfillment_view(db, order)

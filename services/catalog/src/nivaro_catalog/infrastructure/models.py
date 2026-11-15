@@ -70,6 +70,22 @@ class ProductRow(Timestamps, Base):
     variants: Mapped[list["VariantRow"]] = relationship(lazy="raise")
 
 
+class DeliveredOrderRow(Base):
+    __tablename__ = "delivered_order_inbox"
+
+    event_id: Mapped[UUID] = mapped_column(primary_key=True)
+    order_id: Mapped[UUID] = mapped_column(unique=True)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+
+
+class PurchaseEntitlementRow(Base):
+    __tablename__ = "purchase_entitlements"
+
+    customer_id: Mapped[UUID] = mapped_column(primary_key=True)
+    product_id: Mapped[UUID] = mapped_column(primary_key=True)
+    first_delivered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class VariantRow(Timestamps, Base):
     __tablename__ = "variants"
     __table_args__ = (
