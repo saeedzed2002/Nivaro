@@ -121,8 +121,11 @@ class Tokens:
             headers={"kid": self.kid},
         )
 
-    def issue_service(self, client_id: str, audience: str, scope: str) -> str:
+    def issue_service(
+        self, client_id: str, audience: str, scope: str, *, customer_id: UUID | None = None
+    ) -> str:
         issued_at = int(datetime.now(UTC).timestamp())
+        actor = {"customer_id": str(customer_id)} if customer_id is not None else {}
         return jwt.encode(
             {
                 "iss": self.settings.jwt_issuer,
@@ -133,11 +136,50 @@ class Tokens:
                 "iat": issued_at,
                 "exp": issued_at + 30,
                 "jti": str(uuid4()),
+                **actor,
             },
             self.private_key,
             algorithm="RS256",
             headers={"kid": self.kid},
         )
+
+    def address_snapshot_customer(self, token: str) -> UUID:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+        if header.get("alg") != "RS256" or not isinstance(kid, str) or kid not in self.keys:
+            raise jwt.InvalidTokenError("Unrecognized service signing key")
+        claims = jwt.decode(
+            token,
+            self.keys[kid],
+            algorithms=["RS256"],
+            issuer=self.settings.jwt_issuer,
+            audience="nivaro-identity",
+            subject="orders",
+            options={
+                "require": [
+                    "iss",
+                    "aud",
+                    "sub",
+                    "kind",
+                    "scope",
+                    "iat",
+                    "exp",
+                    "jti",
+                    "customer_id",
+                ],
+                "strict_aud": True,
+            },
+        )
+        if (
+            claims["kind"] != "service"
+            or claims["scope"] != "identity.address_snapshot"
+            or type(claims["iat"]) is not int
+            or type(claims["exp"]) is not int
+            or not 0 < claims["exp"] - claims["iat"] <= 30
+            or not isinstance(claims["customer_id"], str)
+        ):
+            raise jwt.InvalidTokenError("Invalid address snapshot grant")
+        return UUID(claims["customer_id"])
 
     def verify(self, token: str, kind: SessionKind) -> Claims:
         header = jwt.get_unverified_header(token)

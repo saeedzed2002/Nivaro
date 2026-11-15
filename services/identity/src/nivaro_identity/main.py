@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Annotated, cast
 from uuid import UUID, uuid4
 
+import jwt
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -604,6 +605,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await db.delete(address)
         await db.commit()
         return Response(status_code=204)
+
+    @app.get("/internal/v1/orders/addresses/{address_id}", include_in_schema=False)
+    async def checkout_address(
+        address_id: UUID, version: Annotated[int, Query(ge=1)], request: Request, db: DB
+    ) -> AddressResponse:
+        scheme, _, token = request.headers.get("authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not token or len(token) > 8192:
+            raise IdentityError("service.unauthorized", 401)
+        tokens: Tokens = request.app.state.sessions.tokens
+        try:
+            customer_id = tokens.address_snapshot_customer(token)
+        except (jwt.InvalidTokenError, ValueError) as exc:
+            raise IdentityError("service.unauthorized", 401) from exc
+        address = await db.scalar(
+            select(Address).where(Address.id == address_id, Address.user_id == customer_id)
+        )
+        if address is None:
+            raise IdentityError("address.not_found", 404)
+        if address.version != version:
+            raise IdentityError("address.changed", 409)
+        return AddressResponse.model_validate(address)
 
     @app.post("/internal/v1/catalog/admin-check", include_in_schema=False)
     async def catalog_admin_check(body: CatalogCheck, request: Request, db: DB) -> CatalogPrincipal:

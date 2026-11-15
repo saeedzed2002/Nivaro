@@ -512,6 +512,129 @@ async def test_address_ownership_validation_and_stale_edits(api):
     ).status_code == 404
 
 
+async def test_checkout_snapshots_require_customer_delegation_and_exact_versions(api):
+    from uuid import UUID, uuid4
+
+    from nivaro_cart.api.authorization import IdentityAuthorization
+    from nivaro_cart.infrastructure.database import Database as CartDatabase
+    from nivaro_cart.infrastructure.models import Cart, CartGroup, CartLine, Owner
+    from nivaro_cart.main import create_app as create_cart
+    from nivaro_cart.settings import Settings as CartSettings
+    from nivaro_catalog.domain.checkout import CartSnapshot
+
+    client, identity, _ = api
+    first = await login(client)
+    first_access = client.cookies["nivaro_customer_access"]
+    address = await client.post(
+        "/api/v1/me/addresses",
+        json={
+            "label": "Home",
+            "recipient": "Test",
+            "country": "IR",
+            "city": "Tehran",
+            "postal_code": "1234567890",
+            "street": "Synthetic address",
+            "phone": PHONE,
+        },
+        headers={"X-CSRF-Token": first["csrf_token"]},
+    )
+    assert address.status_code == 201
+    address_route = f"/internal/v1/orders/addresses/{address.json()['id']}"
+    cart_route = "/internal/v1/orders/carts/ir"
+    service_route = "/internal/v1/service-tokens"
+    credentials = ("orders", identity.state.orders_client_secret)
+
+    async def grant(audience, scope, access):
+        reply = await client.post(
+            service_route,
+            auth=credentials,
+            json={"audience": audience, "scope": scope, "customer_access": access},
+        )
+        assert reply.status_code == 200, reply.text
+        return {"Authorization": "Bearer " + reply.json()["access_token"]}
+
+    cart_header = await grant("nivaro-cart", "cart.checkout_snapshot", first_access)
+    address_header = await grant("nivaro-identity", "identity.address_snapshot", first_access)
+    assert (
+        await client.get(address_route, params={"version": 1}, headers=cart_header)
+    ).status_code == 401
+    assert (
+        await client.get(address_route, params={"version": 2}, headers=address_header)
+    ).status_code == 409
+    owned = await client.get(address_route, params={"version": 1}, headers=address_header)
+    assert owned.json() == address.json()
+
+    cart_settings = CartSettings()
+    database = CartDatabase(cart_settings)
+    async with database.sessions() as db, db.begin():
+        owner_id, cart_id, group_id, line_id, source_id = (uuid4() for _ in range(5))
+        db.add(Owner(id=owner_id, customer_id=UUID(first["profile"]["id"])))
+        await db.flush()
+        db.add(Cart(id=cart_id, owner_id=owner_id, market="ir", currency="IRR", version=3))
+        await db.flush()
+        db.add(
+            CartGroup(
+                id=group_id,
+                cart_id=cart_id,
+                name="Synthetic PC",
+                mode="parts_only",
+                version=2,
+                source_build_id=source_id,
+                source_build_version=5,
+            )
+        )
+        await db.flush()
+        db.add(
+            CartLine(
+                id=line_id,
+                cart_id=cart_id,
+                group_id=group_id,
+                slot_key="cpu",
+                variant_id=uuid4(),
+                quantity=1,
+                version=2,
+            )
+        )
+
+    cart = create_cart(cart_settings)
+    cart.state.database = database
+    cart.state.authorization = IdentityAuthorization(cart_settings, client)
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=cart),
+            base_url="http://cart.test",
+        ) as cart_api:
+            wrong_scope = await cart_api.get(
+                cart_route, params={"version": 3}, headers=address_header
+            )
+            assert wrong_scope.status_code == 401
+            stale = await cart_api.get(cart_route, params={"version": 2}, headers=cart_header)
+            assert stale.status_code == 409 and stale.json()["error"]["current_version"] == 3
+            current = await cart_api.get(cart_route, params={"version": 3}, headers=cart_header)
+            snapshot = CartSnapshot.model_validate(current.json())
+            assert snapshot.lines[0].id == line_id and snapshot.lines[0].version == 2
+            assert (
+                snapshot.groups[0].id == group_id
+                and snapshot.groups[0].source_build_id == source_id
+            )
+
+            await login(client, SECOND)
+            second_access = client.cookies["nivaro_customer_access"]
+            cart_as_other = await grant("nivaro-cart", "cart.checkout_snapshot", second_access)
+            address_as_other = await grant(
+                "nivaro-identity", "identity.address_snapshot", second_access
+            )
+            assert (
+                await cart_api.get(cart_route, params={"version": 3}, headers=cart_as_other)
+            ).status_code == 404
+            assert (
+                await client.get(address_route, params={"version": 1}, headers=address_as_other)
+            ).status_code == 404
+            assert cart_route.replace("/ir", "/{market}") not in cart.openapi()["paths"]
+    finally:
+        await database.engine.dispose()
+
+
 async def test_disabled_account_fails_closed(api):
     client, _, db = api
     state = await login(client)
