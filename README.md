@@ -35,7 +35,9 @@ backend images. The launcher includes Orders and the reservation event workers.
 ```
 
 The watcher writes `work/local-dev-watch.log`. Source-only frontend updates
-reuse the running image. Package manifest and lockfile edits rebuild the web
+reuse the running image. Webpack polls files inside the container so edits
+synchronized by Compose reach the open browser tab through Fast Refresh.
+Package manifest and lockfile edits rebuild the web
 image through [Compose Watch](https://docs.docker.com/compose/how-tos/file-watch/).
 Stop and disable the Windows task before switching the same local project back
 to the release configuration.

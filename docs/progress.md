@@ -659,3 +659,8 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - Generated and inspected distinct customer and staff references before implementation. Compared the rendered Persian dark customer and English light staff pages at desktop size, and verified the Persian customer layout at 390 pixels without horizontal overflow. Reused existing storefront and administration navigation and themed the text composer.
 - Two independent browser contexts traversed Caddy to distinct support replicas in disposable Docker. The test covered guest access, creating and claiming, keyboard send, two-way replies, plain-text rendering, disconnecting after a sent message's confirmation was withheld, reconnecting with history recovery and no duplicate messages, and staff closure. The latest browser run and TypeScript, ESLint, OpenAPI drift checks and the Docker release build passed.
 - P09 remains open for read cursors, typing and presence, retention execution and the final GitHub Actions run.
+
+### Local Docker preview refresh
+
+- A source hash comparison showed Compose had synchronized the current account component while Turbopack still rendered an earlier copy. Restarting on each sync briefly returned HTTP 502 to an open browser. Development Compose now uses Webpack with polling inside the container.
+- Verified the existing browser document reflected both a reversible source edit and its restoration through the Windows task's Compose Watch session. The customer and staff support routes both returned HTTP 200 through the local gateway.

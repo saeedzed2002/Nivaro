@@ -2,7 +2,6 @@
 services:
   web:
     image: nivaro-web:local-development
-    command: [node, node_modules/next/dist/bin/next, dev, --hostname, 0.0.0.0]
   catalog:
     environment:
       PYTHONPATH: /workspace/src

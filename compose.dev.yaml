@@ -3,6 +3,10 @@ services:
     image: nivaro-web:development
     build:
       target: development
+    command: [node, node_modules/next/dist/bin/next, dev, --webpack, --hostname, 0.0.0.0]
+    environment:
+      # Poll inside the container so refresh does not depend on events from a Compose sync.
+      WATCHPACK_POLLING: '750'
     develop:
       watch:
         - action: sync
