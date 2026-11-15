@@ -89,7 +89,6 @@ async def handle_frame(
             "typing" if frame.type == "typing.changed" else "presence",
             frame.payload.active,
         )
-        stream.wake.set()
         return None
     if isinstance(frame, MessageSend):
         async with db.sessions() as session:

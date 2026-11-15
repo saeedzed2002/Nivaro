@@ -22,6 +22,8 @@ services:
     build:
       context: ./services/support
       target: release
+    environment:
+      SUPPORT_RETENTION_DAYS: ${SUPPORT_RETENTION_DAYS:-180}
     secrets: [support_db_password]
     command: [alembic, upgrade, head]
     depends_on:

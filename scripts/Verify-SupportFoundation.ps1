@@ -58,6 +58,7 @@ asyncio.run(seed())
     docker run --rm --pull never --network "${project}_default" -e "SUPPORT_DB_HOST=$project-postgres-1" `
         -e SUPPORT_DISPOSABLE_TESTS=1 -e "SUPPORT_TEST_PASSWORD=$testPassword" -e NIVARO_QA_SUPPORT_REDIS_PASSWORD -e PYTHONPATH=/app/src `
         -v "${root}/work/secrets/support_db_password.txt:/run/secrets/support_db_password:ro" `
+        -v "${root}/work/secrets/identity_db_password.txt:/run/secrets/identity_db_password:ro" `
         -v "${root}/contracts/openapi/support.json:/contracts/support.json:ro" `
         -v "${root}/contracts/websocket:/contracts/websocket:ro" `
         $TestImage sh -ec 'alembic upgrade head && alembic check && ruff check . && ruff format --check . && mypy src && pytest -q && python -m nivaro_support.export_openapi /contracts/support.json --check && python -m nivaro_support.socket_contracts /contracts/websocket --check'

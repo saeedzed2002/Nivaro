@@ -1,10 +1,12 @@
 import asyncio
 import json
 import os
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from psycopg import AsyncConnection
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from websockets.asyncio.client import connect
@@ -492,7 +494,36 @@ async def test_private_history_assignment_and_idempotent_delivery():
             assert (
                 await support.post(history, headers=owner_headers, json=first_message)
             ).json() == stored
-            async with open_socket(owner_headers) as customer, open_socket(owner_headers) as idle:
+            async with (
+                open_socket(owner_headers) as customer,
+                open_socket(owner_headers) as idle,
+                open_socket(other_headers) as expired,
+            ):
+                password = Path("/run/secrets/identity_db_password").read_text().strip()
+                async with await AsyncConnection.connect(
+                    host=settings.db_host,
+                    dbname="nivaro_identity",
+                    user="nivaro_identity",
+                    password=password,
+                    connect_timeout=5,
+                ) as identity_db:
+                    cursor = await identity_db.execute(
+                        """
+                        UPDATE sessions
+                        SET created_at = clock_timestamp() - interval '2 days',
+                            expires_at = clock_timestamp() - interval '1 day'
+                        WHERE user_id = %s AND kind = 'customer'
+                        """,
+                        (other["profile"]["id"],),
+                    )
+                    assert cursor.rowcount == 1
+                expired_result = await exchange(expired, subscription)
+                assert expired_result["payload"] == {"code": "auth.required"}
+                with pytest.raises(ConnectionClosedError) as expired_closed:
+                    await asyncio.wait_for(expired.recv(), timeout=8)
+                assert (
+                    expired_closed.value.rcvd is not None and expired_closed.value.rcvd.code == 4401
+                )
                 logged_out = await identity.post(
                     "/api/v1/auth/logout", headers=owner_headers, json={"all_devices": False}
                 )

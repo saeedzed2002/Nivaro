@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     redis_host: str = "redis-support"
     redis_password_file: Path = Path("/run/secrets/redis_support_password")
     allowed_origins: list[str] = ["http://127.0.0.1:8080", "http://localhost:8080"]
+    retention_days: int = Field(default=180, ge=1, le=3650)
 
     def database_url(self) -> URL:
         password = self.db_password_file.read_text(encoding="utf-8").strip()

@@ -680,3 +680,10 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - A browser test pinned the customer and agent to different replicas. It verified presence both ways, typing expiry with the draft still in the input, presence expiry during interrupted transport, renewed presence on reconnect, and recovery of history and read receipts.
 - Local Docker runs the updated Support source with its Redis account restricted to the activity namespace and notification channel. Both chat routes returned HTTP 200. PostgreSQL, RabbitMQ, Identity, Redis state and web retained their containers.
 - Retention execution and final GitHub Actions verification remain open.
+
+### P09 retention and completion checks
+
+- Support retention defaults to 180 days after closure. Each application batch locks eligible conversations, skips rows locked by concurrent work, and removes their dependent message, cursor, assignment and outbox rows transactionally. Recent closed, open and waiting conversations are preserved. The operator command defaults to a read-only preview and no web process schedules deletions.
+- The disposable Docker checks exercised preview, batch limits, lock skipping, dependent-row deletion and idempotent repeats. A socket using an expired authoritative Identity session closed with `4401`. An ASGI send that stalled past its deadline closed with `1013` to permit resynchronization.
+- The local Docker upgrade applied only the retention index and ran the read-only preview. All existing chat row counts and dependent containers were preserved. Both customer and staff routes returned HTTP 200.
+- P09 implementation is ready for phase-level GitHub Actions verification.

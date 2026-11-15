@@ -43,7 +43,7 @@ from nivaro_support.live import NotificationBus, publish_outbox
 from nivaro_support.settings import Database, Settings
 from nivaro_support.socket import router as socket_router
 
-SCHEMA = "0002_support_read_cursors"
+SCHEMA = "0003_support_retention"
 
 
 @asynccontextmanager

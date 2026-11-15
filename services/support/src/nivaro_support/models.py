@@ -36,6 +36,12 @@ class ConversationRow(Base):
         Index("ix_support_customer_queue", "customer_id", "created_at", "id"),
         Index("ix_support_agent_queue", "assigned_agent_id", "created_at", "id"),
         Index("ix_support_queue", "created_at", "id"),
+        Index(
+            "ix_support_retention",
+            "closed_at",
+            "id",
+            postgresql_where=text("status = 'closed'"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
