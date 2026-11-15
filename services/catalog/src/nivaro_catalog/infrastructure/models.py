@@ -86,6 +86,52 @@ class PurchaseEntitlementRow(Base):
     first_delivered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class ReviewRow(Timestamps, Base):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("product_id", "customer_id", name="uq_product_customer_review"),
+        CheckConstraint("rating BETWEEN 1 AND 5", name="review_rating_range"),
+        CheckConstraint("char_length(body) BETWEEN 1 AND 2000", name="review_body_length"),
+        CheckConstraint("status IN ('pending','approved','rejected')", name="review_status"),
+        CheckConstraint("version > 0", name="review_version"),
+        Index(
+            "ix_reviews_public",
+            "product_id",
+            "created_at",
+            "id",
+            postgresql_where=text("status = 'approved'"),
+        ),
+        Index("ix_reviews_moderation", "status", "created_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"))
+    customer_id: Mapped[UUID] = mapped_column()
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), server_default="pending")
+    version: Mapped[int] = mapped_column(Integer, server_default="1")
+
+
+class ReviewDecisionRow(Base):
+    __tablename__ = "review_decisions"
+    __table_args__ = (
+        CheckConstraint("status IN ('approved','rejected')", name="review_decision_status"),
+        CheckConstraint("char_length(reason) BETWEEN 1 AND 400", name="review_decision_reason"),
+    )
+
+    review_id: Mapped[UUID] = mapped_column(
+        ForeignKey("reviews.id", ondelete="RESTRICT"), primary_key=True
+    )
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_id: Mapped[UUID] = mapped_column()
+    status: Mapped[str] = mapped_column(String(10))
+    reason: Mapped[str] = mapped_column(String(400))
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class VariantRow(Timestamps, Base):
     __tablename__ = "variants"
     __table_args__ = (

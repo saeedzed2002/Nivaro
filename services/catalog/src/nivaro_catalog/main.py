@@ -21,6 +21,8 @@ from nivaro_catalog.api.categories import router as categories_router
 from nivaro_catalog.api.checkout import router as checkout_router
 from nivaro_catalog.api.limits import BoundedBody
 from nivaro_catalog.api.media import router as media_router
+from nivaro_catalog.api.reviews import router as reviews_router
+from nivaro_catalog.api.reviews import staff as moderation_router
 from nivaro_catalog.api.schemas import (
     Comparison,
     ComparisonRequest,
@@ -146,6 +148,8 @@ async def authorization_error(request: Request, exc: AuthorizationError) -> JSON
         "Service authorization could not be established"
         if request.url.path.startswith("/internal/")
         else "Administrator authorization could not be established"
+        if request.url.path.startswith("/api/v1/admin/")
+        else "Customer authorization could not be established"
     )
     return error(request, exc.status, exc.code, message)
 
@@ -191,7 +195,7 @@ async def live() -> dict[str, str]:
 @app.get("/health/ready", include_in_schema=False)
 async def ready(db: SessionDep) -> dict[str, str]:
     revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-    if revision != "0010_purchase_entitlements":
+    if revision != "0011_product_reviews":
         raise HTTPException(503, "Catalog schema revision is not ready")
     return {"status": "ok", "service": "catalog", "schema": revision}
 
@@ -295,4 +299,6 @@ app.include_router(admin_router)
 app.include_router(categories_router)
 app.include_router(media_router)
 app.include_router(checkout_router)
+app.include_router(reviews_router)
+app.include_router(moderation_router)
 app.add_middleware(BoundedBody)

@@ -12,6 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from nivaro_identity.domain.errors import IdentityError
 
+CATALOG_CUSTOMER_CHECK_PATH = "/internal/v1/catalog/customer-check"
+CATALOG_MODERATOR_CHECK_PATH = "/internal/v1/catalog/moderator-check"
+
 
 class CatalogCheck(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -44,8 +47,20 @@ class CartPrincipal(BaseModel):
     permissions: list[str] = Field(default_factory=list)
 
 
+class CatalogCustomerPrincipal(BaseModel):
+    user_id: UUID
+
+
 def authenticate_catalog(authorization: str, body: CatalogCheck, key: str | None) -> None:
     _authenticate_service(authorization, body, key, "catalog", "catalog.admin_introspect")
+
+
+def authenticate_catalog_customer(authorization: str, body: CatalogCheck, key: str | None) -> None:
+    _authenticate_service(authorization, body, key, "catalog", "catalog.customer_introspect")
+
+
+def authenticate_catalog_moderator(authorization: str, body: CatalogCheck, key: str | None) -> None:
+    _authenticate_service(authorization, body, key, "catalog", "catalog.moderator_introspect")
 
 
 def authenticate_cart(authorization: str, body: CartCheck, key: str | None) -> None:

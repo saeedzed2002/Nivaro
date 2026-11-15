@@ -22,12 +22,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from nivaro_identity.api.internal import (
+    CATALOG_CUSTOMER_CHECK_PATH,
+    CATALOG_MODERATOR_CHECK_PATH,
     CartCheck,
     CartPrincipal,
     CatalogCheck,
+    CatalogCustomerPrincipal,
     CatalogPrincipal,
     authenticate_cart,
     authenticate_catalog,
+    authenticate_catalog_customer,
+    authenticate_catalog_moderator,
 )
 from nivaro_identity.api.limits import BoundedBody
 from nivaro_identity.api.schemas import (
@@ -243,6 +248,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path not in {
             "/internal/v1/catalog/admin-check",
+            CATALOG_CUSTOMER_CHECK_PATH,
+            CATALOG_MODERATOR_CHECK_PATH,
             "/internal/v1/cart/customer-check",
             SERVICE_TOKEN_PATH,
             CHECKOUT_CONTEXT_PATH,
@@ -633,21 +640,49 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise IdentityError("address.changed", 409)
         return AddressResponse.model_validate(address)
 
-    @app.post("/internal/v1/catalog/admin-check", include_in_schema=False)
-    async def catalog_admin_check(body: CatalogCheck, request: Request, db: DB) -> CatalogPrincipal:
-        authenticate_catalog(
-            request.headers.get("authorization", ""), body, app.state.catalog_service_key
-        )
-        auth: Authenticated = await app.state.sessions.authenticate(db, body.access_token, "admin")
-        if "catalog.write" not in auth.permissions:
+    async def checked_catalog_session(
+        body: CatalogCheck, db: DB, kind: SessionKind, permission: str | None = None
+    ) -> Authenticated:
+        auth: Authenticated = await app.state.sessions.authenticate(db, body.access_token, kind)
+        if permission is not None and permission not in auth.permissions:
             raise IdentityError("permission.denied", 403)
         if body.mutating:
             if body.origin not in settings.allowed_origins:
                 raise IdentityError("origin.forbidden", 403)
             app.state.sessions.check_csrf(auth.session, body.csrf_token)
+        return auth
+
+    @app.post("/internal/v1/catalog/admin-check", include_in_schema=False)
+    async def catalog_admin_check(body: CatalogCheck, request: Request, db: DB) -> CatalogPrincipal:
+        authenticate_catalog(
+            request.headers.get("authorization", ""), body, app.state.catalog_service_key
+        )
+        auth = await checked_catalog_session(body, db, "admin", "catalog.write")
         return CatalogPrincipal(
             user_id=auth.user.id, session_id=auth.session.id, permissions=auth.permissions
         )
+
+    @app.post(CATALOG_MODERATOR_CHECK_PATH, include_in_schema=False)
+    async def catalog_moderator_check(
+        body: CatalogCheck, request: Request, db: DB
+    ) -> CatalogPrincipal:
+        authenticate_catalog_moderator(
+            request.headers.get("authorization", ""), body, app.state.catalog_service_key
+        )
+        auth = await checked_catalog_session(body, db, "admin", "reviews.moderate")
+        return CatalogPrincipal(
+            user_id=auth.user.id, session_id=auth.session.id, permissions=auth.permissions
+        )
+
+    @app.post(CATALOG_CUSTOMER_CHECK_PATH, include_in_schema=False)
+    async def catalog_customer_check(
+        body: CatalogCheck, request: Request, db: DB
+    ) -> CatalogCustomerPrincipal:
+        authenticate_catalog_customer(
+            request.headers.get("authorization", ""), body, app.state.catalog_service_key
+        )
+        auth = await checked_catalog_session(body, db, "customer")
+        return CatalogCustomerPrincipal(user_id=auth.user.id)
 
     @app.post("/internal/v1/cart/customer-check", include_in_schema=False)
     async def cart_customer_check(body: CartCheck, request: Request, db: DB) -> CartPrincipal:

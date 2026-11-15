@@ -30,6 +30,11 @@ class AdminPrincipal(BaseModel):
     permissions: list[str]
 
 
+class CustomerPrincipal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    user_id: UUID
+
+
 class AdminClaims(BaseModel):
     model_config = ConfigDict(extra="forbid")
     sub: UUID
@@ -162,52 +167,76 @@ class IdentityAuthorization:
         except (httpx.HTTPError, TimeoutError, ValueError, TypeError, KeyError) as exc:
             raise AuthorizationError("auth.unavailable", 503) from exc
 
-    async def check(self, access: str, *, mutating: bool, origin: str, csrf: str) -> AdminPrincipal:
+    def _session_body(
+        self, access: str, mutating: bool, origin: str, csrf: str
+    ) -> dict[str, object]:
         if not access or len(access) > 8192:
             raise AuthorizationError("auth.required", 401)
         if mutating and (
             origin not in self.settings.allowed_origins or not csrf or len(csrf) > 128
         ):
             raise AuthorizationError("auth.forbidden", 403)
-        if self.key is None:
-            raise AuthorizationError("auth.unavailable", 503)
         if not mutating:
             origin, csrf = "", ""
+        return {"access_token": access, "mutating": mutating, "csrf_token": csrf, "origin": origin}
+
+    async def _introspect(self, path: str, scope: str, body: dict[str, object]) -> object:
+        if self.key is None:
+            raise AuthorizationError("auth.unavailable", 503)
+        issued = int(time())
+        service = jwt.encode(
+            {
+                "iss": "nivaro-catalog",
+                "sub": "catalog",
+                "aud": "nivaro-identity-introspection",
+                "kind": "service",
+                "scope": scope,
+                "iat": issued,
+                "exp": issued + 30,
+                "jti": str(uuid4()),
+                "body_sha256": hashlib.sha256(
+                    json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+                ).hexdigest(),
+            },
+            self.key,
+            algorithm="HS256",
+        )
+        return await self._json(
+            "POST", path, body=body, headers={"Authorization": f"Bearer {service}"}
+        )
+
+    async def check_customer(
+        self, access: str, *, mutating: bool, origin: str, csrf: str
+    ) -> CustomerPrincipal:
+        body = self._session_body(access, mutating, origin, csrf)
+        try:
+            async with asyncio.timeout(4):
+                raw = await self._introspect(
+                    "/internal/v1/catalog/customer-check", "catalog.customer_introspect", body
+                )
+                return CustomerPrincipal.model_validate(raw)
+        except (httpx.HTTPError, TimeoutError, ValueError, TypeError, KeyError) as exc:
+            raise AuthorizationError("auth.unavailable", 503) from exc
+
+    async def check(
+        self, access: str, *, mutating: bool, origin: str, csrf: str, moderating: bool = False
+    ) -> AdminPrincipal:
+        body = self._session_body(access, mutating, origin, csrf)
+        if self.key is None:
+            raise AuthorizationError("auth.unavailable", 503)
+        permission = "reviews.moderate" if moderating else "catalog.write"
+        scope = "catalog.moderator_introspect" if moderating else "catalog.admin_introspect"
+        path = (
+            "/internal/v1/catalog/moderator-check"
+            if moderating
+            else "/internal/v1/catalog/admin-check"
+        )
         try:
             async with asyncio.timeout(4):
                 claims = await self.signed_claims(access, self.settings.jwt_audience, AdminClaims)
-                if "catalog.write" not in claims.permissions:
+                if permission not in claims.permissions:
                     raise AuthorizationError("auth.forbidden", 403)
-                body: dict[str, object] = {
-                    "access_token": access,
-                    "mutating": mutating,
-                    "csrf_token": csrf,
-                    "origin": origin,
-                }
-                issued = int(time())
-                service = jwt.encode(
-                    {
-                        "iss": "nivaro-catalog",
-                        "sub": "catalog",
-                        "aud": "nivaro-identity-introspection",
-                        "kind": "service",
-                        "scope": "catalog.admin_introspect",
-                        "iat": issued,
-                        "exp": issued + 30,
-                        "jti": str(uuid4()),
-                        "body_sha256": hashlib.sha256(
-                            json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
-                        ).hexdigest(),
-                    },
-                    self.key,
-                    algorithm="HS256",
-                )
-                raw = await self._json(
-                    "POST",
-                    "/internal/v1/catalog/admin-check",
-                    body=body,
-                    headers={"Authorization": f"Bearer {service}"},
-                )
+                raw = await self._introspect(path, scope, body)
                 try:
                     principal = AdminPrincipal.model_validate(raw)
                 except ValidationError as exc:
