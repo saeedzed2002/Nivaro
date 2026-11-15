@@ -687,3 +687,9 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - The disposable Docker checks exercised preview, batch limits, lock skipping, dependent-row deletion and idempotent repeats. A socket using an expired authoritative Identity session closed with `4401`. An ASGI send that stalled past its deadline closed with `1013` to permit resynchronization.
 - The local Docker upgrade applied only the retention index and ran the read-only preview. All existing chat row counts and dependent containers were preserved. Both customer and staff routes returned HTTP 200.
 - P09 implementation is ready for phase-level GitHub Actions verification.
+
+### P09 verification complete
+
+- The final implementation revision `c7e5440d854b60e9e0ad0a063f84c0153f0d2c44` passed the `support`, `web` and `image-processing` jobs in [GitHub Actions run 43762704529](https://github.com/saeedzed2002/Nivaro/actions/runs/43762704529). The web job also passed the development file synchronization and refresh check.
+- The real browser check on the same implementation used separate customer and staff replicas and verified live messages, typing, presence, disconnection and history recovery. Retention deletion was exercised against disposable data. The local deployment ran the read-only preview.
+- P09 is verified. P10 begins with role-scoped account and audit views.

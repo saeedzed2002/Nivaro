@@ -4,7 +4,9 @@ Bilingual Persian/English gaming hardware storefront, following [the canonical r
 
 ## Current delivery
 
-P04 continuation (2026-11-07): protected product/variant/category/price/stock administration and recoverable product-image processing/gallery are locally verified. Customer/staff avatars and measured public caching remain; phase-level CI review is pending. The current owner runtime includes `compose.media.yaml` for broker, workers and image volumes. For a restart with already built images:
+P09 is verified. The local Docker runtime includes private customer support and the staff inbox with live messages, history recovery, read receipts, typing and presence. The retention command defaults to a read-only preview. See the [support service guide](services/support/README.md) and [phase evidence](docs/progress.md#p09-verification-complete).
+
+The configured Windows launcher below starts the current owner runtime with the support, order, payment and media overlays. For a media-only stack with already built images:
 
 ```powershell
 docker compose -f compose.yaml -f compose.media.yaml up -d --no-build --pull never --wait
