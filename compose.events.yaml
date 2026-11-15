@@ -26,6 +26,19 @@ services:
         condition: service_healthy
     init: true
     restart: unless-stopped
+  orders-payment-consumer:
+    image: ${NIVARO_ORDERS_IMAGE:-nivaro-orders:release}
+    command: [python, -m, nivaro_orders.payment_consumer]
+    secrets:
+      - orders_db_password
+      - orders_event_broker_password
+    depends_on:
+      orders-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
 secrets:
   catalog_event_broker_password:
     file: ./work/secrets/catalog_event_broker_password.txt

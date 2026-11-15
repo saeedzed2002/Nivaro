@@ -21,7 +21,7 @@ from nivaro_orders.application.checkout import (
     review_checkout,
     stage_order,
 )
-from nivaro_orders.application.reservations import advance_reservation, expire_unpaid
+from nivaro_orders.application.reservations import advance_reservation, expire_unpaid, transition
 from nivaro_orders.domain.checkout import (
     AddressSnapshot,
     CatalogQuote,
@@ -33,7 +33,12 @@ from nivaro_orders.domain.checkout import (
     QuotedLine,
     calculate_totals,
 )
-from nivaro_orders.domain.events import ExpiredReservation, ExpiryPayload
+from nivaro_orders.domain.events import (
+    PAYMENT_RESULTS_QUEUE,
+    ExpiredReservation,
+    ExpiryPayload,
+    payment_result_adapter,
+)
 from nivaro_orders.expiry_consumer import apply_expiry
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.infrastructure.models import (
@@ -45,6 +50,8 @@ from nivaro_orders.infrastructure.models import (
     OrderAddress,
     OrderConfiguration,
     OrderItem,
+    OrderPaymentAttempt,
+    OrderPaymentRefund,
     OrderTransition,
 )
 from nivaro_orders.infrastructure.reservations import (
@@ -52,6 +59,7 @@ from nivaro_orders.infrastructure.reservations import (
     Receipt,
     ReservationRejected,
 )
+from nivaro_orders.payment_consumer import PaymentResultRejected, apply_payment_result
 from nivaro_orders.settings import Settings
 
 
@@ -252,6 +260,22 @@ class CheckoutFixture:
                 self.rates,
                 review.confirmation,
             )
+
+    async def payable(self, key):
+        customer = uuid4()
+        operation = await self.request(customer, key)
+        current = quote(operation, customer)
+        await self.save(current, await self.review(current))
+        async with self.db.sessions() as session, session.begin():
+            order = await session.get(Order, operation, with_for_update=True)
+            await transition(
+                session,
+                order,
+                "awaiting_payment",
+                "reservation.held",
+                datetime.now(UTC) + timedelta(minutes=5),
+            )
+        return order
 
 
 async def test_checkout_idempotency_and_immutable_grouped_snapshot(database):
@@ -744,3 +768,177 @@ async def test_expiry_updates_order_transition_once(database):
         assert not await expire_unpaid(db)
         order = await db.get(Order, operation)
         assert (order.status, order.version) == ("expired", 3)
+
+
+async def test_payment_evidence_deduplicates_and_survives_refund_before_capture(database):
+    order = await CheckoutFixture(database).payable("payment-out-of-order")
+    now = datetime.now(UTC)
+    attempt_id, refund_id = uuid4(), uuid4()
+    payload = {
+        "order_id": order.id,
+        "order_version": order.version,
+        "payment_attempt_id": attempt_id,
+        "market": order.market,
+        "currency": order.currency,
+        "amount_minor": order.total_minor,
+    }
+    base = {
+        "schema_version": 1,
+        "occurred_at": now,
+        "producer": "payments",
+        "correlation_id": order.id,
+        "causation_id": None,
+    }
+    refund = payment_result_adapter.validate_python(
+        {
+            **base,
+            "event_id": uuid4(),
+            "event_type": "payment.refund.completed",
+            "aggregate_id": refund_id,
+            "aggregate_version": 1,
+            "payload": {**payload, "refund_id": refund_id, "amount_minor": 100},
+        }
+    )
+    success = payment_result_adapter.validate_python(
+        {
+            **base,
+            "event_id": uuid4(),
+            "event_type": "payment.succeeded",
+            "aggregate_id": attempt_id,
+            "aggregate_version": 2,
+            "payload": {**payload, "captured_minor": order.total_minor},
+        }
+    )
+
+    async def apply(event):
+        async with database.sessions() as db:
+            await apply_payment_result(db, event)
+
+    async with database.sessions() as db, db.begin():
+        expired = await db.get(Order, order.id, with_for_update=True)
+        await transition(db, expired, "expired", "reservation.expired", now)
+    await apply(refund)
+    async with database.sessions() as db:
+        assert (await db.get(OrderPaymentAttempt, attempt_id)).outcome is None
+
+    await asyncio.gather(*(apply(success) for _ in range(4)))
+    await apply(success.model_copy(update={"event_id": uuid4()}))
+    contradiction = payment_result_adapter.validate_python(
+        {
+            **success.model_dump(),
+            "event_id": uuid4(),
+            "event_type": "payment.failed",
+            "aggregate_version": 3,
+            "payload": {**payload, "captured_minor": None},
+        }
+    )
+    with pytest.raises(PaymentResultRejected, match="payment.evidence_conflict"):
+        await apply(contradiction)
+    async with database.sessions() as db:
+        attempt = await db.get(OrderPaymentAttempt, attempt_id)
+        recorded = await db.get(OrderPaymentRefund, refund_id)
+        current = await db.get(Order, order.id)
+        assert (attempt.outcome, attempt.captured_minor, attempt.aggregate_version) == (
+            "payment.succeeded",
+            order.total_minor,
+            2,
+        )
+        assert (recorded.payment_attempt_id, recorded.amount_minor) == (attempt_id, 100)
+        assert (current.status, current.version) == ("expired", order.version + 1)
+        assert await db.get(InboxEvent, (PAYMENT_RESULTS_QUEUE, contradiction.event_id)) is None
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(InboxEvent)
+                .where(
+                    InboxEvent.consumer_name == PAYMENT_RESULTS_QUEUE,
+                    InboxEvent.aggregate_id.in_((attempt_id, refund_id)),
+                )
+            )
+            == 3
+        )
+
+
+@pytest.mark.skipif(
+    os.getenv("ORDERS_PAYMENT_E2E") != "1", reason="Disposable Payments and broker required"
+)
+async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_order(database):
+    order = await CheckoutFixture(database).payable("payments-broker")
+    secret = Settings().client_secret_file.read_text(encoding="utf-8").strip()
+    async with httpx.AsyncClient(timeout=8, trust_env=False) as http:
+
+        async def access(scope):
+            grant = await http.post(
+                "http://identity:8000/internal/v1/service-tokens",
+                auth=("orders", secret),
+                json={"audience": "nivaro-payments", "scope": scope},
+            )
+            assert grant.status_code == 200, grant.text
+            return {"Authorization": f"Bearer {grant.json()['access_token']}"}
+
+        root = "http://payments:8000/internal/v1/payments/attempts"
+        start_headers = await access("payments.start")
+        verify_headers = await access("payments.verify")
+        attempts = {}
+        for scenario, version in (
+            ("success", order.version),
+            ("failure", order.version),
+            ("overpayment", order.version),
+            ("success", order.version - 1),
+        ):
+            attempt_id = uuid4()
+            started = await http.post(
+                root,
+                headers={**start_headers, "Idempotency-Key": str(attempt_id)},
+                json={
+                    "id": str(attempt_id),
+                    "order_id": str(order.id),
+                    "order_version": version,
+                    "market": order.market,
+                    "currency": order.currency,
+                    "amount_minor": order.total_minor,
+                    "reservation_expires_at": order.reservation_expires_at.isoformat(),
+                    "scenario": scenario,
+                },
+            )
+            assert started.status_code == 200, started.text
+            verified = await http.post(root + f"/{attempt_id}/verify", headers=verify_headers)
+            assert verified.status_code == 200, verified.text
+            attempts[scenario if version == order.version else "wrong_version"] = attempt_id
+        refund_id = uuid4()
+        refund = await http.post(
+            root + f"/{attempts['success']}/refunds",
+            headers={**await access("payments.refund"), "Idempotency-Key": str(refund_id)},
+            json={
+                "id": str(refund_id),
+                "currency": order.currency,
+                "amount_minor": 100,
+                "reason": "test.refund",
+            },
+        )
+        assert refund.status_code == 200, refund.text
+
+    for _ in range(50):
+        async with database.sessions() as db:
+            results = (
+                await db.scalars(
+                    select(OrderPaymentAttempt).where(OrderPaymentAttempt.order_id == order.id)
+                )
+            ).all()
+            recorded = await db.get(OrderPaymentRefund, refund_id)
+        if (
+            len(results) == 3
+            and all(row.outcome is not None for row in results)
+            and recorded is not None
+        ):
+            break
+        await asyncio.sleep(0.2)
+    assert {row.id: (row.outcome, row.captured_minor) for row in results} == {
+        attempts["success"]: ("payment.succeeded", order.total_minor),
+        attempts["failure"]: ("payment.failed", None),
+        attempts["overpayment"]: ("payment.amount_mismatch", order.total_minor + 10),
+    }
+    assert (recorded.payment_attempt_id, recorded.amount_minor) == (attempts["success"], 100)
+    async with database.sessions() as db:
+        current = await db.get(Order, order.id)
+        assert (current.status, current.version) == ("awaiting_payment", order.version)

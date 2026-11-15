@@ -262,3 +262,48 @@ class InboxEvent(Base):
     processed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class OrderPaymentAttempt(Base):
+    __tablename__ = "order_payment_attempts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "order_version"],
+            ["order_transitions.order_id", "order_transitions.version"],
+            name="order_payment_payable_transition",
+        ),
+        CheckConstraint(
+            "(outcome IS NULL AND aggregate_version IS NULL AND verified_at IS NULL "
+            "AND captured_minor IS NULL) OR "
+            "(outcome IS NOT NULL AND aggregate_version IS NOT NULL AND aggregate_version > 0 "
+            "AND verified_at IS NOT NULL AND ("
+            "(outcome = 'payment.failed' AND captured_minor IS NULL) OR "
+            "(outcome IN ('payment.succeeded', 'payment.amount_mismatch') "
+            "AND captured_minor IS NOT NULL AND captured_minor > 0)))",
+            name="order_payment_outcome",
+        ),
+        Index("ix_order_payment_attempts_order", "order_id", "order_version"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    order_id: Mapped[UUID] = mapped_column()
+    order_version: Mapped[int] = mapped_column(Integer)
+    outcome: Mapped[str | None] = mapped_column(String(30))
+    aggregate_version: Mapped[int | None] = mapped_column(Integer)
+    captured_minor: Mapped[int | None] = mapped_column(BigInteger)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class OrderPaymentRefund(Base):
+    __tablename__ = "order_payment_refunds"
+    __table_args__ = (
+        CheckConstraint("amount_minor > 0", name="order_payment_refund_amount"),
+        Index("ix_order_payment_refunds_attempt", "payment_attempt_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    payment_attempt_id: Mapped[UUID] = mapped_column(
+        ForeignKey("order_payment_attempts.id", ondelete="RESTRICT")
+    )
+    amount_minor: Mapped[int] = mapped_column(BigInteger)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

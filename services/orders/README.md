@@ -81,3 +81,22 @@ messages to its durable error queue. [RabbitMQ quorum queue documentation](https
 - Run `./scripts/Verify-OrdersFoundation.ps1 -WithEvents` with the current
   service images to verify real publishing, handling and dead-lettering on a
   disposable broker and databases.
+
+## Payment result intake
+
+The `orders-payment-consumer` in `compose.events.yaml` reads the dedicated
+`orders.payment.results.v1` quorum queue. It validates the message and matches
+its order revision to an `awaiting_payment` transition. The original market,
+currency and order total identify the intent even if the hold later expires.
+
+The consumer records an inbox ID and the attempt or refund evidence in the same
+transaction, then acknowledges. Attempt evidence binds an attempt ID to one
+order revision, and a refund can be recorded before the corresponding outcome.
+An exact replay preserves the original evidence. Invalid messages and conflicts
+go to `orders.payment.results.v1.error`. A valid payment record is available
+for stock finalization and compensation. Intake leaves the order and stock
+unchanged.
+
+Run `./scripts/Verify-OrdersFoundation.ps1 -WithPaymentResults` with the current
+Orders, Payments and Catalog images to verify both event queues, scoped simulator
+calls, confirmed publication and the resulting records on a disposable stack.

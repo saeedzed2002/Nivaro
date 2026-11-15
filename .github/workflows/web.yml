@@ -96,7 +96,7 @@ jobs:
       - name: Orders checkout reservation recovery and durable broker events
         working-directory: .
         shell: pwsh
-        run: ./scripts/Verify-OrdersFoundation.ps1 -WithEvents -Browser
+        run: ./scripts/Verify-OrdersFoundation.ps1 -WithPaymentResults -Browser
       - name: Build host preview against the local gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080

@@ -1,9 +1,7 @@
 import asyncio
 import logging
 
-import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
-from aio_pika.exceptions import AMQPException, ChannelInvalidStateError
 from pydantic import ValidationError
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nivaro_orders.application.reservations import transition
 from nivaro_orders.domain.events import EXPIRED_RESERVATION_QUEUE, ExpiredReservation
+from nivaro_orders.event_subscription import subscribe
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.infrastructure.models import InboxEvent, Order
-from nivaro_orders.settings import Settings
 
 log = logging.getLogger(__name__)
 
@@ -76,36 +74,5 @@ async def consume(message: AbstractIncomingMessage, database: Database) -> None:
     await message.ack()
 
 
-async def run() -> None:
-    settings = Settings()
-    secret = settings.event_broker_password_file.read_text(encoding="utf-8").strip()
-    if len(secret) < 32:
-        raise ValueError("Orders event credential is missing or invalid")
-    database = Database(settings)
-    try:
-        while True:
-            try:
-                # Recreate the iterator and broker subscription after every disconnect.
-                async with await aio_pika.connect(
-                    host=settings.event_broker_host,
-                    login="nivaro_orders_events",
-                    password=secret,
-                    virtualhost="commerce-events",
-                    heartbeat=15,
-                    timeout=5,
-                ) as connection:
-                    async with connection.channel() as channel:
-                        await channel.set_qos(prefetch_count=4)
-                        queue = await channel.get_queue(EXPIRED_RESERVATION_QUEUE, ensure=False)
-                        async with queue.iterator() as messages:
-                            async for message in messages:
-                                await consume(message, database)
-            except (AMQPException, ChannelInvalidStateError, OSError, TimeoutError):
-                log.warning("Orders event broker is unavailable")
-            await asyncio.sleep(2)
-    finally:
-        await database.engine.dispose()
-
-
 if __name__ == "__main__":
-    asyncio.run(run())
+    asyncio.run(subscribe(EXPIRED_RESERVATION_QUEUE, consume))
