@@ -17,9 +17,15 @@ from nivaro_catalog.api.schemas import (
 )
 from nivaro_catalog.domain.contracts import Category, Localized, Market, Product, Variant
 from nivaro_catalog.domain.search import search_terms
-from nivaro_catalog.infrastructure.models import CategoryRow, OfferRow, ProductRow, VariantRow
+from nivaro_catalog.infrastructure.models import (
+    CategoryRow,
+    OfferRow,
+    ProductRow,
+    ReviewRow,
+    VariantRow,
+)
 
-Sort = Literal["featured", "name", "newest", "price_asc", "price_desc"]
+Sort = Literal["featured", "name", "newest", "price_asc", "price_desc", "rating"]
 
 
 def public_products() -> Select[ProductRow]:
@@ -142,12 +148,19 @@ async def products(
             )
         )
     count = await session.scalar(select(func.count()).select_from(stmt.subquery()))
+    rating = (
+        select(func.avg(ReviewRow.rating))
+        .where(ReviewRow.product_id == ProductRow.id, ReviewRow.status == "approved")
+        .correlate(ProductRow)
+        .scalar_subquery()
+    )
     order = {
         "featured": ProductRow.created_at,
         "newest": ProductRow.created_at.desc(),
         "name": ProductRow.name,
         "price_asc": price.asc().nulls_last(),
         "price_desc": price.desc().nulls_last(),
+        "rating": rating.desc().nulls_last(),
     }[sort]
     rows = await session.scalars(
         stmt.order_by(order, ProductRow.id).offset((page - 1) * page_size).limit(page_size)

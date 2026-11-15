@@ -15,5 +15,5 @@ export async function generateMetadata({ params }: Props) {
 export default async function Page({ params }: Props) {
   const { locale, id } = await params;
   if (!isLocale(locale) || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) notFound();
-  return <AdminShell locale={locale} initial={await serverIdentity('admin')} orders><StaffOrderDetails id={id} locale={locale}/></AdminShell>;
+  return <AdminShell locale={locale} initial={await serverIdentity('admin')} workspace="orders"><StaffOrderDetails id={id} locale={locale}/></AdminShell>;
 }

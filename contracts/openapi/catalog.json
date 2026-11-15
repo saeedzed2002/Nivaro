@@ -5949,7 +5949,8 @@
                 "name",
                 "newest",
                 "price_asc",
-                "price_desc"
+                "price_desc",
+                "rating"
               ],
               "title": "Sort",
               "type": "string"

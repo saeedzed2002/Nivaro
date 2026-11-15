@@ -49,7 +49,7 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Administrator products | P04 | [Products](pages/admin-products.png), generated/inspected 2026-10-28; list/search/filter/pagination implementation added 2026-10-29, verification below |
 | Administrator categories | P04 | [Categories](pages/admin-categories.png), generated/inspected 2026-10-29 before implementation; two-level hierarchy, bilingual form, parent constraints and responsive list |
 | Product editor / images | P04 | [Editor](pages/admin-product-editor.png), generated/inspected 2026-10-28; basic content/status/stock/history implementation added 2026-10-29; gallery, variant and price forms remain pending |
-| Review moderation | P08 | Pending |
+| Review moderation | P08 | [Moderation](pages/admin-review-moderation.png), generated and inspected before implementation |
 | Administrator orders | P07 | Pending |
 | Administrator order detail | P07 | Pending |
 | Payments / reconciliation | P07 | Pending |
@@ -161,3 +161,11 @@ Generated and inspected `pages/admin-orders.png` before implementation. The prom
 Generated and inspected `pages/admin-order-detail.png` before implementation. The prompt specified the order reference and status, purchased items and original total above an audit timeline, and an adjacent delivery address and fulfillment panel. Use the shared administration shell and its existing typography and palette. Show the current permitted action only, and require a tracking reference when recording shipment. The timeline follows the committed sequence and displays the recorded staff identity where applicable. Example addresses, statuses, IDs and amounts in the mockup illustrate layout.
 
 Compared both desktop renders with their references at the reference widths and inspected Persian light renders at 360 pixels. Verified the selected administration rail, status filter and table columns, reference and totals, address and audit arrangement, and shipment input and action. The existing shell retains its wordmark, width, typography and token-based colors. The shipping form includes validation help and the timeline shows every committed state. The list shows the pagination button only when additional orders exist. The in-app browser verified the local sign-in gate, and the authenticated purchase and delivery ran through Playwright against disposable Docker. Captures are in `nivaro-p07-staff-orders/` in the visualization root.
+
+### P08 review interfaces
+
+Reinspected `pages/product-details.png` for the existing storefront review panel. Keep the panel beside the recorded specifications on desktop and below them on mobile. The empty state leads to writing a review and the login return reopens that panel. Use real approved ratings and entries, and show the verified-purchase indicator only when supplied by Catalog.
+
+Generated and inspected `pages/admin-review-moderation.png` before implementing the staff page. Keep the status filter, selected list item, two-column queue and detail panels, read-only review, required decision reason, and distinct approve and reject actions. Reuse the existing staff navigation, brand, colors and typography. Show actual product references and recorded dates, without the reference image's sample identities, product graphics, counts or unrelated controls. The decision reason limit is 400 characters. Stack the panels on narrow screens.
+
+Compared the English dark review interfaces at the desktop reference widths and inspected the Persian light layouts at 360 pixels. Verified the heading and status filter, selected queue item, paired panels, original body and rating, verified-purchase treatment, and the distinct decisions. The storefront kept the bordered review panel and restrained empty state, with an explicit editor for signed-in authors. The in-app browser verified the guest entry, and Playwright exercised the signed-in journey with real services on disposable Docker. Captures are in `nivaro-p08-reviews/` in the visualization root.

@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { addCartItem, cartErrorCopy } from '@/lib/cart-client';
 import type { components } from '@/lib/api/catalog-schema';
 import { text, type Locale } from '@/lib/content';
@@ -14,6 +14,7 @@ type Variant = components['schemas']['Variant'];
 
 export function AddToCart({ variants, locale }: { variants: Variant[]; locale: Locale }) {
   const { market } = usePreferences();
+  const variantLabel = useId();
   const cache = useQueryClient();
   const [variantId, setVariant] = useState(variants[0]?.id ?? '');
   const variant = variants.find(item => item.id === variantId);
@@ -22,8 +23,8 @@ export function AddToCart({ variants, locale }: { variants: Variant[]; locale: L
   const add = useMutation({ mutationFn: () => addCartItem(variantId, market),
     onSettled: () => cache.invalidateQueries({ queryKey: cartKey(market) }) });
   return <div className="cart-product-action">
-    {variants.length > 1 && <label className="field"><span>{text(locale, 'گونهٔ محصول', 'Variant')}</span>
-      <select value={variantId} onChange={event => { setVariant(event.target.value); add.reset(); }} disabled={add.isPending}>
+    {variants.length > 1 && <label className="field"><span id={variantLabel}>{text(locale, 'گونهٔ محصول', 'Variant')}</span>
+      <select aria-labelledby={variantLabel} value={variantId} onChange={event => { setVariant(event.target.value); add.reset(); }} disabled={add.isPending}>
         {variants.map(item => <option key={item.id} value={item.id}>{item.packaging[locale]} · {item.sku}</option>)}
       </select>
     </label>}

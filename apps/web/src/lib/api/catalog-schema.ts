@@ -3497,7 +3497,7 @@ export interface operations {
                 category?: string;
                 brand?: string;
                 market?: "ir" | "international";
-                sort?: "featured" | "name" | "newest" | "price_asc" | "price_desc";
+                sort?: "featured" | "name" | "newest" | "price_asc" | "price_desc" | "rating";
                 page?: number;
                 page_size?: number;
                 min_price?: number | null;

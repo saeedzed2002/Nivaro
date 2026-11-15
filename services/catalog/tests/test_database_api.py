@@ -138,7 +138,7 @@ async def test_missing_and_validation_errors_are_structured(api):
     assert (await client.get("/api/v1/catalog/products/missing")).json()["error"][
         "code"
     ] == "catalog.not_found"
-    for query in ("page_size=101", "sort=rating", "min_price=100&max_price=10", "market=invalid"):
+    for query in ("page_size=101", "sort=invalid", "min_price=100&max_price=10", "market=invalid"):
         response = await client.get("/api/v1/catalog/products?" + query)
         assert response.status_code == 422
         assert response.json()["error"]["request_id"]

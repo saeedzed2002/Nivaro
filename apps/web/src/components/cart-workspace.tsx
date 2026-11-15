@@ -69,7 +69,8 @@ export function CartWorkspace({ locale }: { locale: Locale }) {
     </button>
   </div>;
 
-  const count = new Intl.NumberFormat(locale).format(cart.lines.reduce((sum, line) => sum + line.quantity, 0));
+  const quantity = cart.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const count = new Intl.NumberFormat(locale).format(quantity);
   const lineView = (line: CartLine) => {
     const name = line.summary?.name ?? line.slot_key ?? text(locale, 'کالای بدون اطلاعات', 'Item details unavailable');
     const label = statusLabels[line.status ?? 'catalog_unavailable'];
@@ -82,7 +83,7 @@ export function CartWorkspace({ locale }: { locale: Locale }) {
         {offer && <bdi>{formatCommerceMoney(offer.amount_minor, cart.currency, locale)}</bdi>}
       </div>
       <div className="cart-actions">
-        <div className="cart-stepper" aria-label={text(locale, 'تعداد', 'Quantity')}>
+        <div className="cart-stepper" role="group" aria-label={`${text(locale, 'تعداد', 'Quantity')}: ${name}`}>
           <button type="button" aria-label={`${text(locale, 'کاهش تعداد', 'Decrease quantity')}: ${name}`} disabled={busy || line.quantity <= 1} onClick={() => mutation.mutate({ kind: 'line', cart, line, quantity: line.quantity - 1 })}><Minus size={15} /></button>
           <bdi>{new Intl.NumberFormat(locale).format(line.quantity)}</bdi>
           <button type="button" aria-label={`${text(locale, 'افزایش تعداد', 'Increase quantity')}: ${name}`} disabled={busy || line.status !== 'available'} onClick={() => mutation.mutate({ kind: 'line', cart, line, quantity: line.quantity + 1 })}><Plus size={15} /></button>
@@ -93,7 +94,7 @@ export function CartWorkspace({ locale }: { locale: Locale }) {
   };
 
   return <>
-    <p className="cart-count">{text(locale, `${count} کالا در سبد`, `${count} items in your cart`)}</p>
+    <p className="cart-count" aria-live="polite" aria-atomic="true">{text(locale, `${count} کالا در سبد`, quantity === 1 ? '1 item in your cart' : `${count} items in your cart`)}</p>
     {displayError && <p className="cart-notice" role="alert">{cartErrorCopy(displayError, locale)}</p>}
     {cart.paid_cleanup_needs_review && <p className="cart-notice" role="status">{text(locale, 'بعضی ردیف‌ها پس از ثبت سفارش تغییر کرده‌اند. سبد را پیش از خرید بعدی بررسی کن.', 'Some cart items changed after checkout. Review your cart before the next purchase.')}</p>}
     {merge.data && <div className="cart-notice"><p>{text(locale, 'در سبد مهمان همین بازار اقلامی داری.', 'Your guest cart has items in this market.')}</p>

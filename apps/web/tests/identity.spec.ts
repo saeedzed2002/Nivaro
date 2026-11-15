@@ -475,7 +475,10 @@ test('media gallery: real processing, failed replacement, conflicts, cover and p
     await page.screenshot({ path: test.info().outputPath(`${locale}-${theme}-${width}-gallery.png`), fullPage: true, animations: 'disabled' });
     await page.goto(`/${locale}/products/${slug}`);
     await expect(page.locator('.product-gallery-thumbs button')).toHaveCount(2);
-    await page.locator('.product-gallery-thumbs button').nth(1).click();
+    const thumbnail = page.getByRole('navigation', { name: locale === 'fa' ? 'تصاویر محصول' : 'Product images' }).getByRole('button').nth(1);
+    await expect(thumbnail).toHaveAttribute('aria-pressed', 'false');
+    await thumbnail.press('Enter');
+    await expect(thumbnail).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.detail-art > div img')).toHaveAttribute('alt', locale === 'fa' ? 'نمای آزمایشی کارت گرافیک' : 'Synthetic graphics card view');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: test.info().outputPath(`${locale}-${theme}-${width}-public-gallery.png`), fullPage: true, animations: 'disabled' });

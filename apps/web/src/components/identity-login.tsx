@@ -77,6 +77,7 @@ export function IdentityLogin({ locale, admin = false, initial, mock = false, de
           <Link className="button secondary" href={`/${locale}/admin/profile`}>{text(locale, 'پروفایل من', 'My profile')}</Link>
           {session.permissions.includes('catalog.write') && <Link className="button primary" href={`/${locale}/admin/products`}>{text(locale, 'مدیریت محصولات', 'Manage products')}</Link>}
           {session.permissions.includes('orders.read') && <Link className="button primary" href={`/${locale}/admin/orders`}>{text(locale, 'مدیریت سفارش‌ها', 'Manage orders')}</Link>}
+          {session.permissions.includes('reviews.moderate') && <Link className="button primary" href={`/${locale}/admin/reviews`}>{text(locale, 'بررسی دیدگاه‌ها', 'Moderate reviews')}</Link>}
           <IdentityNotice error={error} locale={locale}/><button className="button secondary" disabled={busy} onClick={() => void run(async () => { await logout('admin', false); setSession(null); router.refresh(); })}>{text(locale, 'خروج از نشست مدیریت', 'Sign out of staff session')}</button>
         </> : <>
           <p className="muted">{admin ? text(locale, 'ویژهٔ کارکنان مجاز؛ با ایمیل و رمز عبور خود وارد شوید.', 'For authorized staff. Sign in with your email and password.') : challenge ? <>{text(locale, 'کد شش‌رقمی مربوط به این شماره را وارد کنید:', 'Enter the six-digit code for:')} <bdi dir="ltr">{phone}</bdi></> : text(locale, 'برای دسترسی به حساب، شمارهٔ موبایل خود را وارد کنید.', 'Enter your mobile number to access your account.')}</p>
