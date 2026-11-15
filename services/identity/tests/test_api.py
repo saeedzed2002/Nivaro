@@ -170,6 +170,240 @@ async def admin_account(db, role="super_admin"):
         return user.id, raw_password
 
 
+async def test_managed_accounts_scopes_versions_and_audit(api):
+    client, _, db = api
+    root_id, root_password = await admin_account(db)
+    staff_password = secrets.token_urlsafe(24)
+    async with db.sessions() as session, session.begin():
+        staff = User(phone=SECOND)
+        customer = User(phone="+12025550104")
+        session.add_all([staff, customer])
+        await session.flush()
+        session.add(
+            Administrator(
+                user_id=staff.id,
+                email="support@example.com",
+                role="support_agent",
+                password_hash=passwords.hash(staff_password),
+            )
+        )
+    path = "/api/v1/admin/users"
+    assert (await client.get(path)).status_code == 401
+    await login(client, SECOND)
+    customer_cookie = f"nivaro_customer_access={client.cookies['nivaro_customer_access']}"
+    assert (await client.get(path, headers={"Cookie": customer_cookie})).status_code == 401
+    operator = await client.post(
+        "/api/v1/admin/auth/login",
+        json={
+            "email": "owner@example.com",
+            "password": root_password,
+        },
+    )
+    assert operator.status_code == 200
+    headers = {
+        "Cookie": f"nivaro_admin_access={client.cookies['nivaro_admin_access']}",
+        "X-CSRF-Token": operator.json()["csrf_token"],
+    }
+    staff_login = await client.post(
+        "/api/v1/admin/auth/login",
+        json={
+            "email": "support@example.com",
+            "password": staff_password,
+        },
+    )
+    assert staff_login.status_code == 200
+    staff_headers = {"Cookie": f"nivaro_admin_access={client.cookies['nivaro_admin_access']}"}
+    for suffix in ("", "/audit", f"/{root_id}"):
+        assert (await client.get(path + suffix, headers=staff_headers)).status_code == 403
+    unauthorized = await client.patch(
+        f"{path}/{staff.id}/role",
+        headers={**staff_headers, "X-CSRF-Token": staff_login.json()["csrf_token"]},
+        json={"role": "super_admin", "expected_version": 1},
+    )
+    assert unauthorized.status_code == 403
+
+    page = await client.get(path, headers=headers, params={"kind": "staff", "limit": 1})
+    assert page.status_code == 200 and page.headers["cache-control"] == "no-store"
+    first = page.json()
+    next_page = await client.get(
+        path,
+        headers=headers,
+        params={
+            "kind": "staff",
+            "limit": 1,
+            "before": first["next_before"],
+        },
+    )
+    assert {first["accounts"][0]["id"], next_page.json()["accounts"][0]["id"]} == {
+        str(root_id),
+        str(staff.id),
+    }
+    assert set(first["accounts"][0]) == {
+        "id",
+        "name",
+        "phone",
+        "staff_email",
+        "role",
+        "disabled",
+        "version",
+        "created_at",
+    }
+    assert next_page.json()["next_before"] is None
+    customer_list = await client.get(path, headers=headers, params={"kind": "customer"})
+    assert [item["id"] for item in customer_list.json()["accounts"]] == [str(customer.id)]
+
+    target = f"{path}/{staff.id}"
+    role = {"role": "catalog_manager", "expected_version": 1}
+    assert (
+        await client.patch(
+            target + "/role",
+            headers={"Cookie": headers["Cookie"]},
+            json=role,
+        )
+    ).json()["error"]["code"] == "csrf.invalid"
+    assert (
+        await client.patch(
+            target + "/role",
+            headers={**headers, "Origin": "https://other.example"},
+            json=role,
+        )
+    ).json()["error"]["code"] == "origin.forbidden"
+    assert (
+        await client.patch(
+            f"{path}/{customer.id}/role",
+            headers=headers,
+            json=role,
+        )
+    ).json()["error"]["code"] == "account.not_staff"
+    for suffix, body in (
+        ("role", {"role": "support_agent", "expected_version": 1}),
+        ("status", {"disabled": True, "expected_version": 1}),
+    ):
+        result = await client.patch(f"{path}/{root_id}/{suffix}", headers=headers, json=body)
+        assert (
+            result.status_code == 409
+            and result.json()["error"]["code"] == "account.last_super_admin"
+        )
+
+    changed = await client.patch(target + "/role", headers=headers, json=role)
+    assert changed.status_code == 200 and changed.json()["version"] == 2
+    assert (
+        await client.get("/api/v1/admin/auth/session", headers=staff_headers)
+    ).status_code == 401
+    assert (
+        await client.get(
+            "/api/v1/auth/session",
+            headers={"Cookie": customer_cookie},
+        )
+    ).status_code == 200
+    assert (
+        await client.patch(
+            target + "/role",
+            headers=headers,
+            json=role,
+        )
+    ).json()["error"]["code"] == "account.version_conflict"
+    assert (
+        await client.patch(
+            target + "/role",
+            headers=headers,
+            json={**role, "expected_version": 2},
+        )
+    ).json()["version"] == 2
+    assert (
+        await client.patch(
+            target + "/status",
+            headers=headers,
+            json={
+                "disabled": True,
+                "expected_version": 2,
+            },
+        )
+    ).json()["version"] == 3
+    assert (
+        await client.get(
+            "/api/v1/auth/session",
+            headers={"Cookie": customer_cookie},
+        )
+    ).status_code == 401
+    assert (
+        await client.patch(
+            target + "/status",
+            headers=headers,
+            json={
+                "disabled": False,
+                "expected_version": 3,
+            },
+        )
+    ).json()["version"] == 4
+    assert (
+        await client.get(
+            "/api/v1/auth/session",
+            headers={"Cookie": customer_cookie},
+        )
+    ).status_code == 401
+
+    reported = await client.get(path + "/audit", headers=headers, params={"target": str(staff.id)})
+    events = reported.json()["events"]
+    edits = [event for event in events if event["actor_id"] is not None]
+    assert [event["event"] for event in edits] == [
+        "account.enabled",
+        "account.disabled",
+        "admin.role_changed",
+    ]
+    assert {event["actor_id"] for event in edits} == {str(root_id)}
+    assert (edits[-1]["previous_role"], edits[-1]["new_role"]) == (
+        "support_agent",
+        "catalog_manager",
+    )
+    assert (edits[1]["previous_disabled"], edits[1]["new_disabled"]) == (False, True)
+    assert reported.status_code == 200 and "password" not in reported.text
+
+
+async def test_managed_accounts_serialize_concurrent_super_admin_changes(api):
+    client, _, db = api
+    first_id, first_password = await admin_account(db)
+    second_password = secrets.token_urlsafe(24)
+    async with db.sessions() as session, session.begin():
+        other = User(phone=SECOND)
+        session.add(other)
+        await session.flush()
+        session.add(
+            Administrator(
+                user_id=other.id,
+                email="second@example.com",
+                role="super_admin",
+                password_hash=passwords.hash(second_password),
+            )
+        )
+
+    async def operator(email, password):
+        result = await client.post(
+            "/api/v1/admin/auth/login", json={"email": email, "password": password}
+        )
+        assert result.status_code == 200
+        return {
+            "Cookie": f"nivaro_admin_access={client.cookies['nivaro_admin_access']}",
+            "X-CSRF-Token": result.json()["csrf_token"],
+        }
+
+    first = await operator("owner@example.com", first_password)
+    second = await operator("second@example.com", second_password)
+    body = {"disabled": True, "expected_version": 1}
+    results = await asyncio.gather(
+        client.patch(f"/api/v1/admin/users/{other.id}/status", headers=first, json=body),
+        client.patch(f"/api/v1/admin/users/{first_id}/status", headers=second, json=body),
+    )
+    assert sorted(result.status_code for result in results) == [200, 401]
+    async with db.sessions() as session:
+        assert (
+            await session.scalar(
+                select(func.count()).select_from(User).where(User.disabled.is_(False))
+            )
+            == 1
+        )
+
+
 @pytest.mark.parametrize("change", ["logout", "role", "disable"])
 async def test_catalog_bridge_uses_current_identity_state_and_session_csrf(api, change):
     from nivaro_catalog.api.authorization import AuthorizationError, IdentityAuthorization

@@ -96,3 +96,11 @@ Orders can also request `identity.address_snapshot` for `nivaro-identity` or `ca
 The supplied browser token must resolve to a current, non-disabled customer session. Mutating checks also validate the original allowed origin and that same session's CSRF token. Only user/session IDs, customer kind and empty customer permissions are returned. Identity owns all session checks and imports no cart database models in application code. No positive session-status cache is introduced.
 
 The service verification helper additionally mounts cart source read-only for integration tests and creates a separate disposable cart database/role. It tests the actual cart client, real same-origin login/logout, revoked-cookie rejection even when a guest cookie is present, and a second customer's separate cart. The running local identity image is not replaced merely by adding this capability; candidate/runtime status is recorded in `docs/progress.md`.
+
+## Account administration
+
+The `/api/v1/admin/users` routes require a current staff session with `users.manage`. The paginated list supports staff, customer-only and disabled-state filters. Use the account detail route for the current revision before applying a change.
+
+`PATCH /api/v1/admin/users/{user_id}/status` takes `disabled` and `expected_version`. Disabling an account revokes both customer and staff sessions. Enabling an account allows fresh authentication. `PATCH /api/v1/admin/users/{user_id}/role` takes an existing staff role and `expected_version`. Changing roles revokes staff sessions for the target account. Account changes use the existing origin and CSRF rules. The last active super administrator remains protected across concurrent HTTP and operator changes.
+
+`GET /api/v1/admin/users/audit` returns bounded pages of Identity audit events and accepts a target account filter. New management events identify the acting account and record the previous and resulting role or status in the same transaction as the change. Older events may have null management fields. Account listings and audit events exclude credentials and token values.

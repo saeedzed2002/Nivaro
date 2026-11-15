@@ -6,8 +6,10 @@ import getpass
 from datetime import timedelta
 
 from email_validator import validate_email
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, select, update
 
+from nivaro_identity.accounts import change_status, lock_account_changes
+from nivaro_identity.domain.errors import IdentityError
 from nivaro_identity.domain.phone import normalize_phone
 from nivaro_identity.infrastructure.database import Database
 from nivaro_identity.infrastructure.models import Administrator, Audit, Session, User, now
@@ -28,7 +30,7 @@ async def manage(action: str) -> None:
         async with database.sessions() as db, db.begin():
             if action == "bootstrap-admin":
                 # Serialize simultaneous bootstrap attempts without a seed admin.
-                await db.execute(text("SELECT pg_advisory_xact_lock(731903)"))
+                await lock_account_changes(db)
                 if await db.scalar(select(func.count()).select_from(Administrator)):
                     raise ValueError("Administrator bootstrap already completed")
                 phone = normalize_phone(input("Owner mobile number with country code: "))
@@ -70,16 +72,11 @@ async def manage(action: str) -> None:
                 db.add(Audit(user_id=admin.user_id, event="admin.password_changed"))
             elif action == "disable-user":
                 phone = normalize_phone(input("Mobile number to disable: "))
+                await lock_account_changes(db)
                 user = await db.scalar(select(User).where(User.phone == phone).with_for_update())
                 if user is None:
                     raise ValueError("Account not found")
-                user.disabled = True
-                await db.execute(
-                    update(Session)
-                    .where(Session.user_id == user.id, Session.revoked_at.is_(None))
-                    .values(revoked_at=now())
-                )
-                db.add(Audit(user_id=user.id, event="account.disabled"))
+                await change_status(db, user, await db.get(Administrator, user.id), True, None)
             elif action == "prune-expired":
                 await db.execute(
                     delete(Session).where(Session.expires_at < now() - timedelta(days=7))
@@ -98,5 +95,5 @@ if __name__ == "__main__":
     )
     try:
         asyncio.run(manage(parser.parse_args().action))
-    except ValueError as error:
+    except (ValueError, IdentityError) as error:
         raise SystemExit(str(error)) from None

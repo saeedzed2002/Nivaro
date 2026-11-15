@@ -14,7 +14,8 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from nivaro_identity.settings import Settings
 
 SessionKind = Literal["customer", "admin"]
-Role = Literal["customer", "support_agent", "catalog_manager", "sales_manager", "super_admin"]
+StaffRole = Literal["support_agent", "catalog_manager", "sales_manager", "super_admin"]
+Role = Literal["customer", StaffRole]
 ROLE_PERMISSIONS: dict[str, list[str]] = {
     "customer": [],
     "support_agent": ["support.reply"],

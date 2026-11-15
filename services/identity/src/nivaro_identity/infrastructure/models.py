@@ -24,11 +24,16 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (CheckConstraint("phone ~ '^\\+[1-9][0-9]{7,14}$'", name="phone_e164"),)
+    __table_args__ = (
+        CheckConstraint("phone ~ '^\\+[1-9][0-9]{7,14}$'", name="phone_e164"),
+        CheckConstraint("account_version > 0", name="identity_account_version"),
+        Index("ix_identity_users_created", "created_at", "id"),
+    )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     phone: Mapped[str] = mapped_column(String(16), unique=True)
     name: Mapped[str] = mapped_column(String(80), default="", server_default="")
     disabled: Mapped[bool] = mapped_column(default=False, server_default="false")
+    account_version: Mapped[int] = mapped_column(default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now, server_default=func.now()
     )
@@ -98,9 +103,15 @@ class Address(Base):
 
 class Audit(Base):
     __tablename__ = "audit_events"
+    __table_args__ = (Index("ix_identity_audit_target_created", "user_id", "created_at", "id"),)
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    actor_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     event: Mapped[str] = mapped_column(String(48))
+    previous_role: Mapped[str | None] = mapped_column(String(32))
+    new_role: Mapped[str | None] = mapped_column(String(32))
+    previous_disabled: Mapped[bool | None] = mapped_column()
+    new_disabled: Mapped[bool | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now, server_default=func.now(), index=True
     )

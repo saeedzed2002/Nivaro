@@ -22,7 +22,7 @@
     }
     reverse_proxy catalog:8000
   }
-  @identity path /api/v1/auth/* /api/v1/admin/auth/* /api/v1/admin/me /api/v1/admin/me/* /api/v1/me /api/v1/me/* /.well-known/jwks.json
+  @identity path /api/v1/auth/* /api/v1/admin/auth/* /api/v1/admin/me /api/v1/admin/me/* /api/v1/admin/users /api/v1/admin/users/* /api/v1/me /api/v1/me/* /.well-known/jwks.json
   handle @identity {
     request_body {
       max_size 8388608

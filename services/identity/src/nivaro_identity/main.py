@@ -21,6 +21,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from nivaro_identity import accounts
 from nivaro_identity.api.internal import (
     CATALOG_CUSTOMER_CHECK_PATH,
     CATALOG_MODERATOR_CHECK_PATH,
@@ -164,6 +165,25 @@ async def authenticated(request: Request, db: DB) -> Authenticated:
 Auth = Annotated[Authenticated, Depends(authenticated)]
 
 
+async def account_manager(request: Request, db: DB) -> Authenticated:
+    auth = await request.app.state.sessions.authenticate(
+        db, request.cookies.get(cookie_names("admin")[0], ""), "admin"
+    )
+    if "users.manage" not in auth.permissions:
+        raise IdentityError("permission.denied", 403)
+    if request.method == "PATCH":
+        await accounts.lock_account_changes(db)
+        # The actor's state can change while waiting for an account-management transaction.
+        auth = await authenticated(request, db)
+        if "users.manage" not in auth.permissions:
+            raise IdentityError("permission.denied", 403)
+    return cast(Authenticated, auth)
+
+
+AccountManager = Annotated[Authenticated, Depends(account_manager)]
+AccountPageSize = Annotated[int, Query(ge=1, le=100)]
+
+
 def session_response(auth: Authenticated, sessions: Sessions) -> SessionResponse:
     return SessionResponse(
         profile=Profile(id=auth.user.id, name=auth.user.name, phone=auth.user.phone),
@@ -300,7 +320,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def ready(db: DB) -> dict[str, str]:
         if (
             await db.scalar(text("SELECT version_num FROM alembic_version"))
-            != "0002_identity_avatars"
+            != "0003_identity_account_management"
         ):
             raise IdentityError("identity.schema", 503)
         await app.state.redis.ping()
@@ -739,7 +759,58 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.sessions.check_csrf(auth.session, body.csrf_token)
         return CartPrincipal(user_id=auth.user.id, session_id=auth.session.id)
 
+    management = APIRouter(prefix="/api/v1/admin/users", tags=["account management"])
+
+    @management.get("", operation_id="listManagedAccounts")
+    async def list_accounts(
+        db: DB,
+        _: AccountManager,
+        kind: accounts.AccountKind | None = None,
+        disabled: bool | None = None,
+        before: UUID | None = None,
+        limit: AccountPageSize = 25,
+    ) -> accounts.AccountPage:
+        return await accounts.list_accounts(db, kind, disabled, before, limit)
+
+    @management.get("/audit", operation_id="listAccountAudit")
+    async def list_account_audit(
+        db: DB,
+        _: AccountManager,
+        target: UUID | None = None,
+        before: UUID | None = None,
+        limit: AccountPageSize = 25,
+    ) -> accounts.AccountAuditPage:
+        return await accounts.list_account_audit(db, target, before, limit)
+
+    @management.get("/{user_id}", operation_id="getManagedAccount")
+    async def get_account(db: DB, _: AccountManager, user_id: UUID) -> accounts.AccountSummary:
+        user, admin = await accounts.target_account(db, user_id)
+        return accounts.summary(user, admin.email if admin else None, admin.role if admin else None)
+
+    @management.patch("/{user_id}/status", operation_id="setManagedAccountStatus")
+    async def update_account_status(
+        db: DB, actor: AccountManager, user_id: UUID, body: accounts.StatusChange
+    ) -> accounts.AccountSummary:
+        user, admin = await accounts.target_account(
+            db, user_id, expected_version=body.expected_version
+        )
+        await accounts.change_status(db, user, admin, body.disabled, actor.user.id)
+        await db.commit()
+        return accounts.summary(user, admin.email if admin else None, admin.role if admin else None)
+
+    @management.patch("/{user_id}/role", operation_id="setManagedStaffRole")
+    async def update_staff_role(
+        db: DB, actor: AccountManager, user_id: UUID, body: accounts.RoleChange
+    ) -> accounts.AccountSummary:
+        user, admin = await accounts.target_account(
+            db, user_id, expected_version=body.expected_version
+        )
+        await accounts.change_role(db, user, admin, body.role, actor.user.id)
+        await db.commit()
+        return accounts.summary(user, admin.email if admin else None, admin.role if admin else None)
+
     app.include_router(router)
+    app.include_router(management)
     app.include_router(service_tokens_router)
     app.add_middleware(BoundedBody, max_bytes=16384)
     return app

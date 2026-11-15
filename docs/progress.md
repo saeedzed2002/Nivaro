@@ -693,3 +693,11 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - The final implementation revision `c7e5440d854b60e9e0ad0a063f84c0153f0d2c44` passed the `support`, `web` and `image-processing` jobs in [GitHub Actions run 43762704529](https://github.com/saeedzed2002/Nivaro/actions/runs/43762704529). The web job also passed the development file synchronization and refresh check.
 - The real browser check on the same implementation used separate customer and staff replicas and verified live messages, typing, presence, disconnection and history recovery. Retention deletion was exercised against disposable data. The local deployment ran the read-only preview.
 - P09 is verified. P10 begins with role-scoped account and audit views.
+
+### P10 account management and Identity audit API
+
+- The gateway routes the paginated account list, account details and target-filtered audit events to Identity. A current staff session with `users.manage` is required. Mutations use the existing origin and CSRF defenses and check the account revision.
+- Status changes and staff role changes emit audit events with the actor, target, and typed before/after values in the same transaction. Disabling blocks all existing sessions. A role change revokes staff sessions and preserves any separate customer session. HTTP and operator account changes share a lock to protect the last active super administrator.
+- The 57-test disposable Identity suite passed, covering pagination, guest and restricted-staff access, stale revisions, session revocation, normalized audit output and concurrent updates between super administrators. The three Support regression tests passed with the updated Identity image. Strict typing, format, OpenAPI drift and the TypeScript contract check passed.
+- Local Docker applied `0003_identity_account_management`. Existing account, session and audit row counts were preserved. Both management endpoints returned HTTP 401 with `Cache-Control: no-store` for an anonymous request. Storefront and customer support returned HTTP 200.
+- The browser management and audit views, remaining P10 workflows and phase-level GitHub Actions verification remain open.
