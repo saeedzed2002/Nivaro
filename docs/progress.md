@@ -573,3 +573,8 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - Cart locks the owning cart and removes purchased quantities only from matching lines. It preserves newer revisions and unrelated lines even when they share a SKU. Empty affected group headers are removed, and mismatches surface a cart review notice. The paid order ID deduplicates repeated delivery in the same transaction as the cart update.
 - **76 Cart and 21 Orders tests passed** on disposable Docker, plus the complete browser purchase with actual broker-driven cart cleanup and a browser check for the review notice. Concurrent replay, an edited purchased line, a separate same-SKU line and another market were checked in PostgreSQL. Phase-end CI review is pending.
 - The local Docker publisher and Cart consumer are connected to the new quorum queue. Orders schema `0009_order_paid_outbox` and Cart schema `0007_paid_cleanup` are active, Compose Watch synchronized the current cart source, and cart and checkout returned HTTP 200. The existing PostgreSQL and RabbitMQ containers were retained.
+
+### P07 customer order history API
+
+- The customer session scopes both history and detailed order reads. History uses the existing customer/date index and a stable creation-time and ID cursor. Detail reads use the original delivery address, totals, purchased group and line snapshots, and committed status history.
+- **22 Orders tests passed** on disposable Docker. The gateway rejected another customer's detail and pagination cursor. Tests covered tied creation times, grouped snapshots, original prices, and the order timeline. The local Docker backend is active, and the gateway returned HTTP 401 for a history request without a session. Phase-end CI review remains pending.

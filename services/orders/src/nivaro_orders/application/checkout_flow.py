@@ -19,6 +19,7 @@ from nivaro_orders.domain.checkout import (
     CheckoutIntent,
     Contract,
     Digest,
+    OrderState,
     Totals,
 )
 from nivaro_orders.infrastructure.checkout_sources import CheckoutSources, CustomerContext
@@ -58,17 +59,7 @@ class ConfirmPreview(Contract):
 
 class OrderStatus(Contract):
     id: UUID
-    status: Literal[
-        "pending_reservation",
-        "awaiting_payment",
-        "expired",
-        "cancelled",
-        "payment_processing",
-        "payment_review",
-        "paid",
-        "refund_pending",
-        "refunded",
-    ]
+    status: OrderState
     version: int
     totals: Totals
     reservation_expires_at: datetime | None

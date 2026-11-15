@@ -164,6 +164,28 @@ async def test_gateway_checks_authoritative_checkout_and_order_ownership():
         assert "Test Street" not in response.text
         assert expect(response) == order
 
+        history = expect(await customer.get(f"{ORDERS}/history"))
+        assert [entry["id"] for entry in history["orders"]] == [order["id"]]
+        assert history["next_before"] is None
+        assert expect(await other.get(f"{ORDERS}/history"))["orders"] == []
+        expect(
+            await other.get(f"{ORDERS}/history", params={"before": order["id"]}),
+            404,
+            "checkout.not_found",
+        )
+        expect(await other.get(order_path + "/details"), 404, "checkout.not_found")
+        details_response = await customer.get(order_path + "/details")
+        assert details_response.headers["Cache-Control"] == "no-store"
+        details = expect(details_response)
+        assert details["totals"] == order["totals"]
+        assert details["address"]["street"] == "20 Test Street"
+        assert "phone" not in details["address"]
+        assert len(details["standalone"]) == 1 and details["standalone"][0]["quantity"] == 2
+        assert [change["status"] for change in details["timeline"]] == [
+            "pending_reservation",
+            "awaiting_payment",
+        ]
+
         payment_path = order_path + "/payment"
         payment = {"order_version": order["version"]}
         payment_headers = {"Idempotency-Key": order["id"]}

@@ -34,6 +34,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["listCustomerOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{order_id}": {
         parameters: {
             query?: never;
@@ -43,6 +60,23 @@ export interface paths {
         };
         /** Order Status */
         get: operations["readOrderStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Details */
+        get: operations["readCustomerOrderDetails"];
         put?: never;
         post?: never;
         delete?: never;
@@ -95,6 +129,19 @@ export interface components {
         };
         /** @enum {string} */
         Currency: "IRR" | "USD";
+        /** DeliveryAddress */
+        DeliveryAddress: {
+            /** City */
+            city: string;
+            /** Country */
+            country: string;
+            /** Postal Code */
+            postal_code: string;
+            /** Recipient */
+            recipient: string;
+            /** Street */
+            street: string;
+        };
         /** ErrorDetail */
         ErrorDetail: {
             /** Code */
@@ -106,8 +153,67 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorDetail"];
         };
+        /** HistoryEntry */
+        HistoryEntry: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            currency: components["schemas"]["Currency"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            market: components["schemas"]["Market"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
+            /** Total Minor */
+            total_minor: number;
+        };
         /** @enum {string} */
         Market: "ir" | "international";
+        /** OrderDetails */
+        OrderDetails: {
+            address: components["schemas"]["DeliveryAddress"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            currency: components["schemas"]["Currency"];
+            /** Groups */
+            groups: components["schemas"]["PurchasedGroup"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            market: components["schemas"]["Market"];
+            /** Standalone */
+            standalone: components["schemas"]["PurchasedItem"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
+            /** Timeline */
+            timeline: components["schemas"]["StateChange"][];
+            /** Total Minor */
+            total_minor: number;
+            totals: components["schemas"]["Totals"];
+        };
+        /** OrderHistory */
+        OrderHistory: {
+            /** Next Before */
+            next_before: string | null;
+            /** Orders */
+            orders: components["schemas"]["HistoryEntry"][];
+        };
         /** OrderStatus */
         OrderStatus: {
             /** Failure Code */
@@ -150,6 +256,41 @@ export interface components {
             operation_id: string;
             totals: components["schemas"]["Totals"];
         };
+        /** PurchasedGroup */
+        PurchasedGroup: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Items */
+            items: components["schemas"]["PurchasedItem"][];
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "complete_build" | "parts_only";
+            /** Name */
+            name: string;
+        };
+        /** PurchasedItem */
+        PurchasedItem: {
+            /** Name */
+            name: string;
+            /** Quantity */
+            quantity: number;
+            /** Sku */
+            sku: string;
+            /** Slot Key */
+            slot_key: string | null;
+            /**
+             * Source Line Id
+             * Format: uuid
+             */
+            source_line_id: string;
+            /** Unit Price Minor */
+            unit_price_minor: number;
+        };
         /** ReviewGroup */
         ReviewGroup: {
             /**
@@ -190,6 +331,21 @@ export interface components {
         StartPayment: {
             /** Order Version */
             order_version: number;
+        };
+        /** StateChange */
+        StateChange: {
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
+            /** Version */
+            version: number;
         };
         /** Totals */
         Totals: {
@@ -377,6 +533,83 @@ export interface operations {
             };
         };
     };
+    listCustomerOrders: {
+        parameters: {
+            query?: {
+                before?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderHistory"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readOrderStatus: {
         parameters: {
             query?: never;
@@ -395,6 +628,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderStatus"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readCustomerOrderDetails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetails"];
                 };
             };
             /** @description Unauthorized */

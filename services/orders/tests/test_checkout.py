@@ -21,6 +21,7 @@ from nivaro_orders.application.checkout import (
     review_checkout,
     stage_order,
 )
+from nivaro_orders.application.order_history import list_orders, read_details
 from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.payment_initiation import request_payment
@@ -321,6 +322,37 @@ async def test_checkout_idempotency_and_immutable_grouped_snapshot(database):
         assert saved_line.source_group_id == current_quote.groups[0].id
         assert await db.get(OrderTransition, (operation, 1)) is not None
         assert (await db.get(CheckoutOperation, operation)).state == "pending_reservation"
+        details = await read_details(db, customer, operation)
+        assert details.address.street == "Synthetic test address"
+        assert details.groups[0].name == current_quote.groups[0].name
+        assert details.groups[0].items[0].source_line_id == current_quote.lines[0].id
+        assert details.groups[0].items[0].unit_price_minor == 1010
+        assert details.standalone == []
+
+
+async def test_customer_order_history_paginates_when_creation_times_match(database):
+    checkout = CheckoutFixture(database)
+    customer = uuid4()
+    order_ids = []
+    for number in range(3):
+        operation = await checkout.request(customer, f"history-{number}")
+        snapshot = quote(operation, customer)
+        await checkout.save(snapshot, await checkout.review(snapshot))
+        order_ids.append(operation)
+    async with database.sessions.begin() as db:
+        await db.execute(
+            update(Order).where(Order.id.in_(order_ids)).values(created_at=datetime.now(UTC))
+        )
+    expected = sorted(order_ids, reverse=True)
+    async with database.sessions() as db:
+        first = await list_orders(db, customer, None, 2)
+        assert [entry.id for entry in first.orders] == expected[:2]
+        assert first.next_before == expected[1]
+        next_page = await list_orders(db, customer, first.next_before, 2)
+        assert [entry.id for entry in next_page.orders] == expected[2:]
+        assert next_page.next_before is None
+        with pytest.raises(CheckoutError, match="checkout.not_found"):
+            await list_orders(db, uuid4(), first.next_before, 2)
 
 
 async def test_shipping_policy_is_bound_to_confirmation_and_order_snapshot(database):

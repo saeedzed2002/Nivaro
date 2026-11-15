@@ -1,13 +1,19 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header, Query, Request
 
 from nivaro_orders.application.checkout_flow import (
     CheckoutFlow,
     ConfirmPreview,
     OrderStatus,
     PreviewResponse,
+)
+from nivaro_orders.application.order_history import (
+    OrderDetails,
+    OrderHistory,
+    list_orders,
+    read_details,
 )
 from nivaro_orders.application.payment_initiation import StartPayment, request_payment
 from nivaro_orders.domain.checkout import CheckoutIntent, Contract
@@ -62,6 +68,26 @@ async def confirm(request: Request, operation_id: UUID, body: ConfirmPreview) ->
     return await flow.confirm(
         await actor(request, flow, mutating=True), operation_id, body.confirmation
     )
+
+
+@router.get("/history", operation_id="listCustomerOrders")
+async def history(
+    request: Request,
+    before: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 12,
+) -> OrderHistory:
+    flow: CheckoutFlow = request.app.state.checkout
+    context = await actor(request, flow, mutating=False)
+    async with flow.database.sessions() as db:
+        return await list_orders(db, context.customer_id, before, limit)
+
+
+@router.get("/{order_id}/details", operation_id="readCustomerOrderDetails")
+async def details(request: Request, order_id: UUID) -> OrderDetails:
+    flow: CheckoutFlow = request.app.state.checkout
+    context = await actor(request, flow, mutating=False)
+    async with flow.database.sessions() as db:
+        return await read_details(db, context.customer_id, order_id)
 
 
 @router.get("/{order_id}", operation_id="readOrderStatus")

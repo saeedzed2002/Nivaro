@@ -7,6 +7,8 @@ import { authorized, IdentityError } from './identity-client';
 export type CheckoutIntent = components['schemas']['CheckoutIntent'];
 export type CheckoutPreview = components['schemas']['PreviewResponse'];
 export type OrderStatus = components['schemas']['OrderStatus'];
+export type OrderHistory = components['schemas']['OrderHistory'];
+export type OrderDetails = components['schemas']['OrderDetails'];
 
 const client = createClient<paths>({ credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
@@ -41,3 +43,9 @@ export const startSimulatedPayment = (id: string, version: number) => authorized
     params: { path: { order_id: id }, header: { 'Idempotency-Key': id } },
     body: { order_version: version }, headers: { 'X-CSRF-Token': csrf },
   })));
+
+export const listCustomerOrders = (before: string | undefined, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/orders/history', { params: { query: { before } }, signal })));
+
+export const readCustomerOrderDetails = (id: string, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/orders/{order_id}/details', { params: { path: { order_id: id } }, signal })));

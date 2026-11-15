@@ -5,6 +5,17 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, mod
 
 type Market = Literal["ir", "international"]
 type Currency = Literal["IRR", "USD"]
+OrderState = Literal[
+    "pending_reservation",
+    "awaiting_payment",
+    "expired",
+    "cancelled",
+    "payment_processing",
+    "payment_review",
+    "paid",
+    "refund_pending",
+    "refunded",
+]
 Version = Annotated[int, Field(strict=True, ge=1, le=2_147_483_647)]
 Amount = Annotated[int, Field(strict=True, ge=0, le=9_000_000_000_000_000)]
 Digest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
