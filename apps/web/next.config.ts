@@ -3,7 +3,7 @@ import type { NextConfig } from 'next';
 const config: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
-  allowedDevOrigins: ['127.0.0.1'],
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   images: { formats: ['image/avif', 'image/webp'] },
   async rewrites() {
     const gateway = process.env.NIVARO_WEB_PREVIEW_GATEWAY;

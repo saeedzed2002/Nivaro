@@ -18,6 +18,27 @@ The seed contains 12 documented products and 13 variants; reference prices remai
 
 ## Local development
 
+On the configured Windows workstation, use `http://localhost:8080/fa`. The
+`Nivaro Local Development` task starts the local Compose stack and Watch when
+the owner signs in. Web source and public asset edits sync into the running
+development container. Cart, catalog and identity APIs reload their locally
+mounted Python source. Workers use their selected images, and database migrations
+remain explicit verified updates.
+
+To register or restart the launcher from the repository root, run the following
+after initializing the existing local and media secrets and building the base
+backend images.
+
+```powershell
+./scripts/Start-LocalDev.ps1 -Install
+```
+
+The watcher writes `work/local-dev-watch.log`. Source-only frontend updates
+reuse the running image. Package manifest and lockfile edits rebuild the web
+image through [Compose Watch](https://docs.docker.com/compose/how-tos/file-watch/).
+Stop and disable the Windows task before switching the same local project back
+to the release configuration.
+
 Requires Node 24 and pnpm 11.25.0. The project pins pnpm and direct dependencies; do not force peer dependencies.
 
 ```powershell

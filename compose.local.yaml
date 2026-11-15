@@ -1,0 +1,23 @@
+# Use after compose.media.yaml and compose.dev.yaml on the owner's workstation.
+services:
+  web:
+    image: nivaro-web:local-development
+    command: [node, node_modules/next/dist/bin/next, dev, --hostname, 0.0.0.0]
+  catalog:
+    environment:
+      PYTHONPATH: /workspace/src
+    volumes:
+      - ./services/catalog/src:/workspace/src:ro
+    command: [uvicorn, nivaro_catalog.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]
+  identity:
+    environment:
+      PYTHONPATH: /workspace/src
+    volumes:
+      - ./services/identity/src:/workspace/src:ro
+    command: [uvicorn, nivaro_identity.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]
+  cart:
+    environment:
+      PYTHONPATH: /workspace/src
+    volumes:
+      - ./services/cart/src:/workspace/src:ro
+    command: [uvicorn, nivaro_cart.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]
