@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 import aio_pika
 from aio_pika.abc import AbstractExchange
-from aio_pika.exceptions import AMQPException
+from aio_pika.exceptions import AMQPException, ChannelInvalidStateError
 from pamqp.commands import Basic
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -102,7 +102,7 @@ async def publish_one(database: Database, exchange: AbstractExchange) -> bool:
                 mandatory=True,
             )
             confirmed = isinstance(result, Basic.Ack)
-    except (AMQPException, OSError, TimeoutError):
+    except (AMQPException, ChannelInvalidStateError, OSError, TimeoutError):
         pass
     async with database.sessions() as db:
         await finish(db, delivery, confirmed=confirmed)
@@ -129,16 +129,16 @@ async def run() -> None:
                         publisher_confirms=True, on_return_raises=True
                     ) as channel:
                         exchange = await channel.get_exchange(EVENT_EXCHANGE, ensure=False)
-                        while True:
+                        while not channel.is_closed:
                             try:
                                 if not await publish_one(database, exchange):
                                     await asyncio.sleep(1)
                             except SQLAlchemyError:
                                 log.exception("Catalog outbox database operation failed")
                                 await asyncio.sleep(2)
-            except (AMQPException, OSError, TimeoutError):
+            except (AMQPException, ChannelInvalidStateError, OSError, TimeoutError):
                 log.warning("Catalog event broker is unavailable")
-                await asyncio.sleep(2)
+            await asyncio.sleep(2)
     finally:
         await database.engine.dispose()
 

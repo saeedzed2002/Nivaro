@@ -3,7 +3,7 @@ import logging
 
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
-from aio_pika.exceptions import AMQPException
+from aio_pika.exceptions import AMQPException, ChannelInvalidStateError
 from pydantic import ValidationError
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -85,11 +85,13 @@ async def run() -> None:
     try:
         while True:
             try:
-                async with await aio_pika.connect_robust(
+                # Recreate the iterator and broker subscription after every disconnect.
+                async with await aio_pika.connect(
                     host=settings.event_broker_host,
                     login="nivaro_orders_events",
                     password=secret,
                     virtualhost="commerce-events",
+                    heartbeat=15,
                     timeout=5,
                 ) as connection:
                     async with connection.channel() as channel:
@@ -98,7 +100,7 @@ async def run() -> None:
                         async with queue.iterator() as messages:
                             async for message in messages:
                                 await consume(message, database)
-            except (AMQPException, OSError, TimeoutError):
+            except (AMQPException, ChannelInvalidStateError, OSError, TimeoutError):
                 log.warning("Orders event broker is unavailable")
             await asyncio.sleep(2)
     finally:

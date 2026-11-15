@@ -7,13 +7,15 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from aio_pika.exceptions import ChannelInvalidStateError
+from pamqp.commands import Basic
 from sqlalchemy import delete, func, select, update
 
 from nivaro_catalog.application.checkout import change_state, database_time, expire_one
 from nivaro_catalog.domain.checkout import CartGroup, CartLine, CartSnapshot, QuoteRequest
 from nivaro_catalog.domain.contracts import CPU, Prebuilt
 from nivaro_catalog.domain.evaluation import selection_hash
-from nivaro_catalog.event_publisher import claim, finish
+from nivaro_catalog.event_publisher import claim, finish, publish_one
 from nivaro_catalog.infrastructure.database import Database
 from nivaro_catalog.infrastructure.models import (
     AllocationRow,
@@ -392,6 +394,50 @@ async def test_expiry_worker_and_commit_race_release_once(checkout):
             current = await db.get(OutboxRow, event.id, populate_existing=True)
             assert current.published_at is None and current.attempts == 2
             assert current.lease_until is None and current.available_at > await database_time(db)
+
+
+async def test_closed_channel_retries_the_same_expiry_event(checkout):
+    variant = await checkout.add(1)
+    command = checkout.command([variant])
+    assert (await checkout.quote(command)).is_success
+    assert (await checkout.reserve(command)).is_success
+    async with checkout.database.sessions() as db, db.begin():
+        await db.execute(
+            update(ReservationRow)
+            .where(ReservationRow.operation_id == command.operation_id)
+            .values(expires_at=func.clock_timestamp() - timedelta(seconds=1))
+        )
+    async with checkout.database.sessions() as db:
+        assert await expire_one(db)
+
+    class Exchange:
+        def __init__(self):
+            self.messages = []
+
+        async def publish(self, message, *, routing_key, mandatory):
+            self.messages.append((message.message_id, message.body, routing_key, mandatory))
+            if len(self.messages) == 1:
+                raise ChannelInvalidStateError("closed during broker restart")
+            return Basic.Ack(delivery_tag=1)
+
+    exchange = Exchange()
+    assert await publish_one(checkout.database, exchange)
+    async with checkout.database.sessions() as db, db.begin():
+        event = await db.scalar(
+            select(OutboxRow).where(OutboxRow.aggregate_id == command.operation_id)
+        )
+        assert event.published_at is None and event.lease_until is None and event.attempts == 1
+        assert event.last_error == "publish.unconfirmed"
+        assert event.available_at > await database_time(db)
+        event.available_at = await database_time(db)
+        event_id = event.id
+
+    assert await publish_one(checkout.database, exchange)
+    assert exchange.messages[0] == exchange.messages[1]
+    assert exchange.messages[0][0] == str(event_id)
+    async with checkout.database.sessions() as db:
+        event = await db.get(OutboxRow, event_id)
+        assert event.published_at is not None and event.last_error is None and event.attempts == 2
 
 
 async def test_rollback_preserves_held_stock_and_discards_expiry_event(checkout):
