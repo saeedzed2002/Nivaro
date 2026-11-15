@@ -60,23 +60,49 @@ class CatalogReservations:
         self.catalog = str(settings.catalog_url).rstrip("/")
         self.secret = client_secret
 
+    async def authorization(
+        self, scope: Literal["catalog.reserve", "catalog.finalize"]
+    ) -> dict[str, str]:
+        status, body = await request_json(
+            self.http,
+            "POST",
+            self.identity + "/internal/v1/service-tokens",
+            json_body={"audience": "nivaro-catalog", "scope": scope},
+            auth=("orders", self.secret),
+        )
+        if status != 200:
+            raise ReservationUnavailable()
+        token = ServiceToken.model_validate(body).access_token
+        if not 1 <= len(token) <= 8192:
+            raise ReservationUnavailable()
+        return {"Authorization": f"Bearer {token}"}
+
+    async def commit_paid(self, operation_id: UUID, customer_id: UUID) -> Receipt:
+        try:
+            headers = await self.authorization("catalog.finalize")
+            status, body = await request_json(
+                self.http,
+                "POST",
+                self.catalog + f"/internal/v1/catalog/reservations/{operation_id}/commit-paid",
+                headers=headers,
+                params={"customer_id": str(customer_id)},
+            )
+            if (
+                status == 404
+                and ErrorEnvelope.model_validate(body).error.code == "reservation.not_found"
+            ):
+                raise ReservationRejected("reservation.not_found")
+            if status != 200:
+                raise ReservationUnavailable()
+            return Receipt.model_validate(body)
+        except (UpstreamUnavailable, ValidationError) as exc:
+            raise ReservationUnavailable() from exc
+
     async def recover_or_reserve(
         self, operation_id: UUID, quote_id: UUID, customer_id: UUID, cart_fingerprint: str
     ) -> Receipt:
         try:
-            status, body = await request_json(
-                self.http,
-                "POST",
-                self.identity + "/internal/v1/service-tokens",
-                json_body={"audience": "nivaro-catalog", "scope": "catalog.reserve"},
-                auth=("orders", self.secret),
-            )
-            if status != 200:
-                raise ReservationUnavailable()
-            token = ServiceToken.model_validate(body).access_token
-            if not 1 <= len(token) <= 8192:
-                raise ReservationUnavailable()
-            headers = {"Authorization": f"Bearer {token}"}
+            headers = await self.authorization("catalog.reserve")
             root = self.catalog + "/internal/v1/catalog/reservations"
             status, body = await request_json(
                 self.http,

@@ -87,8 +87,7 @@ async def transition(
         if expires_at <= await db_time(db):
             status, reason = "expired", "reservation.expired"
 
-    order.status = status
-    order.version += 1
+    record_order_transition(db, order, status, reason)
     order.reservation_expires_at = expires_at
     order.reservation_retry_at = None
     order.reservation_error = None if status == "awaiting_payment" else reason
@@ -102,6 +101,11 @@ async def transition(
             claim.expires_at = expires_at
         elif claim.state == "held":
             claim.state = "released"
+
+
+def record_order_transition(db: AsyncSession, order: Order, status: str, reason: str) -> None:
+    order.status = status
+    order.version += 1
     db.add(
         OrderTransition(
             order_id=order.id,

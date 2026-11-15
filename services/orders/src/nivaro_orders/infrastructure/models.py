@@ -106,7 +106,8 @@ class Order(Timestamps, Base):
     __table_args__ = (
         CheckConstraint(MARKET_CURRENCY, name="order_market_currency"),
         CheckConstraint(
-            "status IN ('pending_reservation','awaiting_payment','expired','cancelled')",
+            "status IN ('pending_reservation','awaiting_payment','expired','cancelled',"
+            "'payment_processing','payment_review','paid')",
             name="order_status",
         ),
         CheckConstraint("version > 0 AND cart_version > 0", name="order_versions"),
@@ -223,7 +224,7 @@ class CouponClaim(Base):
     __tablename__ = "coupon_claims"
     __table_args__ = (
         CheckConstraint(
-            "state IN ('held','consumed','released') AND amount_minor > 0",
+            "state IN ('held','finalizing','consumed','released') AND amount_minor > 0",
             name="coupon_claim_state",
         ),
         Index("ix_coupon_claims_usage", "coupon_id", "state", "expires_at", "customer_id"),
@@ -283,6 +284,28 @@ class OrderPaymentAttempt(Base):
             name="order_payment_outcome",
         ),
         Index("ix_order_payment_attempts_order", "order_id", "order_version"),
+        Index(
+            "ix_order_payment_unhandled",
+            "verified_at",
+            "id",
+            postgresql_where=text("disposition IS NULL AND captured_minor IS NOT NULL"),
+        ),
+        Index(
+            "uq_order_payment_selected",
+            "order_id",
+            unique=True,
+            postgresql_where=text("disposition = 'selected'"),
+        ),
+        Index(
+            "ix_order_payment_stock_due",
+            "stock_retry_at",
+            "id",
+            postgresql_where=text("stock_retry_at IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "stock_attempts >= 0 AND (stock_retry_at IS NULL OR disposition IS NOT DISTINCT FROM 'selected')",
+            name="order_payment_stock_retry",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
@@ -292,6 +315,9 @@ class OrderPaymentAttempt(Base):
     aggregate_version: Mapped[int | None] = mapped_column(Integer)
     captured_minor: Mapped[int | None] = mapped_column(BigInteger)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    disposition: Mapped[str | None] = mapped_column(String(80))
+    stock_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stock_attempts: Mapped[int] = mapped_column(Integer, server_default="0")
 
 
 class OrderPaymentRefund(Base):

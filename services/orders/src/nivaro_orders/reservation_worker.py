@@ -6,6 +6,7 @@ import logging
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
 
+from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.reservations import advance_reservation, expire_unpaid
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.infrastructure.reservations import CatalogReservations
@@ -28,9 +29,15 @@ async def run() -> None:
             while True:
                 try:
                     async with database.sessions() as db:
+                        for _ in range(10):
+                            if not await prepare_payment(db):
+                                break
                         for _ in range(20):
                             if not await expire_unpaid(db):
                                 break
+                    for _ in range(10):
+                        if not await advance_payment_stock(database.sessions, catalog):
+                            break
                     for _ in range(10):
                         if not await advance_reservation(database.sessions, catalog):
                             break

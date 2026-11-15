@@ -343,6 +343,43 @@ async def test_reference_offers_cannot_be_quoted(checkout):
     assert await checkout.stock(variant) == (3, 0)
 
 
+@pytest.mark.parametrize("stock_available", [True, False])
+async def test_paid_expired_reservation_reallocates_all_lines_or_persists_rejection(
+    checkout, stock_available
+):
+    first = await checkout.add(2)
+    second = await checkout.add(1)
+    checkout_request = checkout.command([first, second])
+    assert (await checkout.quote(checkout_request)).is_success
+    assert (await checkout.reserve(checkout_request)).json()["state"] == "held"
+    async with checkout.database.sessions() as db, db.begin():
+        await db.execute(
+            update(ReservationRow)
+            .where(ReservationRow.operation_id == checkout_request.operation_id)
+            .values(expires_at=func.clock_timestamp() - timedelta(seconds=1))
+        )
+    assert (await checkout.action(checkout_request)).json()["state"] == "expired"
+    competitor = checkout.command([second])
+    if not stock_available:
+        assert (await checkout.quote(competitor)).is_success
+        assert (await checkout.reserve(competitor)).json()["state"] == "held"
+
+    results = await asyncio.gather(
+        *(checkout.action(checkout_request, "commit-paid") for _ in range(4))
+    )
+    expected = "committed" if stock_available else "expired"
+    assert {response.json()["state"] for response in results} == {expected}
+    if stock_available:
+        assert await checkout.stock(first) == (1, 0)
+        assert await checkout.stock(second) == (0, 0)
+    else:
+        assert await checkout.stock(first) == (2, 0)
+        assert await checkout.stock(second) == (1, 1)
+        assert (await checkout.action(competitor, "release")).json()["state"] == "released"
+        assert (await checkout.action(checkout_request, "commit-paid")).json()["state"] == "expired"
+        assert await checkout.stock(second) == (1, 0)
+
+
 async def test_expiry_worker_and_commit_race_release_once(checkout):
     variant = await checkout.add(1)
     command = checkout.command([variant])

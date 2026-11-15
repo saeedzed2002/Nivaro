@@ -38,7 +38,7 @@ async def reservation(operation_id: UUID, customer_id: UUID, db: DB) -> Reservat
 @router.post("/reservations/{operation_id}/{action}", dependencies=[require("catalog.finalize")])
 async def finalize(
     operation_id: UUID,
-    action: Literal["commit", "release"],
+    action: Literal["commit", "release", "commit-paid"],
     customer_id: UUID,
     db: DB,
 ) -> Reservation:

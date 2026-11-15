@@ -21,6 +21,7 @@ from nivaro_orders.application.checkout import (
     review_checkout,
     stage_order,
 )
+from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.reservations import advance_reservation, expire_unpaid, transition
 from nivaro_orders.domain.checkout import (
     AddressSnapshot,
@@ -484,10 +485,11 @@ async def test_definitive_stock_rejection_releases_the_coupon_claim(database):
         ).reason == "inventory.insufficient_stock"
 
 
-class LoseSuccessfulReserveResponse(httpx.AsyncBaseTransport):
+class LoseSuccessfulStockResponses(httpx.AsyncBaseTransport):
     def __init__(self):
         self.inner = httpx.AsyncHTTPTransport()
         self.writes = 0
+        self.payment_writes = 0
 
     async def handle_async_request(self, request):
         response = await self.inner.handle_async_request(request)
@@ -498,6 +500,13 @@ class LoseSuccessfulReserveResponse(httpx.AsyncBaseTransport):
                 raise httpx.ReadTimeout(
                     "Synthetic loss after Catalog committed the hold", request=request
                 )
+        if request.method == "POST" and request.url.path.endswith("/commit-paid"):
+            self.payment_writes += 1
+            if self.payment_writes == 1 and response.status_code == 200:
+                await response.aclose()
+                raise httpx.ReadTimeout(
+                    "Synthetic loss after Catalog committed paid stock", request=request
+                )
         return response
 
     async def aclose(self):
@@ -507,7 +516,7 @@ class LoseSuccessfulReserveResponse(httpx.AsyncBaseTransport):
 @pytest.mark.skipif(
     os.getenv("ORDERS_CATALOG_E2E") != "1", reason="Disposable catalog stack required"
 )
-async def test_lost_response_after_real_catalog_hold_is_recovered_by_operation_id(database):
+async def test_lost_reservation_and_paid_stock_responses_recover_by_operation_id(database):
     settings = Settings()
     secret = settings.client_secret_file.read_text().strip()
     checkout = CheckoutFixture(database)
@@ -522,7 +531,7 @@ async def test_lost_response_after_real_catalog_hold_is_recovered_by_operation_i
     checkout.rates = [rate("US")]
     customer = uuid4()
     operation = await checkout.request(customer, "catalog-lost-response")
-    transport = LoseSuccessfulReserveResponse()
+    transport = LoseSuccessfulStockResponses()
     async with httpx.AsyncClient(transport=transport, timeout=5, trust_env=False) as http:
         catalog = str(settings.catalog_url).rstrip("/")
         identity = str(settings.identity_url).rstrip("/")
@@ -593,6 +602,38 @@ async def test_lost_response_after_real_catalog_hold_is_recovered_by_operation_i
         )
         summaries.raise_for_status()
         assert summaries.json()["items"][0]["available_quantity"] == 11
+
+        accepted = verified_capture(saved)
+        async with database.sessions() as db:
+            await apply_payment_result(db, accepted)
+            assert await prepare_payment(db, operation)
+        assert await advance_payment_stock(database.sessions, client, operation)
+        receipt = await client.recover_or_reserve(
+            operation, saved.quote_id, customer, saved.cart_fingerprint
+        )
+        assert receipt.state == "committed"
+        async with database.sessions() as db, db.begin():
+            assert (await db.get(Order, operation)).status == "payment_processing"
+            payment = await db.get(OrderPaymentAttempt, accepted.aggregate_id)
+            payment.stock_retry_at = datetime.now(UTC) - timedelta(seconds=1)
+        recovered = await asyncio.gather(
+            *(advance_payment_stock(database.sessions, client, operation) for _ in range(4))
+        )
+        assert recovered.count(True) == 1
+        assert transport.payment_writes == 2
+        async with database.sessions() as db:
+            paid = await db.get(Order, operation)
+            assert (paid.status, paid.version) == ("paid", 4)
+            extra = verified_capture(saved)
+            await db.rollback()
+            await apply_payment_result(db, extra)
+            assert await prepare_payment(db, operation)
+        async with database.sessions() as db:
+            assert (
+                await db.get(OrderPaymentAttempt, extra.aggregate_id)
+            ).disposition == "payment.duplicate_capture"
+        assert not await advance_payment_stock(database.sessions, client, operation)
+        assert transport.payment_writes == 2
 
         background_order = await checkout.request(customer, "background-reservation")
         await stage_for(background_order)
@@ -768,6 +809,74 @@ async def test_expiry_updates_order_transition_once(database):
         assert not await expire_unpaid(db)
         order = await db.get(Order, operation)
         assert (order.status, order.version) == ("expired", 3)
+
+
+def verified_capture(order):
+    attempt_id = uuid4()
+    return payment_result_adapter.validate_python(
+        {
+            "event_id": uuid4(),
+            "event_type": "payment.succeeded",
+            "schema_version": 1,
+            "occurred_at": datetime.now(UTC),
+            "producer": "payments",
+            "aggregate_id": attempt_id,
+            "aggregate_version": 2,
+            "correlation_id": order.id,
+            "causation_id": None,
+            "payload": {
+                "order_id": order.id,
+                "order_version": order.version,
+                "payment_attempt_id": attempt_id,
+                "market": order.market,
+                "currency": order.currency,
+                "amount_minor": order.total_minor,
+                "captured_minor": order.total_minor,
+            },
+        }
+    )
+
+
+async def test_expired_paid_order_cannot_take_coupon_quota_from_a_new_hold(database):
+    checkout = CheckoutFixture(database)
+    coupon_id, now = uuid4(), datetime.now(UTC)
+    code = "PAID-" + coupon_id.hex.upper()
+    checkout.intent = checkout.intent.model_copy(update={"coupon_code": code})
+    async with database.sessions() as db, db.begin():
+        db.add(
+            Coupon(
+                id=coupon_id,
+                code=code,
+                market="ir",
+                currency="IRR",
+                kind="fixed",
+                value=100,
+                minimum_minor=0,
+                starts_at=now - timedelta(minutes=1),
+                ends_at=now + timedelta(minutes=10),
+                global_limit=1,
+                per_customer_limit=1,
+                enabled=True,
+            )
+        )
+    late = await checkout.payable("expired-payment")
+    async with database.sessions() as db, db.begin():
+        order = await db.get(Order, late.id, with_for_update=True)
+        await transition(db, order, "expired", "reservation.expired", now)
+    active = await checkout.payable("active-payment")
+    capture = verified_capture(late)
+    async with database.sessions() as db:
+        await apply_payment_result(db, capture)
+        assert await prepare_payment(db, late.id)
+    async with database.sessions() as db:
+        review = await db.get(Order, late.id)
+        assert (review.status, review.reservation_error) == (
+            "payment_review",
+            "payment.coupon_quota_unavailable",
+        )
+        assert (await db.get(CouponClaim, late.id)).state == "released"
+        assert (await db.get(CouponClaim, active.id)).state == "held"
+        assert (await db.get(OrderPaymentAttempt, capture.aggregate_id)).stock_retry_at is None
 
 
 async def test_payment_evidence_deduplicates_and_survives_refund_before_capture(database):

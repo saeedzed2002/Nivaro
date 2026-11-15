@@ -147,7 +147,10 @@
               "pending_reservation",
               "awaiting_payment",
               "expired",
-              "cancelled"
+              "cancelled",
+              "payment_processing",
+              "payment_review",
+              "paid"
             ],
             "title": "Status",
             "type": "string"

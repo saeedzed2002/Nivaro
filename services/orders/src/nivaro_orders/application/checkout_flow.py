@@ -58,7 +58,15 @@ class ConfirmPreview(Contract):
 
 class OrderStatus(Contract):
     id: UUID
-    status: Literal["pending_reservation", "awaiting_payment", "expired", "cancelled"]
+    status: Literal[
+        "pending_reservation",
+        "awaiting_payment",
+        "expired",
+        "cancelled",
+        "payment_processing",
+        "payment_review",
+        "paid",
+    ]
     version: int
     totals: Totals
     reservation_expires_at: datetime | None

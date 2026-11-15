@@ -129,7 +129,7 @@ async def require_coupon_capacity(
             .select_from(CouponClaim)
             .where(
                 CouponClaim.coupon_id == coupon.id,
-                (CouponClaim.state == "consumed")
+                CouponClaim.state.in_(("finalizing", "consumed"))
                 | ((CouponClaim.state == "held") & (CouponClaim.expires_at > now)),
             )
         )

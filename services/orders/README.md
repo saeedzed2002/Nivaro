@@ -93,9 +93,17 @@ The consumer records an inbox ID and the attempt or refund evidence in the same
 transaction, then acknowledges. Attempt evidence binds an attempt ID to one
 order revision, and a refund can be recorded before the corresponding outcome.
 An exact replay preserves the original evidence. Invalid messages and conflicts
-go to `orders.payment.results.v1.error`. A valid payment record is available
-for stock finalization and compensation. Intake leaves the order and stock
-unchanged.
+go to `orders.payment.results.v1.error`.
+
+The reservation worker selects one matching capture per order and records its
+work before invoking Catalog with the original order ID. A lost reply schedules
+a retry with the same ID. Only a matching receipt in state `committed` can move
+the order to `paid`. For expired holds, Catalog checks the original allocations
+together. Orders protects any applied coupon quota throughout the request and
+requires available quota to restore an expired claim. A definitive stock or
+coupon rejection moves the order to `payment_review`. Mismatched and additional
+captures retain a financial review reason on their attempt. Running this worker
+does not issue refunds.
 
 Run `./scripts/Verify-OrdersFoundation.ps1 -WithPaymentResults` with the current
 Orders, Payments and Catalog images to verify both event queues, scoped simulator

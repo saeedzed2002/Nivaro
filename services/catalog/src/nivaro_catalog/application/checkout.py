@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
@@ -31,7 +32,7 @@ from nivaro_catalog.infrastructure.repository import variant_contract
 
 QUOTE_LIFETIME = timedelta(minutes=5)
 HOLD_LIFETIME = timedelta(minutes=15)
-Action = Literal["read", "commit", "release"]
+Action = Literal["read", "commit", "release", "commit-paid"]
 
 
 async def database_time(db: AsyncSession) -> datetime:
@@ -273,31 +274,79 @@ async def reserve(db: AsyncSession, command: ReservationRequest) -> Reservation:
         return receipt(hold, quote)
 
 
+async def allocation_quantities(db: AsyncSession, operation_id: UUID) -> dict[UUID, int]:
+    return {
+        allocation.variant_id: allocation.quantity
+        for allocation in await db.scalars(
+            select(AllocationRow).where(AllocationRow.operation_id == operation_id)
+        )
+    }
+
+
+async def reallocate_paid(db: AsyncSession, row: ReservationRow, quote: Quote) -> None:
+    quantities = await allocation_quantities(db, row.operation_id)
+    variants = (await db.scalars(ordered_variants(set(quantities)).with_for_update())).all()
+    if can_reallocate(quote, variants, quantities, owns_hold=False):
+        row.state = "committed"
+        for variant in variants:
+            variant.on_hand -= quantities[variant.id]
+            variant.version += 1
+    else:
+        row.paid_commit_rejected = True
+    row.version += 1
+
+
+def can_reallocate(
+    quote: Quote,
+    variants: Sequence[VariantRow],
+    quantities: dict[UUID, int],
+    *,
+    owns_hold: bool,
+) -> bool:
+    specs = {line.variant_id: line.spec_version for line in quote.lines}
+    return (
+        bool(quantities)
+        and len(variants) == len(quantities)
+        and all(
+            variant.stock_verified
+            and variant.spec_version == specs.get(variant.id)
+            and (owns_hold or variant.on_hand - variant.reserved >= quantities[variant.id])
+            for variant in variants
+        )
+    )
+
+
 async def change_state(
     db: AsyncSession, row: ReservationRow, action: Action, *, quote: Quote | None = None
 ) -> None:
     if row.state != "held":
         if (row.state, action) in {("committed", "release"), ("released", "commit")}:
             raise CheckoutError("reservation.state_conflict", "Reservation is already finalized")
+        if row.state == "expired" and action == "commit-paid" and not row.paid_commit_rejected:
+            await reallocate_paid(db, row, quote or await load_quote(db, row.quote_id))
         return
     if action == "read" and row.expires_at > await database_time(db):
         return
 
-    quantities = {
-        allocation.variant_id: allocation.quantity
-        for allocation in await db.scalars(
-            select(AllocationRow).where(AllocationRow.operation_id == row.operation_id)
-        )
-    }
-    variants = await db.scalars(ordered_variants(set(quantities)).with_for_update())
+    quantities = await allocation_quantities(db, row.operation_id)
+    variants = (await db.scalars(ordered_variants(set(quantities)).with_for_update())).all()
     # The DB clock is read after lock waits so a late commit cannot win by starting early.
     now = await database_time(db)
     if row.expires_at <= now:
-        row.state = "expired"
+        if action == "commit-paid" and can_reallocate(
+            quote or await load_quote(db, row.quote_id),
+            variants,
+            quantities,
+            owns_hold=True,
+        ):
+            row.state = "committed"
+        else:
+            row.state = "expired"
+            row.paid_commit_rejected = action == "commit-paid"
     elif action == "read":
         return
     else:
-        row.state = "committed" if action == "commit" else "released"
+        row.state = "committed" if action in {"commit", "commit-paid"} else "released"
     row.version += 1
     if row.state == "expired":
         db.add(reservation_expired(row, quote or await load_quote(db, row.quote_id), now))

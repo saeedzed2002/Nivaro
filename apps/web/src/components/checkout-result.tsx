@@ -15,6 +15,9 @@ const headings: Record<OrderStatus['status'], [string, string]> = {
   awaiting_payment: ['سفارش در انتظار پرداخت', 'Order awaiting payment'],
   expired: ['مهلت رزرو سفارش تمام شد', 'Order reservation expired'],
   cancelled: ['سفارش لغو شد', 'Order cancelled'],
+  payment_processing: ['پرداخت تأیید شد؛ موجودی در حال نهایی‌سازی است', 'Payment verified, confirming stock'],
+  payment_review: ['پرداخت نیازمند بررسی است', 'Payment needs review'],
+  paid: ['پرداخت و موجودی سفارش تأیید شد', 'Payment and stock confirmed'],
 };
 
 export function CheckoutResult({ locale, id }: { locale: Locale; id: string | null }) {
@@ -24,8 +27,11 @@ export function CheckoutResult({ locale, id }: { locale: Locale; id: string | nu
   const order = useQuery({
     queryKey: key, enabled: id !== null,
     queryFn: ({ signal }) => orderStatus(id!, signal),
-    refetchInterval: ({ state }) => state.data?.status === 'pending_reservation' ? 3_000
-      : state.data?.status === 'awaiting_payment' ? 15_000 : false,
+    refetchInterval: ({ state }) => {
+      const status = state.data?.status;
+      if (status === 'pending_reservation' || status === 'payment_processing') return 3_000;
+      return status === 'awaiting_payment' || status === 'expired' ? 15_000 : false;
+    },
   });
   const orderId = order.data?.id;
   useEffect(() => { if (orderId) clearCheckoutAttempt(orderId); }, [orderId]);

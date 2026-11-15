@@ -158,6 +158,9 @@ class ReservationRow(Timestamps, Base):
             "state IN ('held','committed','released','expired')", name="reservation_state"
         ),
         CheckConstraint("version > 0", name="reservation_version"),
+        CheckConstraint(
+            "NOT paid_commit_rejected OR state = 'expired'", name="reservation_paid_rejection"
+        ),
         Index(
             "ix_reservations_held_expiry",
             "expires_at",
@@ -172,6 +175,7 @@ class ReservationRow(Timestamps, Base):
     state: Mapped[str] = mapped_column(String(12))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     version: Mapped[int] = mapped_column(Integer, server_default="1")
+    paid_commit_rejected: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
 
 
 class OutboxRow(Base):
