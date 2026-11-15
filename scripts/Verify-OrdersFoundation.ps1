@@ -56,7 +56,7 @@ try {
         $env:NIVARO_EVENT_CATALOG_IMAGE = $CatalogImage
         $services += @('catalog-event-publisher', 'orders-expiry-consumer')
     }
-    if ($WithPaymentResults) { $services += @('payments', 'payments-event-publisher', 'orders-payment-consumer') }
+    if ($WithPaymentResults) { $services += @('payments', 'payments-event-publisher', 'orders-payment-consumer', 'orders-event-publisher', 'cart-paid-consumer') }
     docker compose @config up -d --no-build --pull never --wait --wait-timeout 60 @services
     if ($LASTEXITCODE -ne 0) { throw 'Disposable Orders stack failed readiness.' }
     $integration = @()
@@ -110,7 +110,7 @@ try {
     }
     Write-Output 'Orders release readiness, migrations, totals, coupon concurrency and reservation checks passed.'
 } catch {
-    if ($WithPaymentResults) { docker compose @config logs --no-color --tail 40 orders-payment-consumer payments-event-publisher payments }
+    if ($WithPaymentResults) { docker compose @config logs --no-color --tail 40 orders-payment-consumer payments-event-publisher payments orders-event-publisher cart-paid-consumer }
     if ($WithEvents) {
         docker compose @config logs --no-color --tail 40 catalog-event-publisher orders-expiry-consumer rabbitmq
     }

@@ -412,6 +412,11 @@ export interface components {
              */
             owner_scope: "guest" | "customer";
             /**
+             * Paid Cleanup Needs Review
+             * @default false
+             */
+            paid_cleanup_needs_review: boolean;
+            /**
              * Reserves Stock
              * @default false
              * @constant

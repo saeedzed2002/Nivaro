@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     allowed_origins: list[str] = ["http://127.0.0.1:8080", "http://localhost:8080"]
     identity_url: str = "http://identity:8000"
     catalog_url: str = "http://catalog:8000"
+    event_broker_host: str = "rabbitmq"
+    event_broker_password_file: Path = Path("/run/secrets/cart_event_broker_password")
     identity_service_key_file: Path | None = None
     jwt_issuer: str = "nivaro-identity"
     jwt_audience: str = "nivaro-browser"

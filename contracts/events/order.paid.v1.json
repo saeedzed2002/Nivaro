@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "PaidCart": {
+      "additionalProperties": false,
+      "properties": {
+        "cart_id": {
+          "format": "uuid",
+          "title": "Cart Id",
+          "type": "string"
+        },
+        "cart_version": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Cart Version",
+          "type": "integer"
+        },
+        "customer_id": {
+          "format": "uuid",
+          "title": "Customer Id",
+          "type": "string"
+        },
+        "allocation_id": {
+          "format": "uuid",
+          "title": "Allocation Id",
+          "type": "string"
+        },
+        "market": {
+          "enum": [
+            "ir",
+            "international"
+          ],
+          "title": "Market",
+          "type": "string"
+        },
+        "currency": {
+          "enum": [
+            "IRR",
+            "USD"
+          ],
+          "title": "Currency",
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/PurchasedLine"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Lines",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cart_id",
+        "cart_version",
+        "customer_id",
+        "allocation_id",
+        "market",
+        "currency",
+        "lines"
+      ],
+      "title": "PaidCart",
+      "type": "object"
+    },
+    "PurchasedLine": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "maximum": 2147483647,
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Group Id"
+        },
+        "quantity": {
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Quantity",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "group_id",
+        "quantity"
+      ],
+      "title": "PurchasedLine",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "event_type": {
+      "const": "order.paid",
+      "title": "Event Type",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "producer": {
+      "const": "orders",
+      "title": "Producer",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "aggregate_id": {
+      "format": "uuid",
+      "title": "Aggregate Id",
+      "type": "string"
+    },
+    "aggregate_version": {
+      "maximum": 2147483647,
+      "minimum": 1,
+      "title": "Aggregate Version",
+      "type": "integer"
+    },
+    "correlation_id": {
+      "format": "uuid",
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "causation_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Causation Id"
+    },
+    "payload": {
+      "$ref": "#/$defs/PaidCart"
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "producer",
+    "occurred_at",
+    "aggregate_id",
+    "aggregate_version",
+    "correlation_id",
+    "causation_id",
+    "payload"
+  ],
+  "title": "OrderPaid",
+  "type": "object"
+}

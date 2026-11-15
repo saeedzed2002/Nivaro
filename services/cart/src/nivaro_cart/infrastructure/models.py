@@ -62,6 +62,7 @@ class Cart(Base):
     market: Mapped[str] = mapped_column(String(16))
     currency: Mapped[str] = mapped_column(String(3))
     version: Mapped[int] = mapped_column(Integer, default=1)
+    paid_cleanup_needs_review: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
 
 
 class Build(Base):

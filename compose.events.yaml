@@ -39,8 +39,34 @@ services:
         condition: service_healthy
     init: true
     restart: unless-stopped
+  orders-event-publisher:
+    image: ${NIVARO_ORDERS_IMAGE:-nivaro-orders:release}
+    command: [python, -m, nivaro_orders.event_publisher]
+    secrets: [orders_db_password, orders_publish_broker_password]
+    depends_on:
+      orders-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+  cart-paid-consumer:
+    image: ${NIVARO_CART_IMAGE:-nivaro-cart:release}
+    command: [python, -m, nivaro_cart.paid_consumer]
+    secrets: [cart_db_password, cart_event_broker_password]
+    depends_on:
+      cart-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
 secrets:
   catalog_event_broker_password:
     file: ./work/secrets/catalog_event_broker_password.txt
   orders_event_broker_password:
     file: ./work/secrets/orders_event_broker_password.txt
+  orders_publish_broker_password:
+    file: ./work/secrets/orders_publish_broker_password.txt
+  cart_event_broker_password:
+    file: ./work/secrets/cart_event_broker_password.txt

@@ -95,6 +95,7 @@ export function CartWorkspace({ locale }: { locale: Locale }) {
   return <>
     <p className="cart-count">{text(locale, `${count} کالا در سبد`, `${count} items in your cart`)}</p>
     {displayError && <p className="cart-notice" role="alert">{cartErrorCopy(displayError, locale)}</p>}
+    {cart.paid_cleanup_needs_review && <p className="cart-notice" role="status">{text(locale, 'بعضی ردیف‌ها پس از ثبت سفارش تغییر کرده‌اند. سبد را پیش از خرید بعدی بررسی کن.', 'Some cart items changed after checkout. Review your cart before the next purchase.')}</p>}
     {merge.data && <div className="cart-notice"><p>{text(locale, 'در سبد مهمان همین بازار اقلامی داری.', 'Your guest cart has items in this market.')}</p>
       <button type="button" className="button secondary" disabled={busy} onClick={() => {
         const source = merge.data;

@@ -128,3 +128,10 @@ and currency and reuses its stable attempt ID for recovery. After verification,
 the existing payment event flow controls stock finalization and order status.
 The simulated action runs on the existing result page. Visiting that page or
 supplying a result in its URL has no financial effect.
+
+The `paid` transition and its `order.paid` event commit together. The durable
+outbox contains the owner, source cart revision, allocation ID and purchased
+line IDs, versions and quantities. The publisher sends the event with its stable
+ID and only marks it sent after RabbitMQ confirms that it was routed. The
+migration also enqueues the existing paid-order snapshots for version-safe
+reconciliation.

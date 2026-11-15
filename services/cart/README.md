@@ -18,6 +18,13 @@ Guest and customer sessions can save and list private drafts through `POST /api/
 
 A complete-build transfer requires a compatible evaluation. Explicit parts-only transfers retain the chosen mode and show outstanding findings in review. Both modes require sellable, priced, stock-verified parts. If a review changes, request a fresh review and confirmation. Stock can change after the latest read. Checkout revalidates before reserving. Migration `0006_group_intent` preserves the dedicated-GPU selection with the group.
 
+The `cart-paid-consumer` reads `cart.order.paid.v1` from the commerce broker. It
+locks the identified customer cart, subtracts only purchased quantities from
+matching source line revisions and stores the cleanup record before acknowledging
+the message. A later revision, a replaced line and unrelated groups remain in
+the cart. The cart sends a review flag when a purchased source line cannot be
+matched. The paid order ID identifies the operation across event replays.
+
 `POST /api/v1/cart/groups/{group_id}/review` validates a proposed whole group against the expected cart and group revisions. `PATCH /api/v1/cart/groups/{group_id}` repeats that evaluation and requires its digest before updating. Aggregate availability excludes the group's old quantities and includes every other same-SKU selection in the cart. Retained slots keep their line IDs, and changed quantities, variants or price baselines advance the line revision. Removed slots disappear and new slots receive IDs. The saved draft and separate groups retain their own selections. Direct line deletion still allows leaving an incomplete group.
 
 `GET /api/v1/builds/{build_id}/comparison?other_id={id}` compares two distinct drafts owned by the current session in the same market/currency. Both draft revisions, compatibility findings, current display prices and slot differences are returned. Subtotals for components and peripherals are separate and nullable when no prices are known. Each draft retains its selections during an outage, with explicit catalog/evaluation status. The comparison does not edit drafts and its prices are display estimates.

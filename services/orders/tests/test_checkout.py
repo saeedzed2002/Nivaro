@@ -58,6 +58,7 @@ from nivaro_orders.infrastructure.models import (
     OrderPaymentInitiation,
     OrderPaymentRefund,
     OrderTransition,
+    OutboxEvent,
 )
 from nivaro_orders.infrastructure.payment_compensations import PaymentCompensations
 from nivaro_orders.infrastructure.reservations import (
@@ -652,6 +653,21 @@ async def test_lost_reservation_and_paid_stock_responses_recover_by_operation_id
         async with database.sessions() as db:
             paid = await db.get(Order, operation)
             assert (paid.status, paid.version) == ("paid", 4)
+            event = (
+                await db.scalars(select(OutboxEvent).where(OutboxEvent.order_id == operation))
+            ).one()
+            assert event.envelope["aggregate_version"] == paid.version
+            purchased = (
+                await db.scalars(select(OrderItem).where(OrderItem.order_id == operation))
+            ).one()
+            assert event.envelope["payload"]["lines"] == [
+                {
+                    "id": str(purchased.source_line_id),
+                    "version": purchased.source_line_version,
+                    "group_id": None,
+                    "quantity": purchased.quantity,
+                }
+            ]
             extra = verified_capture(saved)
             await db.rollback()
             await apply_payment_result(db, extra)

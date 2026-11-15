@@ -53,6 +53,7 @@ async function customerSession() {
 const empty = (market: Market): Cart => ({
   id: '', version: 1, owner_scope: 'guest', market, currency: market === 'ir' ? 'IRR' : 'USD',
   groups: [], lines: [], estimated_total_minor: '0', catalog_status: 'ready', known_subtotal_minor: '0', reserves_stock: false,
+  paid_cleanup_needs_review: false,
 });
 
 export async function readCart(market: Market, signal?: AbortSignal) {

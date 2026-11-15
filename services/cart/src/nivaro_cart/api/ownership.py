@@ -80,6 +80,7 @@ class CartView(BaseModel):
     estimated_total_minor: str | None = None
     known_subtotal_minor: str = "0"
     reserves_stock: Literal[False] = False
+    paid_cleanup_needs_review: bool = False
 
 
 @dataclass(frozen=True)
@@ -239,6 +240,7 @@ async def cart_state(request: Request, response: Response, market: Market = "ir"
             )
         )
         result = CartView(
+            paid_cleanup_needs_review=cart.paid_cleanup_needs_review,
             id=cart.id,
             market=market,
             currency="IRR" if market == "ir" else "USD",

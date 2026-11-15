@@ -33,12 +33,13 @@ test('cart shows groups and exact estimates, reconciles conflicts, and isolates 
     const current = domestic ? [] : lines;
     return route.fulfill({ json: { id: 'cart', version, owner_scope: 'guest', market, currency: domestic ? 'IRR' : 'USD',
       groups: domestic ? [] : [{ id: 'group-one', name: 'Example PC', mode: 'parts_only', version: 1 }], lines: current,
-      catalog_status: 'ready', estimated_total_minor: String(current.reduce((amount, line) => amount + 12999 * line.quantity, 0)) } });
+      paid_cleanup_needs_review: !domestic, catalog_status: 'ready', estimated_total_minor: String(current.reduce((amount, line) => amount + 12999 * line.quantity, 0)) } });
   });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/en/cart');
   await page.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
   await expect(page.getByRole('heading', { name: 'Example PC' })).toBeVisible();
+  await expect(page.getByText('Some cart items changed after checkout. Review your cart before the next purchase.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Shopping cart (3)' })).toBeVisible();
   await expect(page.getByText('$389.97', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Continue to checkout' })).toHaveAttribute('href', '/en/checkout');

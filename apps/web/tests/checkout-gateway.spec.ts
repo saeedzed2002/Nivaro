@@ -115,6 +115,11 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
     });
     expect(replay.status()).toBe(202);
     expect((await replay.json()).status).toBe('paid');
+    await expect.poll(async () => {
+      const cart = await page.request.get('/api/v1/cart?market=international');
+      expect(cart.status()).toBe(200);
+      return (await cart.json()).lines;
+    }, { timeout: 12_000 }).toEqual([]);
   }
   expect(exceptions).toEqual([]);
 });

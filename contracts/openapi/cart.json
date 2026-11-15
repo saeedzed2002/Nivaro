@@ -316,6 +316,11 @@
             "title": "Owner Scope",
             "type": "string"
           },
+          "paid_cleanup_needs_review": {
+            "default": false,
+            "title": "Paid Cleanup Needs Review",
+            "type": "boolean"
+          },
           "reserves_stock": {
             "const": false,
             "default": false,

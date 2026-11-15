@@ -114,7 +114,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             async with app.state.database.sessions() as db:
                 revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-            if revision == "0006_group_intent":
+            if revision == "0007_paid_cleanup":
                 return {"service": "cart", "status": "ok"}
         except SQLAlchemyError:
             pass

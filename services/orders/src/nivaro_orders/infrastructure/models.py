@@ -392,3 +392,31 @@ class OrderPaymentInitiation(Base):
     state: Mapped[str] = mapped_column(String(12))
     retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+
+
+class OutboxEvent(Base):
+    __tablename__ = "event_outbox"
+    __table_args__ = (
+        CheckConstraint(
+            "attempts >= 0 AND (lease_id IS NULL) = (lease_until IS NULL) AND (published_at IS NULL OR failed_at IS NULL)",
+            name="orders_outbox_delivery",
+        ),
+        Index(
+            "ix_orders_outbox_due",
+            "available_at",
+            "id",
+            postgresql_where=text("published_at IS NULL AND failed_at IS NULL"),
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    order_id: Mapped[UUID] = mapped_column(
+        ForeignKey("orders.id", ondelete="RESTRICT"), unique=True
+    )
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    envelope: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    lease_id: Mapped[UUID | None]
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(80))

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nivaro_orders.application.checkout import require_coupon_capacity
+from nivaro_orders.application.paid_events import record_paid_event
 from nivaro_orders.application.reservations import ATTEMPT_LEASE, db_time, record_order_transition
 from nivaro_orders.domain.checkout import CheckoutError
 from nivaro_orders.infrastructure.models import (
@@ -187,6 +188,7 @@ async def finish_stock(
             payment_review(db, order, "payment.refund_already_recorded")
         else:
             record_order_transition(db, order, "paid", "payment.stock_committed")
+            await record_paid_event(db, order)
 
 
 async def advance_payment_stock(
