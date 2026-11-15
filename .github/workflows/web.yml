@@ -80,19 +80,19 @@ jobs:
         run: |
           docker build --target test -t nivaro-orders:test services/orders
           docker build --target release -t nivaro-orders:release services/orders
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Orders checkout reservation recovery and durable broker events
         working-directory: .
         shell: pwsh
         run: |
           docker pull rabbitmq:4.4.0-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
           if ($LASTEXITCODE -ne 0) { throw 'Pinned broker image download failed.' }
-          ./scripts/Verify-OrdersFoundation.ps1 -WithEvents -WithCheckout
+          ./scripts/Verify-OrdersFoundation.ps1 -WithEvents -Browser
       - name: Build host preview against the local gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080
           NIVARO_WEB_PREVIEW_GATEWAY: http://127.0.0.1:8080
         run: pnpm build && pnpm typecheck
-      - run: pnpm exec playwright install --with-deps chromium
       - name: Cart browser integration through gateway
         working-directory: .
         shell: pwsh

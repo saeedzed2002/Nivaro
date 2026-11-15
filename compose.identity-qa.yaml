@@ -15,6 +15,7 @@ services:
     environment:
       IDENTITY_ENVIRONMENT: test
       IDENTITY_ALLOWED_ORIGINS: '["http://127.0.0.1:8082"]'
+      IDENTITY_MOCK_PHONES: '${NIVARO_QA_MOCK_PHONES:-["+12025550100","+12025550101"]}'
   catalog:
     environment:
       CATALOG_ALLOWED_ORIGINS: '["http://127.0.0.1:8082"]'

@@ -108,8 +108,8 @@ svg { flex-shrink:0; }
 bdi { unicode-bidi:isolate; }
 .container { width:min(1344px,calc(100% - 64px)); margin-inline:auto; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-.skip-link { position:fixed; z-index:100; inset-block-start:10px; inset-inline-start:20px; padding:12px 20px; background:var(--blue); color:white; transform:translateY(-150%); border-radius:8px; }
-.skip-link:focus { transform:translateY(0); }
+.skip-link { position:fixed; z-index:100; inset-block-start:10px; inset-inline-start:20px; padding:12px 20px; background:var(--blue); color:white; clip-path:inset(50%); border-radius:8px; }
+.skip-link:focus { clip-path:none; }
 .utility-bar { background:var(--panel-soft); border-bottom:1px solid var(--line); font-size:10px; letter-spacing:.08em; color:var(--muted); }
 html[dir='rtl'] .utility-bar { letter-spacing:0; font-size:11px; }
 .utility-inner { min-height:30px; display:flex; align-items:center; justify-content:space-between; gap:10px; }

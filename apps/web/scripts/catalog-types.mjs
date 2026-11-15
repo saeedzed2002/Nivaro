@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import openapiTS, { astToString } from 'openapi-typescript';
 
-for (const service of ['catalog', 'identity', 'cart']) {
+for (const service of ['catalog', 'identity', 'cart', 'orders']) {
 const source = new URL(`../../../contracts/openapi/${service}.json`, import.meta.url);
 const destination = new URL(`../src/lib/api/${service}-schema.ts`, import.meta.url);
 const header = `/** Generated from contracts/openapi/${service}.json. Run pnpm contracts:generate. */\n`;

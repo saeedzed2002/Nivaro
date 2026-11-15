@@ -3,9 +3,11 @@ param(
     [string]$TestImage = 'nivaro-orders:test',
     [string]$CatalogImage = 'nivaro-catalog:release',
     [string]$IdentityImage = 'nivaro-identity:release',
+    [string]$WebImage = 'nivaro-web:release',
     [switch]$WithCatalog,
     [switch]$WithEvents,
-    [switch]$WithCheckout
+    [switch]$WithCheckout,
+    [switch]$Browser
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -16,7 +18,12 @@ $previousCatalogImage = $env:NIVARO_CART_QA_CATALOG_IMAGE
 $previousIdentityImage = $env:NIVARO_CART_QA_IDENTITY_IMAGE
 $previousPublisherImage = $env:NIVARO_EVENT_CATALOG_IMAGE
 $previousRates = $env:NIVARO_ORDERS_DELIVERY_RATES
+$previousPhones = $env:NIVARO_QA_MOCK_PHONES
+$previousWebImage = $env:NIVARO_CART_QA_WEB_IMAGE
+$previousBrowserUrl = $env:TEST_BASE_URL
+$previousBrowserProject = $env:NIVARO_CHECKOUT_QA_PROJECT
 if ($project -notmatch '^nivaro-orders-qa-[a-f0-9]{8}$') { throw 'Unsafe test project.' }
+if ($Browser) { $WithCheckout = $true }
 if ($WithEvents) {
     $config += @('-f', "$root/compose.media.yaml")
 }
@@ -29,6 +36,10 @@ if ($WithCheckout) {
 try {
     & "$PSScriptRoot/Initialize-LocalSecrets.ps1"
     $env:NIVARO_ORDERS_IMAGE = $OrdersImage
+    if ($Browser) {
+        $env:NIVARO_QA_MOCK_PHONES = '["+12025550100","+12025550101","+12025550102"]'
+        $env:NIVARO_CART_QA_WEB_IMAGE = $WebImage
+    }
     $services = @('orders')
     if ($WithCatalog) {
         $env:NIVARO_CART_QA_CATALOG_IMAGE = $CatalogImage
@@ -71,6 +82,15 @@ try {
         if (-not $deadLettered) { throw 'Event queue did not drain into the expected dead-letter queue.' }
         Write-Output 'RabbitMQ routed the malformed event to the durable error queue.'
     }
+    if ($Browser) {
+        $env:TEST_BASE_URL = 'http://127.0.0.1:8082'
+        $env:NIVARO_CHECKOUT_QA_PROJECT = $project
+        Push-Location "$root/apps/web"
+        try {
+            node node_modules/@playwright/test/cli.js test tests/checkout-gateway.spec.ts
+            if ($LASTEXITCODE -ne 0) { throw 'Checkout browser integration failed.' }
+        } finally { Pop-Location }
+    }
     Write-Output 'Orders release readiness, migrations, totals, coupon concurrency and reservation checks passed.'
 } catch {
     if ($WithEvents) {
@@ -85,4 +105,8 @@ try {
     $env:NIVARO_CART_QA_IDENTITY_IMAGE = $previousIdentityImage
     $env:NIVARO_EVENT_CATALOG_IMAGE = $previousPublisherImage
     $env:NIVARO_ORDERS_DELIVERY_RATES = $previousRates
+    $env:NIVARO_QA_MOCK_PHONES = $previousPhones
+    $env:NIVARO_CART_QA_WEB_IMAGE = $previousWebImage
+    $env:TEST_BASE_URL = $previousBrowserUrl
+    $env:NIVARO_CHECKOUT_QA_PROJECT = $previousBrowserProject
 }

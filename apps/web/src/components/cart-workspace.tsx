@@ -1,12 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Calculator, LockKeyhole, Minus, Package, Plus, ShoppingBag, Trash2 } from 'lucide-react';
+import { AlertTriangle, Calculator, Minus, Package, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRef } from 'react';
 import { CartError, cartErrorCopy, changeCartLine, deleteCartGroup, mergeGuestCart, readMergeSource, startGuest, type Cart, type CartLine } from '@/lib/cart-client';
-import { text, type Locale } from '@/lib/content';
+import { formatCommerceMoney, text, type Locale } from '@/lib/content';
 import { cartKey, useCart } from './cart-query';
 import { usePreferences } from './preferences';
 
@@ -16,16 +16,6 @@ const statusLabels: Record<CartLine['status'] & string, [string, string]> = {
   unavailable: ['فعلاً قابل خرید نیست', 'Unavailable for sale'], stock_unknown: ['موجودی تأیید نشده', 'Stock unverified'],
   insufficient_stock: ['موجودی کافی نیست', 'Insufficient stock'], catalog_unavailable: ['کاتالوگ در دسترس نیست', 'Catalog unavailable'],
 };
-
-function money(value: string | number, cart: Cart, locale: Locale) {
-  const amount = BigInt(value);
-  const language = locale === 'fa' ? 'fa-IR' : 'en-US';
-  if (cart.currency === 'IRR') return `${new Intl.NumberFormat(language).format(amount / BigInt(10))} ${text(locale, 'تومان', 'tomans')}`;
-  const hundred = BigInt(100);
-  const cents = new Intl.NumberFormat(language, { minimumIntegerDigits: 2, useGrouping: false }).format(amount % hundred);
-  return new Intl.NumberFormat(language, { style: 'currency', currency: 'USD' }).formatToParts(amount / hundred)
-    .map(part => part.type === 'fraction' ? cents : part.value).join('');
-}
 
 type Action =
   | { kind: 'line'; cart: Cart; line: CartLine; quantity: number | null }
@@ -89,7 +79,7 @@ export function CartWorkspace({ locale }: { locale: Locale }) {
       <span className="cart-image">{image?.startsWith('/') && !image.startsWith('//') ? <Image src={image} width={64} height={64} alt="" /> : <Package aria-hidden="true" />}</span>
       <div className="cart-line-description"><strong><bdi>{name}</bdi></strong>
         <span>{text(locale, ...label)}{line.price_changed ? ` · ${text(locale, 'قیمت تغییر کرده', 'Price changed')}` : ''}</span>
-        {offer && <bdi>{money(offer.amount_minor, cart, locale)}</bdi>}
+        {offer && <bdi>{formatCommerceMoney(offer.amount_minor, cart.currency, locale)}</bdi>}
       </div>
       <div className="cart-actions">
         <div className="cart-stepper" aria-label={text(locale, 'تعداد', 'Quantity')}>
@@ -131,11 +121,11 @@ export function CartWorkspace({ locale }: { locale: Locale }) {
       </section>
       <aside className="cart-summary">
         <h2><Calculator size={21} />{text(locale, 'خلاصهٔ سبد', 'Cart summary')}</h2>
-        <dl><div><dt>{text(locale, 'جمع تخمینی', 'Estimated subtotal')}</dt><dd><bdi>{cart.estimated_total_minor != null ? money(cart.estimated_total_minor, cart, locale) : '—'}</bdi></dd></div>
+        <dl><div><dt>{text(locale, 'جمع تخمینی', 'Estimated subtotal')}</dt><dd><bdi>{cart.estimated_total_minor != null ? formatCommerceMoney(cart.estimated_total_minor, cart.currency, locale) : '—'}</bdi></dd></div>
           <div><dt>{text(locale, 'ارسال و مالیات', 'Delivery and tax')}</dt><dd>{text(locale, 'در انتظار محاسبه', 'Pending')}</dd></div></dl>
         {cart.estimated_total_minor == null && <p className="cart-notice">{text(locale, 'قیمت یا موجودی بعضی اقلام نیاز به بررسی دارد.', 'Some items need a price or availability check.')}</p>}
         <p className="cart-stock"><Package size={18} />{text(locale, 'افزودن به سبد، موجودی را رزرو نمی‌کند.', 'Adding items to your cart does not reserve stock.')}</p>
-        <button type="button" className="button secondary" disabled><LockKeyhole size={17} />{text(locale, 'پرداخت هنوز فعال نیست', 'Checkout unavailable')}</button>
+        {cart.lines.length > 0 && <Link className="button primary" href={`/${locale}/checkout`}>{text(locale, 'ادامه به تسویه', 'Continue to checkout')}</Link>}
       </aside>
     </div>}
   </>;

@@ -10,7 +10,7 @@ const config: NextConfig = {
     const catalog = process.env.CATALOG_URL || 'http://catalog:8000';
     const rewrites = [{ source: '/api/v1/catalog/:path*', destination: `${catalog}/api/v1/catalog/:path*` }];
     if (gateway) {
-      for (const resource of ['auth', 'cart', 'builds']) {
+      for (const resource of ['auth', 'cart', 'builds', 'me', 'orders']) {
         const source = `/api/v1/${resource}/:path*`;
         rewrites.push({ source, destination: gateway + source });
       }

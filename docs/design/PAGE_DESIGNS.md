@@ -34,7 +34,8 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Gaming PCs landing | P02 | Pending; current nav opens the pictured products template with PC filter |
 | Guides | P10 | Pending |
 | Cart | P05 | Pending |
-| Checkout | P06 | Pending |
+| Checkout | P06 | [Reference](pages/checkout.png), inspected before code; desktop and mobile implementation verified |
+| Order submission result | P06 | [Reference](pages/checkout-result.png), inspected before code; desktop and mobile implementation verified |
 | Payment result / pending / failure | P07 | Pending |
 | Customer login / OTP | P03 | [Login](pages/customer-login.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Account overview | P03 | [Overview](pages/account-overview.png), generated/inspected 2026-10-28; implemented and locally verified |
@@ -138,3 +139,7 @@ The cart template implements grouped and standalone rows, a separate estimated s
 ### P05 saved builds and system comparison references
 
 The generated desktop dark and mobile light references are inspected and registered before page implementation. Keep the storefront header and existing market terminology. Saved-build cards use the draft name, mode and real actions; omit mock component counts and exact system imagery. Comparison uses two summary columns, clear slot differences and missing-value dashes. Compatibility and pricing come from catalog, and neither system is marked as the winner.
+
+### Checkout and order submission result
+
+Generated separate checkout and order-result references with the built-in image generator and inspected both before implementation. Use the existing storefront shell, the Blue RGB palette, outlined panels, native address radios, a desktop order summary beside the checkout details, and a compact mobile stack. The result uses a centered status panel and a real order reference. The images illustrate independent market prices and layout only. Use the API's real quote deadline and amounts, preserve grouped line IDs, keep quantities read-only, and represent order submission and stock reservation without marking a payment complete.

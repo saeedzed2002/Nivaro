@@ -13,7 +13,7 @@ import { ConfirmAction, IdentityNotice } from './identity-shared';
 import { AvatarEditor } from './avatar-editor';
 
 export type AccountView = 'overview' | 'profile' | 'addresses';
-export function IdentityAccount({ locale, initial, view }: { locale: Locale; initial: InitialIdentity; view: AccountView }) {
+export function IdentityAccount({ locale, initial, view, fromCheckout = false }: { locale: Locale; initial: InitialIdentity; view: AccountView; fromCheckout?: boolean }) {
   const [session, setSession] = useState(initial.session);
   const [error, setError] = useState<unknown>(initial.unavailable ? new IdentityError('identity.unavailable') : null);
   const [checking, setChecking] = useState(!initial.session && !initial.unavailable);
@@ -42,6 +42,7 @@ export function IdentityAccount({ locale, initial, view }: { locale: Locale; ini
       <button disabled={busy} onClick={() => void signOut(false)}><LogOut size={20}/>{text(locale, 'خروج از حساب', 'Sign out')}</button>
     </nav></aside>
     <section className="account-content"><h1>{title}</h1><IdentityNotice error={error} locale={locale}/>
+      {view === 'addresses' && fromCheckout && <p><Link className="text-link" href={`/${locale}/checkout`}>{text(locale, 'بازگشت به تسویه', 'Back to checkout')}</Link></p>}
       {view === 'overview' ? <>
         <p className="muted">{session.profile.name ? text(locale, `سلام ${session.profile.name}،`, `Hello ${session.profile.name},`) : text(locale, 'خوش آمدید.', 'Welcome.')} {text(locale, 'اطلاعات حساب و نشانی‌های خود را اینجا مدیریت کنید.', 'Manage your account and addresses here.')}</p>
         <div className="account-shortcuts"><Link className="identity-panel" href={`/${locale}/account/profile`}><UserRound size={30}/><span><strong>{text(locale, 'اطلاعات حساب', 'Account details')}</strong><small>{text(locale, 'مشاهده و ویرایش اطلاعات شخصی', 'View and edit personal information')}</small></span><ArrowRight size={19}/></Link><Link className="identity-panel" href={`/${locale}/account/addresses`}><MapPin size={30}/><span><strong>{text(locale, 'نشانی‌ها', 'Addresses')}</strong><small>{text(locale, 'مدیریت نشانی‌های ذخیره‌شده', 'Manage your saved addresses')}</small></span><ArrowRight size={19}/></Link></div>

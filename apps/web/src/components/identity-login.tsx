@@ -17,7 +17,7 @@ const permissionLabels: Record<string, [string, string]> = {
   'payments.refund': ['بازپرداخت', 'Refunds'], 'support.reply': ['پاسخ‌گویی پشتیبانی', 'Support replies'],
   'users.manage': ['مدیریت کاربران', 'User management'], 'roles.manage': ['مدیریت دسترسی‌ها', 'Access management'],
 };
-export function IdentityLogin({ locale, admin = false, initial, mock = false }: { locale: Locale; admin?: boolean; initial: InitialIdentity; mock?: boolean }) {
+export function IdentityLogin({ locale, admin = false, initial, mock = false, destination = `/${locale}/account` }: { locale: Locale; admin?: boolean; initial: InitialIdentity; mock?: boolean; destination?: string }) {
   const router = useRouter();
   const [session, setSession] = useState<IdentitySession | null>(initial.session);
   const [phone, setPhone] = useState('');
@@ -34,11 +34,11 @@ export function IdentityLogin({ locale, admin = false, initial, mock = false }: 
     let alive = true;
     if (!initial.session && !initial.unavailable) readSession(admin ? 'admin' : 'customer').then(value => {
       if (!alive) return;
-      if (admin) setSession(value); else router.replace(`/${locale}/account`);
+      if (admin) setSession(value); else router.replace(destination);
     }).catch(e => { if (alive && (!(e instanceof IdentityError) || e.status !== 401)) setError(e); });
-    else if (initial.session && !admin) router.replace(`/${locale}/account`);
+    else if (initial.session && !admin) router.replace(destination);
     return () => { alive = false; };
-  }, [admin, initial.session, initial.unavailable, locale, router]);
+  }, [admin, destination, initial.session, initial.unavailable, router]);
   useEffect(() => {
     if (!challenge && !waitUntil) return;
     const timer = setInterval(() => setClock(Date.now()), 1000);
@@ -60,7 +60,7 @@ export function IdentityLogin({ locale, admin = false, initial, mock = false }: 
     event.preventDefault();
     if (admin) void run(async () => { setSession(await adminLogin(email, password)); setPassword(''); router.refresh(); });
     else if (!challenge) void send();
-    else void run(async () => { await verifyCode(phone, challenge.challenge_id, code); setCode(''); router.replace(`/${locale}/account`); router.refresh(); });
+    else void run(async () => { await verifyCode(phone, challenge.challenge_id, code); setCode(''); router.replace(destination); router.refresh(); });
   }
   return <main id="main-content" className={`identity-login-page ${admin ? 'staff-login-page' : ''}`}>
     <div className="container"><div className="identity-login-layout">
