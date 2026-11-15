@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Self
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     db_password_file: Path = Path("/run/secrets/orders_db_password")
     db_pool_size: int = Field(default=5, ge=1, le=20)
     delivery_rates: list[DeliveryRate] = Field(default_factory=list)
+    identity_url: AnyHttpUrl = AnyHttpUrl("http://identity:8000")
+    catalog_url: AnyHttpUrl = AnyHttpUrl("http://catalog:8000")
+    client_secret_file: Path = Path("/run/secrets/orders_client_secret")
 
     @model_validator(mode="after")
     def unique_destinations(self) -> Self:

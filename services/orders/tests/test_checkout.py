@@ -1,12 +1,16 @@
 import asyncio
 import os
+import sys
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy import func, select, text, update
 
 from nivaro_orders.application.checkout import begin_checkout, review_checkout, stage_order
+from nivaro_orders.application.reservations import advance_reservation, expire_unpaid
 from nivaro_orders.domain.checkout import (
     AddressSnapshot,
     CatalogQuote,
@@ -28,6 +32,11 @@ from nivaro_orders.infrastructure.models import (
     OrderConfiguration,
     OrderItem,
     OrderTransition,
+)
+from nivaro_orders.infrastructure.reservations import (
+    CatalogReservations,
+    Receipt,
+    ReservationRejected,
 )
 from nivaro_orders.settings import Settings
 
@@ -312,3 +321,214 @@ async def test_role_cannot_connect_to_catalog_database(database):
                 "SELECT rolsuper OR rolcreatedb OR rolcreaterole FROM pg_roles WHERE rolname = current_user"
             )
         )
+
+
+async def test_definitive_stock_rejection_releases_the_coupon_claim(database):
+    checkout = CheckoutFixture(database)
+    customer = uuid4()
+    coupon_id, now = uuid4(), datetime.now(UTC)
+    code = "TEST-" + coupon_id.hex.upper()
+    checkout.intent = checkout.intent.model_copy(update={"coupon_code": code})
+    async with database.sessions() as db, db.begin():
+        db.add(
+            Coupon(
+                id=coupon_id,
+                code=code,
+                market="ir",
+                currency="IRR",
+                kind="fixed",
+                value=100,
+                minimum_minor=0,
+                maximum_minor=None,
+                starts_at=now - timedelta(minutes=1),
+                ends_at=now + timedelta(minutes=5),
+                global_limit=1,
+                per_customer_limit=1,
+                enabled=True,
+            )
+        )
+    operation = await checkout.request(customer, "stock-rejected")
+    current = quote(operation, customer)
+    await checkout.save(current, await checkout.review(current))
+
+    class UnavailableStock:
+        async def recover_or_reserve(self, *_):
+            raise ReservationRejected("inventory.insufficient_stock")
+
+    assert await advance_reservation(database.sessions, UnavailableStock(), operation)
+    assert not await advance_reservation(database.sessions, UnavailableStock(), operation)
+    async with database.sessions() as db:
+        order = await db.get(Order, operation)
+        assert (order.status, order.reservation_error) == (
+            "cancelled",
+            "inventory.insufficient_stock",
+        )
+        assert (await db.get(CouponClaim, operation)).state == "released"
+        assert (await db.get(CheckoutOperation, operation)).state == "reservation_failed"
+        assert (
+            await db.get(OrderTransition, (operation, 2))
+        ).reason == "inventory.insufficient_stock"
+
+
+class LoseSuccessfulReserveResponse(httpx.AsyncBaseTransport):
+    def __init__(self):
+        self.inner = httpx.AsyncHTTPTransport()
+        self.writes = 0
+
+    async def handle_async_request(self, request):
+        response = await self.inner.handle_async_request(request)
+        if request.method == "POST" and request.url.path == "/internal/v1/catalog/reservations":
+            self.writes += 1
+            if self.writes == 1 and response.status_code == 200:
+                await response.aclose()
+                raise httpx.ReadTimeout(
+                    "Synthetic loss after Catalog committed the hold", request=request
+                )
+        return response
+
+    async def aclose(self):
+        await self.inner.aclose()
+
+
+@pytest.mark.skipif(
+    os.getenv("ORDERS_CATALOG_E2E") != "1", reason="Disposable catalog stack required"
+)
+async def test_lost_response_after_real_catalog_hold_is_recovered_by_operation_id(database):
+    settings = Settings()
+    secret = settings.client_secret_file.read_text().strip()
+    checkout = CheckoutFixture(database)
+    checkout.address = address("US")
+    checkout.intent = CheckoutIntent(
+        market="international",
+        currency="USD",
+        cart_version=2,
+        address_id=checkout.address.id,
+        address_version=checkout.address.version,
+    )
+    checkout.rates = [rate("US")]
+    customer = uuid4()
+    operation = await checkout.request(customer, "catalog-lost-response")
+    transport = LoseSuccessfulReserveResponse()
+    async with httpx.AsyncClient(transport=transport, timeout=5, trust_env=False) as http:
+        catalog = str(settings.catalog_url).rstrip("/")
+        identity = str(settings.identity_url).rstrip("/")
+        product = await http.get(catalog + "/api/v1/catalog/products/amd-ryzen-7-9800x3d")
+        product.raise_for_status()
+        variant = product.json()["variants"][0]["id"]
+        token_response = await http.post(
+            identity + "/internal/v1/service-tokens",
+            auth=("orders", secret),
+            json={"audience": "nivaro-catalog", "scope": "catalog.quote"},
+        )
+        token_response.raise_for_status()
+
+        async def stage_for(operation_id):
+            quoted = await http.post(
+                catalog + "/internal/v1/catalog/quotes",
+                headers={"Authorization": "Bearer " + token_response.json()["access_token"]},
+                json={
+                    "quote_id": str(uuid4()),
+                    "operation_id": str(operation_id),
+                    "customer_id": str(customer),
+                    "cart": {
+                        "id": str(uuid4()),
+                        "version": 2,
+                        "market": "international",
+                        "currency": "USD",
+                        "lines": [
+                            {"id": str(uuid4()), "variant_id": variant, "version": 1, "quantity": 1}
+                        ],
+                        "groups": [],
+                    },
+                },
+            )
+            assert quoted.is_success, quoted.text
+            current = CatalogQuote.model_validate(quoted.json())
+            await checkout.save(current, await checkout.review(current))
+
+        await stage_for(operation)
+        client = CatalogReservations(http, settings, secret)
+        assert await advance_reservation(database.sessions, client, operation)
+        async with database.sessions() as db, db.begin():
+            saved = await db.get(Order, operation)
+            assert (saved.status, saved.reservation_error) == (
+                "pending_reservation",
+                "reservation.unavailable",
+            )
+            await db.execute(
+                update(Order).where(Order.id == operation).values(reservation_retry_at=None)
+            )
+        replies = await asyncio.gather(
+            *(advance_reservation(database.sessions, client, operation) for _ in range(4))
+        )
+        assert replies.count(True) == 1
+        assert transport.writes == 1
+        async with database.sessions() as db:
+            saved = await db.get(Order, operation)
+            assert (saved.status, saved.reservation_attempts, saved.version) == (
+                "awaiting_payment",
+                2,
+                2,
+            )
+            assert saved.reservation_expires_at is not None
+            assert (await db.get(CheckoutOperation, operation)).state == "reservation_confirmed"
+        summaries = await http.post(
+            catalog + "/api/v1/catalog/variant-summaries",
+            json={"market": "international", "currency": "USD", "variant_ids": [variant]},
+        )
+        summaries.raise_for_status()
+        assert summaries.json()["items"][0]["available_quantity"] == 11
+
+        background_order = await checkout.request(customer, "background-reservation")
+        await stage_for(background_order)
+        worker = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "nivaro_orders.reservation_worker"
+        )
+        try:
+            async with asyncio.timeout(20):
+                while worker.returncode is None:
+                    async with database.sessions() as db:
+                        saved = await db.get(Order, background_order)
+                        if saved.status == "awaiting_payment":
+                            assert saved.reservation_attempts == 1
+                            break
+                    await asyncio.sleep(0.2)
+                else:
+                    pytest.fail("Reservation worker exited before processing the order")
+        finally:
+            with suppress(ProcessLookupError):
+                worker.terminate()
+            await worker.wait()
+
+
+async def test_expiry_updates_order_transition_once(database):
+    checkout = CheckoutFixture(database)
+    customer = uuid4()
+    operation = await checkout.request(customer, "expires")
+    current = quote(operation, customer)
+    await checkout.save(current, await checkout.review(current))
+
+    class ExistingHold:
+        async def recover_or_reserve(self, operation_id, quote_id, customer_id, _):
+            return Receipt(
+                market="ir",
+                currency="IRR",
+                operation_id=operation_id,
+                quote_id=quote_id,
+                customer_id=customer_id,
+                state="held",
+                expires_at=datetime.now(UTC) + timedelta(minutes=10),
+            )
+
+    assert await advance_reservation(database.sessions, ExistingHold(), operation)
+    async with database.sessions() as db, db.begin():
+        await db.execute(
+            update(Order)
+            .where(Order.id == operation)
+            .values(reservation_expires_at=func.clock_timestamp() - timedelta(seconds=1))
+        )
+    async with database.sessions() as db:
+        assert await expire_unpaid(db)
+        assert not await expire_unpaid(db)
+        order = await db.get(Order, operation)
+        assert (order.status, order.version) == ("expired", 3)

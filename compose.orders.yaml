@@ -43,6 +43,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+  orders-reservation-worker:
+    image: ${NIVARO_ORDERS_IMAGE:-nivaro-orders:release}
+    secrets:
+      - orders_db_password
+      - orders_client_secret
+    depends_on:
+      orders-init:
+        condition: service_completed_successfully
+      catalog:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+    command: [python, -m, nivaro_orders.reservation_worker]
+    init: true
+    restart: unless-stopped
 secrets:
   orders_db_password:
     file: ./work/secrets/orders_db_password.txt
+  orders_client_secret:
+    file: ./work/secrets/orders_client_secret.txt

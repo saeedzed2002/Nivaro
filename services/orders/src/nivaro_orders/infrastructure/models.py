@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -39,7 +40,10 @@ class CheckoutOperation(Timestamps, Base):
     __tablename__ = "checkout_operations"
     __table_args__ = (
         UniqueConstraint("customer_id", "idempotency_key", name="uq_checkout_customer_key"),
-        CheckConstraint("state IN ('started','pending_reservation')", name="checkout_state"),
+        CheckConstraint(
+            "state IN ('started','pending_reservation','reservation_confirmed','reservation_failed')",
+            name="checkout_state",
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True)
     customer_id: Mapped[UUID] = mapped_column()
@@ -107,6 +111,20 @@ class Order(Timestamps, Base):
             name="order_whole_tomans",
         ),
         Index("ix_orders_customer_created", "customer_id", "created_at", "id"),
+        Index(
+            "ix_orders_pending_reservation",
+            "reservation_retry_at",
+            "created_at",
+            "id",
+            postgresql_where=text("status = 'pending_reservation'"),
+        ),
+        Index(
+            "ix_orders_reservation_expiry",
+            "reservation_expires_at",
+            "id",
+            postgresql_where=text("status = 'awaiting_payment'"),
+        ),
+        CheckConstraint("reservation_attempts >= 0", name="order_reservation_attempts"),
     )
     id: Mapped[UUID] = mapped_column(
         ForeignKey("checkout_operations.id", ondelete="RESTRICT"), primary_key=True
@@ -119,6 +137,10 @@ class Order(Timestamps, Base):
     cart_fingerprint: Mapped[str] = mapped_column(String(64))
     quote_id: Mapped[UUID] = mapped_column(unique=True)
     quote_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    reservation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reservation_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reservation_attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    reservation_error: Mapped[str | None] = mapped_column(String(80))
     confirmation: Mapped[str] = mapped_column(String(64))
     market: Mapped[str] = mapped_column(String(20))
     currency: Mapped[str] = mapped_column(String(3))

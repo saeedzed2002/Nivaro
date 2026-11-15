@@ -22,19 +22,24 @@ policy along with its amounts. IRR discounts and calculated tax round down to
 whole tomans. USD amounts use cents. Tests use synthetic rates and coupons.
 
 The service starts with `compose.orders.yaml` and exposes its two health
-routes on the project network. A confirmed order initially has status
-`pending_reservation`. The next checkout checkpoint will acquire catalog
-stock, recover ambiguous responses, and move a valid order to
-`awaiting_payment`. It will also align a provisional coupon hold's deadline
-with its stock reservation and release it when checkout fails.
+routes on the project network. Its reservation worker claims a short database
+lease on a pending order before calling Catalog. The worker looks up the
+original operation ID before requesting a hold. An ambiguous response leaves
+the order pending for retry with bounded backoff. A live Catalog receipt moves
+the order to `awaiting_payment` and aligns the coupon claim's deadline with the
+stock hold. A definite rejection or expiry closes the order and releases its
+coupon claim. Checkout HTTP routes and the storefront will wire into the
+existing checkout application use cases in the next checkpoint.
 
 Run the foundation checks with tested release and test images.
 
 ```powershell
-./scripts/Verify-OrdersFoundation.ps1
+./scripts/Verify-OrdersFoundation.ps1 -WithCatalog
 ```
 
 The script starts the release container, database-role initializer and
 migration job on a separate temporary PostgreSQL project. It checks fresh
 schema, Docker readiness, role isolation, money, idempotency and coupon
-contention.
+contention. The catalog option starts Identity and Catalog and uses their real
+HTTP endpoints to test recovery after a successful reservation response is
+lost.

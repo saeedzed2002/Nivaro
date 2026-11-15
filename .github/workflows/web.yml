@@ -80,10 +80,10 @@ jobs:
         run: |
           docker build --target test -t nivaro-orders:test services/orders
           docker build --target release -t nivaro-orders:release services/orders
-      - name: Orders snapshots totals and coupon quota
+      - name: Orders totals coupon quota and catalog reservation recovery
         working-directory: .
         shell: pwsh
-        run: ./scripts/Verify-OrdersFoundation.ps1
+        run: ./scripts/Verify-OrdersFoundation.ps1 -WithCatalog
       - name: Build host preview against the local gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080
