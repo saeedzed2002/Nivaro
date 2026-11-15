@@ -664,3 +664,11 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 
 - A source hash comparison showed Compose had synchronized the current account component while Turbopack still rendered an earlier copy. Restarting on each sync briefly returned HTTP 502 to an open browser. Development Compose now uses Webpack with polling inside the container.
 - Verified the existing browser document reflected both a reversible source edit and its restoration through the Windows task's Compose Watch session. The customer and staff support routes both returned HTTP 200 through the local gateway.
+
+### P09 read receipts
+
+- PostgreSQL stores each participant's highest read sequence. Competing, stale and repeated writes never decrease it. Writes cannot pass the latest committed message or bypass current conversation access. Customer-visible receipts use the current assigned agent's cursor.
+- The browser reports the highest contiguous sequence visible in the selected conversation while its document is visible. Both sides receive read changes through the existing notification channel, with authoritative state in history and synchronization responses.
+- The disposable two-replica test verified concurrent updates from different replicas, stale and duplicate updates, denial for an unrelated customer and for a sequence ahead of history, durable reads during Redis disconnection, catch-up after Redis returned, and the customer view after reassignment. Both desktop browser contexts showed the read receipt after reconnect, and the staff receipt survived a reload. Contract checks, strict Python typing, ESLint and TypeScript passed.
+- Local Docker upgraded to `0002_support_read_cursors` and both browser routes returned HTTP 200. Existing conversation, message and outbox row counts were preserved, and PostgreSQL, RabbitMQ, Redis state and web retained their containers.
+- Typing and presence, retention execution and final GitHub Actions verification remain open.

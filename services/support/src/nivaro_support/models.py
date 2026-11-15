@@ -109,3 +109,29 @@ class MessageOutboxRow(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReadCursorRow(Base):
+    __tablename__ = "read_cursors"
+    __table_args__ = (
+        CheckConstraint("reader_kind IN ('customer','admin')", name="support_cursor_reader"),
+        CheckConstraint(
+            "sequence > 0 AND published_sequence >= 0 AND published_sequence <= sequence",
+            name="support_cursor_sequences",
+        ),
+        Index(
+            "ix_support_read_cursor_ready",
+            "conversation_id",
+            "reader_kind",
+            "reader_id",
+            postgresql_where=text("published_sequence < sequence"),
+        ),
+    )
+
+    conversation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="RESTRICT"), primary_key=True
+    )
+    reader_kind: Mapped[str] = mapped_column(String(10), primary_key=True)
+    reader_id: Mapped[UUID] = mapped_column(primary_key=True)
+    sequence: Mapped[int] = mapped_column(BigInteger)
+    published_sequence: Mapped[int] = mapped_column(BigInteger, server_default="0")

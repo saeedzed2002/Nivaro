@@ -112,6 +112,8 @@ async def verify_redis_recovery(db, owner_headers, agent_headers, conversation):
                 customer, send_frame(conversation, "Persisted during Redis outage")
             )
             assert offline["type"] == "message.accepted" and offline["payload"]["sequence"] == 4
+            read = await exchange(customer, frame("message.read", conversation, {"sequence": 3}))
+            assert read["payload"] == {"own_sequence": 3, "peer_sequence": 0}
             with pytest.raises(TimeoutError):
                 await asyncio.wait_for(agent.recv(), timeout=0.35)
             async with db.sessions() as session:
@@ -126,10 +128,14 @@ async def verify_redis_recovery(db, owner_headers, agent_headers, conversation):
                 assert [message["id"] for message in result["payload"]["messages"]] == [
                     offline["payload"]["message_id"]
                 ]
+                assert result["payload"]["receipts"] == {"own_sequence": 0, "peer_sequence": 3}
         finally:
             await redis.execute_command("ACL", "SETUSER", "support", "on")
 
         assert (await receive_created(agent, offline))["body"] == "Persisted during Redis outage"
+        delivered = await receive(agent)
+        assert delivered["type"] == "message.read" and delivered["request_id"] is None
+        assert delivered["payload"] == {"own_sequence": 0, "peer_sequence": 3}
         await wait_for_replicas(redis)
         async with asyncio.timeout(8):
             while True:
@@ -140,6 +146,40 @@ async def verify_redis_recovery(db, owner_headers, agent_headers, conversation):
                     if row is not None and row.published_at is not None:
                         break
                 await asyncio.sleep(0.1)
+
+
+async def verify_read_cursors(owner_headers, agent_headers, outsider_headers, conversation):
+    async with (
+        open_socket(owner_headers) as customer,
+        open_socket(agent_headers, subprotocols=[STAFF_PROTOCOL], endpoint=REPLICA_SOCKET) as agent,
+        open_socket(agent_headers, subprotocols=[STAFF_PROTOCOL]) as second_agent_session,
+        open_socket(outsider_headers) as outsider,
+    ):
+        initial = await exchange(
+            customer, frame("conversation.subscribe", conversation, {"after": 4})
+        )
+        assert initial["payload"]["receipts"] == {"own_sequence": 3, "peer_sequence": 0}
+        later, earlier = await asyncio.gather(
+            exchange(agent, frame("message.read", conversation, {"sequence": 4})),
+            exchange(second_agent_session, frame("message.read", conversation, {"sequence": 2})),
+        )
+        assert later["payload"] == {"own_sequence": 4, "peer_sequence": 3}
+        assert earlier["payload"]["own_sequence"] in (2, 4)
+        async with asyncio.timeout(8):
+            while True:
+                delivered = await receive(customer)
+                assert delivered["type"] == "message.read"
+                if delivered["payload"]["peer_sequence"] == 4:
+                    break
+        for sequence in (3, 4):
+            stale = await exchange(
+                agent, frame("message.read", conversation, {"sequence": sequence})
+            )
+            assert stale["payload"] == {"own_sequence": 4, "peer_sequence": 3}
+        rejected = await exchange(agent, frame("message.read", conversation, {"sequence": 5}))
+        assert rejected["payload"] == {"code": "support.read_ahead"}
+        forbidden = await exchange(outsider, frame("message.read", conversation, {"sequence": 3}))
+        assert forbidden["payload"] == {"code": "support.not_found"}
 
 
 async def customer_login(client, phone):
@@ -348,6 +388,7 @@ async def test_private_history_assignment_and_idempotent_delivery():
             last = (await support.get(history, headers=owner_headers, params={"after": 1})).json()
             assert not last["has_more"] and last["messages"] == recovered["payload"]["messages"]
             await verify_redis_recovery(database, owner_headers, credentials[winner][1], cid)
+            await verify_read_cursors(owner_headers, credentials[winner][1], other_headers, cid)
 
             manager = credentials["manager"][1]
             assert (
@@ -368,6 +409,8 @@ async def test_private_history_assignment_and_idempotent_delivery():
                     json={"agent_id": credentials[loser][0], "expected_version": 2},
                 )
                 assert changed.status_code == 200 and changed.json()["version"] == 3
+                updated_history = await support.get(history, headers=owner_headers)
+                assert updated_history.json()["receipts"] == {"own_sequence": 3, "peer_sequence": 0}
                 marker = await support.post(
                     history,
                     headers=owner_headers,

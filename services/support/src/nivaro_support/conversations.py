@@ -13,11 +13,18 @@ from nivaro_support.contracts import (
     CreateConversation,
     History,
     Message,
+    ReadState,
     SendMessage,
     StateChange,
     SupportError,
 )
-from nivaro_support.models import AssignmentRow, ConversationRow, MessageOutboxRow, MessageRow
+from nivaro_support.models import (
+    AssignmentRow,
+    ConversationRow,
+    MessageOutboxRow,
+    MessageRow,
+    ReadCursorRow,
+)
 
 
 async def create_conversation(
@@ -123,7 +130,58 @@ async def message_history(
             conversation=Conversation.model_validate(row),
             messages=[Message.model_validate(message) for message in messages[:limit]],
             has_more=len(messages) > limit,
+            receipts=await read_state(db, actor, row),
         )
+
+
+async def read_state(db: AsyncSession, actor: Actor, row: ConversationRow) -> ReadState:
+    own = (actor.kind, actor.user_id)
+    peer_id = row.assigned_agent_id if actor.kind == "customer" else row.customer_id
+    peer_kind = "admin" if actor.kind == "customer" else "customer"
+    peer = (peer_kind, peer_id) if peer_id is not None else None
+    values = {
+        (item.reader_kind, item.reader_id): item.sequence
+        for item in await db.scalars(
+            select(ReadCursorRow).where(
+                ReadCursorRow.conversation_id == row.id,
+                tuple_(ReadCursorRow.reader_kind, ReadCursorRow.reader_id).in_(
+                    [own, peer] if peer is not None else [own]
+                ),
+            )
+        )
+    }
+    return ReadState(
+        own_sequence=values.get(own, 0),
+        peer_sequence=values.get(peer, 0) if peer is not None else 0,
+    )
+
+
+async def mark_read(
+    db: AsyncSession, actor: Actor, conversation_id: UUID, sequence: int
+) -> ReadState:
+    async with db.begin():
+        row = await require_conversation(db, actor, conversation_id, reading=True)
+        if sequence > row.last_sequence:
+            raise SupportError("support.read_ahead", 422)
+        if sequence:
+            entry = insert(ReadCursorRow).values(
+                conversation_id=row.id,
+                reader_kind=actor.kind,
+                reader_id=actor.user_id,
+                sequence=sequence,
+            )
+            await db.execute(
+                entry.on_conflict_do_update(
+                    index_elements=[
+                        ReadCursorRow.conversation_id,
+                        ReadCursorRow.reader_kind,
+                        ReadCursorRow.reader_id,
+                    ],
+                    set_={"sequence": entry.excluded.sequence},
+                    where=ReadCursorRow.sequence < entry.excluded.sequence,
+                )
+            )
+        return await read_state(db, actor, row)
 
 
 async def assign(

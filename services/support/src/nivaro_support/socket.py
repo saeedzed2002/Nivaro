@@ -11,7 +11,7 @@ from starlette.types import Message as ASGIMessage
 
 from nivaro_support.authorization import IdentityAuthorization
 from nivaro_support.contracts import Actor, Kind, SendMessage, SupportError
-from nivaro_support.conversations import send_message
+from nivaro_support.conversations import mark_read, send_message
 from nivaro_support.live import ConversationStream, history
 from nivaro_support.settings import Database
 from nivaro_support.socket_contracts import (
@@ -19,9 +19,11 @@ from nivaro_support.socket_contracts import (
     Acceptance,
     ClientMessage,
     FailureCode,
+    MarkRead,
     MessageAccepted,
     MessageCreated,
     MessageSend,
+    ReadChanged,
     ServerMessage,
     SocketError,
     Subscription,
@@ -87,10 +89,26 @@ async def handle_frame(
                 message_id=stored.id, sequence=stored.sequence, created_at=stored.created_at
             ),
         )
+    if isinstance(frame, MarkRead):
+        async with db.sessions() as session:
+            receipts = await mark_read(
+                session, actor, frame.conversation_id, frame.payload.sequence
+            )
+        if frame.conversation_id == stream.conversation:
+            stream.receipts = receipts
+        return ReadChanged(
+            type="message.read",
+            schema_version=1,
+            request_id=frame.request_id,
+            conversation_id=frame.conversation_id,
+            payload=receipts,
+        )
     if isinstance(frame, Subscription):
         page = await stream.subscribe(db, actor, frame.conversation_id, frame.payload.after)
     else:
         page = await history(db, actor, frame.conversation_id, frame.payload.after)
+        if frame.conversation_id == stream.conversation:
+            stream.receipts = page.receipts
     return SyncResult(
         type="sync.result",
         schema_version=1,
@@ -140,6 +158,17 @@ async def forward(
                     payload=message,
                 ).model_dump_json()
             )
+        if page.receipts != stream.receipts:
+            await socket.send_text(
+                ReadChanged(
+                    type="message.read",
+                    schema_version=1,
+                    conversation_id=conversation,
+                    request_id=None,
+                    payload=page.receipts,
+                ).model_dump_json()
+            )
+    stream.receipts = page.receipts
     stream.advance(page)
     if page.has_more:
         stream.wake.set()

@@ -182,6 +182,7 @@ export interface components {
             has_more: boolean;
             /** Messages */
             messages: components["schemas"]["Message"][];
+            receipts: components["schemas"]["ReadState"];
         };
         /** Message */
         Message: {
@@ -219,6 +220,13 @@ export interface components {
             sender_kind: "customer" | "admin";
             /** Sequence */
             sequence: number;
+        };
+        /** ReadState */
+        ReadState: {
+            /** Own Sequence */
+            own_sequence: number;
+            /** Peer Sequence */
+            peer_sequence: number;
         };
         /** SendMessage */
         SendMessage: {

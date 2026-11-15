@@ -128,12 +128,16 @@
           },
           "title": "Messages",
           "type": "array"
+        },
+        "receipts": {
+          "$ref": "#/$defs/ReadState"
         }
       },
       "required": [
         "conversation",
         "messages",
-        "has_more"
+        "has_more",
+        "receipts"
       ],
       "title": "History",
       "type": "object"
@@ -270,6 +274,69 @@
       "title": "MessageCreated",
       "type": "object"
     },
+    "ReadChanged": {
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ReadState"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "type": {
+          "const": "message.read",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "schema_version",
+        "conversation_id",
+        "request_id",
+        "payload"
+      ],
+      "title": "ReadChanged",
+      "type": "object"
+    },
+    "ReadState": {
+      "additionalProperties": false,
+      "properties": {
+        "own_sequence": {
+          "title": "Own Sequence",
+          "type": "integer"
+        },
+        "peer_sequence": {
+          "title": "Peer Sequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "own_sequence",
+        "peer_sequence"
+      ],
+      "title": "ReadState",
+      "type": "object"
+    },
     "SocketError": {
       "additionalProperties": false,
       "properties": {
@@ -378,6 +445,7 @@
       "error": "#/$defs/SocketError",
       "message.accepted": "#/$defs/MessageAccepted",
       "message.created": "#/$defs/MessageCreated",
+      "message.read": "#/$defs/ReadChanged",
       "sync.result": "#/$defs/SyncResult"
     },
     "propertyName": "type"
@@ -391,6 +459,9 @@
     },
     {
       "$ref": "#/$defs/SyncResult"
+    },
+    {
+      "$ref": "#/$defs/ReadChanged"
     },
     {
       "$ref": "#/$defs/SocketError"

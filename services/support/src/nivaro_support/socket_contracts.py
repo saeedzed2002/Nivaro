@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, TypeAdapter
 
-from nivaro_support.contracts import Contract, History, Message, MessageBody
+from nivaro_support.contracts import Contract, History, Message, MessageBody, ReadState
 
 Cursor = Annotated[int, Field(strict=True, ge=0, le=9223372036854775807)]
 
@@ -41,6 +41,15 @@ class SyncRequest(ClientFrame):
     payload: HistoryCursor
 
 
+class ReadCursor(Contract):
+    sequence: Cursor
+
+
+class MarkRead(ClientFrame):
+    type: Literal["message.read"]
+    payload: ReadCursor
+
+
 class ServerFrame(Contract):
     schema_version: Literal[1]
     request_id: UUID
@@ -71,6 +80,14 @@ class MessageCreated(Contract):
     payload: Message
 
 
+class ReadChanged(Contract):
+    type: Literal["message.read"]
+    schema_version: Literal[1]
+    conversation_id: UUID
+    request_id: UUID | None
+    payload: ReadState
+
+
 class FailureCode(Contract):
     code: str
 
@@ -84,9 +101,12 @@ class SocketError(Contract):
     payload: FailureCode
 
 
-ClientMessage = Annotated[MessageSend | Subscription | SyncRequest, Field(discriminator="type")]
+ClientMessage = Annotated[
+    MessageSend | Subscription | SyncRequest | MarkRead, Field(discriminator="type")
+]
 ServerMessage = Annotated[
-    MessageAccepted | MessageCreated | SyncResult | SocketError, Field(discriminator="type")
+    MessageAccepted | MessageCreated | SyncResult | ReadChanged | SocketError,
+    Field(discriminator="type"),
 ]
 CLIENT = TypeAdapter[ClientMessage](ClientMessage)
 SERVER = TypeAdapter[ServerMessage](ServerMessage)

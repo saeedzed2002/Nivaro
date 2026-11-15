@@ -74,10 +74,16 @@ class Message(Contract):
     created_at: AwareDatetime
 
 
+class ReadState(Contract):
+    own_sequence: int
+    peer_sequence: int
+
+
 class History(Contract):
     conversation: Conversation
     messages: list[Message]
     has_more: bool
+    receipts: ReadState
 
 
 class ErrorDetail(Contract):

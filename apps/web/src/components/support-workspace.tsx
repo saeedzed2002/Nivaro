@@ -177,7 +177,10 @@ function SupportThread({ locale, scope, userId, conversation, onUpdated, onRefre
   onUpdated: (row: Conversation) => void; onRefresh: () => Promise<void>;
 }) {
   const [initial] = useState(conversation);
-  const [state, setState] = useState<ThreadState>({ conversation, messages: [], connection: 'connecting', pending: null });
+  const [state, setState] = useState<ThreadState>({
+    conversation, messages: [], connection: 'connecting', pending: null,
+    receipts: { own_sequence: 0, peer_sequence: 0 },
+  });
   const [draft, setDraft] = useState('');
   const [attempt, setAttempt] = useState(0);
   const control = useRef<ReturnType<typeof startSupportThread> | null>(null);
@@ -198,6 +201,30 @@ function SupportThread({ locale, scope, userId, conversation, onUpdated, onRefre
   useEffect(() => {
     const element = log.current;
     if (element && pinned.current) element.scrollTop = element.scrollHeight;
+  }, [state.messages]);
+  useEffect(() => {
+    const viewport = log.current;
+    if (!viewport || !state.messages.length) return;
+    const visible = new Map<Element, number>();
+    function markVisible() {
+      if (document.visibilityState !== 'visible') return;
+      const sequence = Math.max(0, ...visible.values());
+      if (sequence) control.current?.markRead(sequence);
+    }
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const sequence = Number((entry.target as HTMLElement).dataset.supportSequence);
+        if (entry.isIntersecting && entry.intersectionRect.height > 0) visible.set(entry.target, sequence);
+        else visible.delete(entry.target);
+      }
+      markVisible();
+    });
+    for (const message of viewport.querySelectorAll('[data-support-sequence]')) observer.observe(message);
+    document.addEventListener('visibilitychange', markVisible);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', markVisible);
+    };
   }, [state.messages]);
 
   const allowed = state.connection === 'online' && row.status !== 'closed';
@@ -236,10 +263,12 @@ function SupportThread({ locale, scope, userId, conversation, onUpdated, onRefre
       {state.connection === 'online' && !state.messages.length && <p className="muted">{text(locale, 'هنوز پیامی ثبت نشده است.', 'No messages yet.')}</p>}
       {state.messages.map(message => {
         const mine = message.sender_id === userId && message.sender_kind === scope;
-        return <article className={mine ? 'support-message mine' : 'support-message'} key={message.id}>
+        return <article className={mine ? 'support-message mine' : 'support-message'} key={message.id}
+          data-support-sequence={message.sequence}>
           <p dir="auto">{message.body}</p><small>
             {mine ? text(locale, 'شما', 'You') : message.sender_kind === 'admin' ? text(locale, 'پشتیبانی', 'Support') : text(locale, 'مشتری', 'Customer')}
             <time dateTime={message.created_at}>{checkoutTime(message.created_at, locale)}</time>
+            {mine && message.sequence <= state.receipts.peer_sequence && <span>{text(locale, 'خوانده شد', 'Read')}</span>}
           </small>
         </article>;
       })}

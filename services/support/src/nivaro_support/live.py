@@ -8,9 +8,9 @@ from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from nivaro_support.contracts import Actor, History
+from nivaro_support.contracts import Actor, History, ReadState
 from nivaro_support.conversations import message_history
-from nivaro_support.models import MessageOutboxRow, MessageRow
+from nivaro_support.models import MessageOutboxRow, MessageRow, ReadCursorRow
 from nivaro_support.settings import Database
 
 CHANNEL = "nivaro.support.message.v1"
@@ -65,6 +65,7 @@ class ConversationStream:
         self.wake = asyncio.Event()
         self.conversation: UUID | None = None
         self.after = 0
+        self.receipts = ReadState(own_sequence=0, peer_sequence=0)
 
     def close(self) -> None:
         if self.conversation is not None:
@@ -88,6 +89,7 @@ class ConversationStream:
             self.conversation = conversation
         self.after = min(after, page.conversation.last_sequence)
         self.advance(page)
+        self.receipts = page.receipts
         return page
 
     def advance(self, page: History) -> None:
@@ -122,13 +124,33 @@ async def publish_next(db: Database, redis: Redis) -> bool:
         return True
 
 
+async def publish_read_cursor(db: Database, redis: Redis) -> bool:
+    async with db.sessions() as session, session.begin():
+        row = await session.scalar(
+            select(ReadCursorRow)
+            .where(ReadCursorRow.published_sequence < ReadCursorRow.sequence)
+            .order_by(
+                ReadCursorRow.conversation_id, ReadCursorRow.reader_kind, ReadCursorRow.reader_id
+            )
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        )
+        if row is None:
+            return False
+        async with asyncio.timeout(1):
+            await redis.publish(CHANNEL, row.conversation_id.bytes)
+        row.published_sequence = row.sequence
+        return True
+
+
 async def publish_outbox(db: Database, redis: Redis) -> None:
     delayed = False
     while True:
         try:
             published = await publish_next(db, redis)
+            receipt_published = await publish_read_cursor(db, redis)
             delayed = False
-            if not published:
+            if not published and not receipt_published:
                 await asyncio.sleep(0.25)
         except (RedisError, SQLAlchemyError, TimeoutError):
             if not delayed:

@@ -1,7 +1,7 @@
 'use client';
 
 import { IdentityError, readSession, type Scope } from './identity-client';
-import { decodeSupportFrame, type Conversation, type SupportMessage } from './support-client';
+import { decodeSupportFrame, type Conversation, type ReadState, type SupportMessage } from './support-client';
 
 type Pending = { id: string; body: string; error?: string };
 export type ThreadState = {
@@ -9,13 +9,17 @@ export type ThreadState = {
   messages: SupportMessage[];
   conversation: Conversation;
   pending: Pending | null;
+  receipts: ReadState;
   error?: string;
 };
 
 export function startSupportThread(
   conversation: Conversation, scope: Scope, userId: string, update: (state: ThreadState) => void,
 ) {
-  const state: ThreadState = { conversation, connection: 'connecting', messages: [], pending: null };
+  const state: ThreadState = {
+    conversation, connection: 'connecting', messages: [], pending: null,
+    receipts: { own_sequence: 0, peer_sequence: 0 },
+  };
   const bySequence = new Map<number, SupportMessage>();
   let cursor = 0;
   let highest = 0;
@@ -25,6 +29,9 @@ export function startSupportThread(
   let reconnect: ReturnType<typeof setTimeout> | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let deliveryTimeout: ReturnType<typeof setTimeout> | undefined;
+  let readTimeout: ReturnType<typeof setTimeout> | undefined;
+  let readRequest: string | undefined;
+  let wantedRead = 0;
   let request: string | undefined;
   let sent: string | undefined;
   let needsSubscription = true;
@@ -77,11 +84,29 @@ export function startSupportThread(
     }
   }
 
+  function sendRead() {
+    const sequence = Math.min(cursor, wantedRead);
+    if (needsSubscription || readRequest || sequence <= state.receipts.own_sequence) return;
+    const id = crypto.randomUUID();
+    if (!transmit({ type: 'message.read', request_id: id, payload: { sequence } })) return;
+    readRequest = id;
+    readTimeout = setTimeout(() => {
+      readRequest = undefined;
+      sendRead();
+    }, 8_000);
+  }
+
+  function settleRead() {
+    clearTimeout(readTimeout);
+    readRequest = undefined;
+  }
+
   function deny(code: string) {
     state.connection = 'denied';
     state.error = code;
     state.messages = [];
     bySequence.clear();
+    settleRead();
     socket?.close();
     emit();
   }
@@ -126,13 +151,21 @@ export function startSupportThread(
           state.error = undefined;
           state.conversation = frame.payload.conversation;
           merge(frame.payload.messages);
+          state.receipts = frame.payload.receipts;
           sendPending();
+          sendRead();
           if (frame.payload.has_more || cursor < highest) sync();
           break;
         }
         case 'message.created':
           merge([frame.payload]);
+          sendRead();
           if (cursor < highest) sync();
+          break;
+        case 'message.read':
+          state.receipts = frame.payload;
+          if (frame.request_id === readRequest) settleRead();
+          sendRead();
           break;
         case 'message.accepted': {
           const item = state.pending;
@@ -146,6 +179,10 @@ export function startSupportThread(
         case 'error':
           if (frame.payload.code === 'support.not_found') { deny(frame.payload.code); return; }
           if (frame.payload.code === 'auth.required') return;
+          if (frame.request_id === readRequest) {
+            settleRead();
+            if (frame.payload.code !== 'support.unavailable') wantedRead = state.receipts.own_sequence;
+          }
           if (frame.client_message_id && frame.client_message_id === state.pending?.id) {
             clearTimeout(deliveryTimeout);
             sent = undefined;
@@ -165,6 +202,7 @@ export function startSupportThread(
       if (disposed || socket !== connection || state.connection === 'denied') return;
       clearTimeout(timeout);
       clearTimeout(deliveryTimeout);
+      settleRead();
       request = undefined;
       sent = undefined;
       if (code === 4403) { deny('auth.forbidden'); return; }
@@ -183,6 +221,10 @@ export function startSupportThread(
   emit();
   void open(false);
   return {
+    markRead(sequence: number) {
+      wantedRead = Math.max(wantedRead, sequence);
+      sendRead();
+    },
     submit(body: string) {
       if (state.pending || state.connection !== 'online' || !body.trim()) return false;
       state.pending = { id: crypto.randomUUID(), body: body.trim() };
@@ -207,6 +249,7 @@ export function startSupportThread(
       clearTimeout(reconnect);
       clearTimeout(timeout);
       clearTimeout(deliveryTimeout);
+      settleRead();
       socket?.close();
     },
   };

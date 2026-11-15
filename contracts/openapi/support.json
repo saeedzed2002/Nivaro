@@ -196,12 +196,16 @@
             },
             "title": "Messages",
             "type": "array"
+          },
+          "receipts": {
+            "$ref": "#/components/schemas/ReadState"
           }
         },
         "required": [
           "conversation",
           "messages",
-          "has_more"
+          "has_more",
+          "receipts"
         ],
         "title": "History",
         "type": "object"
@@ -262,6 +266,25 @@
           "created_at"
         ],
         "title": "Message",
+        "type": "object"
+      },
+      "ReadState": {
+        "additionalProperties": false,
+        "properties": {
+          "own_sequence": {
+            "title": "Own Sequence",
+            "type": "integer"
+          },
+          "peer_sequence": {
+            "title": "Peer Sequence",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "own_sequence",
+          "peer_sequence"
+        ],
+        "title": "ReadState",
         "type": "object"
       },
       "SendMessage": {
