@@ -361,6 +361,53 @@ async def test_customer_order_history_paginates_when_creation_times_match(databa
             await list_orders(db, uuid4(), first.next_before, 2)
 
 
+async def test_staff_history_combines_filters_and_paginates_equal_placement_times(database):
+    checkout = CheckoutFixture(database)
+    matching = [await checkout.payable(f"staff-filter-{index}") for index in range(2)]
+    at_end = await checkout.payable("staff-filter-end")
+    checkout.address, checkout.rates = address("US"), [rate("US")]
+    customer = uuid4()
+    intent = CheckoutIntent(
+        market="international",
+        currency="USD",
+        cart_version=2,
+        address_id=checkout.address.id,
+        address_version=checkout.address.version,
+    )
+    international = await checkout.request(customer, "staff-filter-us", intent)
+    selection = quote(international, customer, market="international")
+    await checkout.save(selection, await checkout.review(selection))
+
+    start = datetime(2020, 8, 12, tzinfo=UTC)
+    end = start + timedelta(days=1)
+    expected = sorted((order.id for order in matching), reverse=True)
+    async with database.sessions.begin() as db:
+        await db.execute(
+            update(Order).where(Order.id.in_([*expected, international])).values(created_at=start)
+        )
+        await db.execute(update(Order).where(Order.id == at_end.id).values(created_at=end))
+
+    async with database.sessions() as db:
+        first = await list_orders(
+            db, None, None, 1, market="ir", placed_from=start, placed_before=end
+        )
+        assert [entry.id for entry in first.orders] == expected[:1]
+        assert first.next_before == expected[0]
+        second = await list_orders(
+            db, None, first.next_before, 1, market="ir", placed_from=start, placed_before=end
+        )
+        assert [entry.id for entry in second.orders] == expected[1:]
+        assert second.next_before is None
+        by_reference = await list_orders(
+            db, None, None, 5, order_id=international, market="international", placed_from=start
+        )
+        assert [(entry.id, entry.currency) for entry in by_reference.orders] == [
+            (international, "USD")
+        ]
+        wrong_status = await list_orders(db, None, None, 5, order_id=expected[0], status="paid")
+        assert wrong_status.orders == []
+
+
 async def test_staff_fulfillment_requires_commit_order_and_preserves_audited_replays(database):
     order = await CheckoutFixture(database).payable("fulfillment-steps")
     staff = uuid4()

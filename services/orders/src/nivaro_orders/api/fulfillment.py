@@ -1,7 +1,10 @@
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query, Request
+from pydantic import Field
 
 from nivaro_orders.api.checkout import ErrorResponse, mutation_context
 from nivaro_orders.application.checkout_flow import CheckoutFlow
@@ -13,7 +16,7 @@ from nivaro_orders.application.fulfillment import (
     read_fulfillment,
 )
 from nivaro_orders.application.order_history import OrderHistory, list_orders
-from nivaro_orders.domain.checkout import OrderState
+from nivaro_orders.domain.checkout import Market, OrderState
 from nivaro_orders.infrastructure.checkout_sources import SourceError
 
 router = APIRouter(
@@ -21,6 +24,12 @@ router = APIRouter(
     tags=["staff orders"],
     responses={status: {"model": ErrorResponse} for status in (401, 403, 404, 409, 422, 503)},
 )
+TEHRAN = ZoneInfo("Asia/Tehran")
+PlacementDate = Annotated[date, Field(ge=date(1900, 1, 1), le=date(9998, 12, 31))]
+
+
+def placement_boundary(day: date) -> datetime:
+    return datetime.combine(day, time.min, TEHRAN).astimezone(UTC)
 
 
 async def staff_actor(request: Request, flow: CheckoutFlow, *, mutating: bool) -> UUID:
@@ -38,11 +47,35 @@ async def history(
     before: UUID | None = None,
     status: OrderState | None = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    market: Market | None = None,
+    order_id: UUID | None = None,
+    placed_from: Annotated[
+        PlacementDate | None, Query(description="First day in Asia/Tehran")
+    ] = None,
+    placed_through: Annotated[
+        PlacementDate | None, Query(description="Last day in Asia/Tehran")
+    ] = None,
 ) -> OrderHistory:
     flow: CheckoutFlow = request.app.state.checkout
     await staff_actor(request, flow, mutating=False)
+    if placed_from is not None and placed_through is not None and placed_from > placed_through:
+        raise SourceError("orders.invalid_date_range", 422)
     async with flow.database.sessions() as db:
-        return await list_orders(db, None, before, limit, status=status)
+        return await list_orders(
+            db,
+            None,
+            before,
+            limit,
+            status=status,
+            market=market,
+            order_id=order_id,
+            placed_from=placement_boundary(placed_from) if placed_from is not None else None,
+            placed_before=(
+                placement_boundary(placed_through + timedelta(days=1))
+                if placed_through is not None
+                else None
+            ),
+        )
 
 
 @router.get("/{order_id}/fulfillment", operation_id="readOrderFulfillment")

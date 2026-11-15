@@ -10,6 +10,7 @@ export type OrderStatus = components['schemas']['OrderStatus'];
 export type OrderHistory = components['schemas']['OrderHistory'];
 export type OrderDetails = components['schemas']['OrderDetails'];
 export type FulfillmentCommand = components['schemas']['Prepare' | 'Ship' | 'Deliver'];
+export type StaffOrderFilters = Omit<NonNullable<paths['/api/v1/admin/orders/history']['get']['parameters']['query']>, 'before' | 'limit'>;
 
 const client = createClient<paths>({ credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
@@ -51,8 +52,8 @@ export const listCustomerOrders = (before: string | undefined, signal?: AbortSig
 export const readCustomerOrderDetails = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/orders/{order_id}/details', { params: { path: { order_id: id } }, signal })));
 
-export const listStaffOrders = (status?: OrderStatus['status'], before?: string, signal?: AbortSignal) => authorized(async () =>
-  unwrap(await client.GET('/api/v1/admin/orders/history', { params: { query: { status, before } }, signal })), 'admin');
+export const listStaffOrders = (filters: StaffOrderFilters, before?: string, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/orders/history', { params: { query: { ...filters, before } }, signal })), 'admin');
 
 export const readOrderFulfillment = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/orders/{order_id}/fulfillment', { params: { path: { order_id: id } }, signal })), 'admin');

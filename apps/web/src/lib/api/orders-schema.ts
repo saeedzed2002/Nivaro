@@ -540,6 +540,12 @@ export interface operations {
                 before?: string | null;
                 status?: ("pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered") | null;
                 limit?: number;
+                market?: components["schemas"]["Market"] | null;
+                order_id?: string | null;
+                /** @description First day in Asia/Tehran */
+                placed_from?: string | null;
+                /** @description Last day in Asia/Tehran */
+                placed_through?: string | null;
             };
             header?: never;
             path?: never;

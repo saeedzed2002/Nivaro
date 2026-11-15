@@ -191,7 +191,7 @@ asyncio.run(manage('bootstrap-admin'))
 `], { input: password, encoding: 'utf8', timeout: 20_000 });
     expect(setup.status, 'Disposable staff bootstrap').toBe(0);
 
-    const staffContext = await page.context().browser()!.newContext({ baseURL, viewport: { width: 1487, height: 1058 } });
+    const staffContext = await page.context().browser()!.newContext({ baseURL, timezoneId: 'America/Los_Angeles', viewport: { width: 1487, height: 1058 } });
     try {
       const staff = await staffContext.newPage();
       staff.on('pageerror', error => exceptions.push(error.message));
@@ -202,10 +202,42 @@ asyncio.run(manage('bootstrap-admin'))
       await staff.getByRole('link', { name: 'Manage orders' }).click();
       await staff.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
       await staff.getByLabel('Status', { exact: true }).selectOption('paid');
+      const marketFilter = staff.getByLabel('Market', { exact: true });
+      const referenceFilter = staff.getByLabel('Order reference', { exact: true });
+      const applyFilters = staff.getByRole('button', { name: 'Apply filters' });
       const row = staff.getByRole('row').filter({ hasText: submittedId });
+      const createdAt = await row.locator('time').getAttribute('datetime');
+      expect(createdAt).toBeTruthy();
+      await expect(row.locator('time')).toHaveText(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Tehran', dateStyle: 'short', timeStyle: 'short',
+      }).format(new Date(createdAt!)));
+      await referenceFilter.fill('invalid');
+      await applyFilters.press('Enter');
+      await expect(staff.getByRole('alert').filter({ hasText: 'Enter the full order reference.' })).toBeVisible();
+      await referenceFilter.fill(submittedId);
+      await marketFilter.selectOption('ir');
+      await applyFilters.click();
+      await expect(staff.getByText('No orders match these filters.')).toBeVisible();
+      await marketFilter.selectOption('international');
+      const placedOn = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tehran', dateStyle: 'short' }).format(new Date(createdAt!));
+      await staff.getByLabel('Placed from (Tehran time)', { exact: true }).fill(placedOn);
+      await staff.getByLabel('Placed through (Tehran time)', { exact: true }).fill(placedOn);
+      await applyFilters.click();
       await expect(row.getByText('Paid', { exact: true })).toBeVisible();
+      await expect(staff.getByRole('table', { name: 'Order list' }).locator('tbody tr')).toHaveCount(1);
+      const ordersHistoryUrl = '/api/v1/admin/orders/history';
+      const reversedDates = await staff.request.get(ordersHistoryUrl, { params: { placed_from: '2026-11-16', placed_through: '2026-11-15' } });
+      expect(reversedDates.status()).toBe(422);
+      expect((await reversedDates.json()).error.code).toBe('orders.invalid_date_range');
+      expect((await staff.request.get(ordersHistoryUrl, { params: { placed_through: '9999-12-31' } })).status()).toBe(422);
       await staff.setViewportSize({ width: 1983, height: 793 });
       await staff.screenshot({ path: test.info().outputPath('staff-orders-en-dark-desktop.png'), fullPage: true });
+      await staff.setViewportSize({ width: 360, height: 800 });
+      expect(await staff.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+      await staff.screenshot({ path: test.info().outputPath('staff-order-filters-en-dark-mobile.png'), fullPage: true });
+      await staff.getByRole('button', { name: 'Clear filters' }).click();
+      await expect(referenceFilter).toHaveValue('');
+      await expect(marketFilter).toHaveValue('');
       await row.getByRole('link', { name: 'View order' }).click();
       await staff.setViewportSize({ width: 1487, height: 1058 });
       await expect(staff.getByText('22 Example Street', { exact: true })).toBeVisible();

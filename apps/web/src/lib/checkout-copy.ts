@@ -36,5 +36,5 @@ export function checkoutError(locale: Locale, error: Error) {
 export const loginRequired = (error: Error | null) => error instanceof IdentityError && error.status === 401;
 
 export function checkoutTime(value: string, locale: Locale) {
-  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+  return new Intl.DateTimeFormat(locale === 'fa' ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Tehran' }).format(new Date(value));
 }

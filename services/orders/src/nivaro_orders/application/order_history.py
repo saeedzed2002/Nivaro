@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from nivaro_orders.domain.checkout import (
     AddressSnapshot,
     CheckoutError,
     Contract,
+    Market,
     MarketTerms,
     OrderState,
     Totals,
@@ -84,6 +86,10 @@ async def list_orders(
     limit: int,
     *,
     status: OrderState | None = None,
+    market: Market | None = None,
+    order_id: UUID | None = None,
+    placed_from: datetime | None = None,
+    placed_before: datetime | None = None,
 ) -> OrderHistory:
     owned = select(Order)
     if customer_id is not None:
@@ -91,6 +97,14 @@ async def list_orders(
     query = owned.order_by(Order.created_at.desc(), Order.id.desc()).limit(limit + 1)
     if status is not None:
         query = query.where(Order.status == status)
+    if market is not None:
+        query = query.where(Order.market == market)
+    if order_id is not None:
+        query = query.where(Order.id == order_id)
+    if placed_from is not None:
+        query = query.where(Order.created_at >= placed_from)
+    if placed_before is not None:
+        query = query.where(Order.created_at < placed_before)
     if before is not None:
         boundary = await db.scalar(owned.where(Order.id == before))
         if boundary is None:
