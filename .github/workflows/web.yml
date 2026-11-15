@@ -33,7 +33,7 @@ jobs:
           docker build --target test -t nivaro-support:test services/support
           docker build --build-context image-processing=./packages/python/image_processing --target release -t nivaro-identity:release services/identity
           docker compose -f compose.yaml -f compose.support.yaml pull postgres redis-state
-      - name: Verify private HTTP and WebSocket conversations
+      - name: Verify private conversations across two support replicas
         shell: pwsh
         run: ./scripts/Verify-SupportFoundation.ps1
   web:

@@ -28,16 +28,34 @@ services:
       support-db-init:
         condition: service_completed_successfully
     restart: 'no'
-  support:
+  redis-support:
+    image: redis:8.10.3@sha256:0c257ce8b2f31f9f7595f587edf8ac259a248ba3ced82badc8c7aa826a85224f
+    user: redis
+    command: [sh, /etc/redis/start-support.sh]
+    secrets: [redis_support_password]
+    volumes:
+      - ./infra/redis/start-support.sh:/etc/redis/start-support.sh:ro
+    networks: [support-chat]
+    mem_limit: 128m
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH=$$(cat /run/secrets/redis_support_password) redis-cli --user support ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  support: &support-service
     image: ${NIVARO_SUPPORT_IMAGE:-nivaro-support:release}
     environment:
       SUPPORT_ALLOWED_ORIGINS: '${SUPPORT_ALLOWED_ORIGINS:-["http://127.0.0.1:8080","http://localhost:8080"]}'
-    secrets: [support_db_password, support_identity_service_key]
+    secrets: [support_db_password, support_identity_service_key, redis_support_password]
+    networks: [default, support-chat]
     depends_on:
       support-init:
         condition: service_completed_successfully
       identity:
         condition: service_healthy
+      redis-support:
+        condition: service_started
     expose: ['8000']
     init: true
     restart: unless-stopped
@@ -46,8 +64,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+  support-replica:
+    <<: *support-service
+    profiles: [support-replica]
 secrets:
   support_db_password:
     file: ./work/secrets/support_db_password.txt
   support_identity_service_key:
     file: ./work/secrets/support_identity_service_key.txt
+  redis_support_password:
+    file: ./work/secrets/redis_support_password.txt
+networks:
+  support-chat:
+    internal: true

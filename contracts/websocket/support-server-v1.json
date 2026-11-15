@@ -239,6 +239,37 @@
       "title": "MessageAccepted",
       "type": "object"
     },
+    "MessageCreated": {
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Message"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "type": {
+          "const": "message.created",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "schema_version",
+        "conversation_id",
+        "payload"
+      ],
+      "title": "MessageCreated",
+      "type": "object"
+    },
     "SocketError": {
       "additionalProperties": false,
       "properties": {
@@ -346,6 +377,7 @@
     "mapping": {
       "error": "#/$defs/SocketError",
       "message.accepted": "#/$defs/MessageAccepted",
+      "message.created": "#/$defs/MessageCreated",
       "sync.result": "#/$defs/SyncResult"
     },
     "propertyName": "type"
@@ -353,6 +385,9 @@
   "oneOf": [
     {
       "$ref": "#/$defs/MessageAccepted"
+    },
+    {
+      "$ref": "#/$defs/MessageCreated"
     },
     {
       "$ref": "#/$defs/SyncResult"

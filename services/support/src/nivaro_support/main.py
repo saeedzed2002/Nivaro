@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -7,6 +8,9 @@ import httpx
 from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +39,7 @@ from nivaro_support.conversations import (
     set_state,
 )
 from nivaro_support.limits import BoundedBody
+from nivaro_support.live import NotificationBus, publish_outbox
 from nivaro_support.settings import Database, Settings
 from nivaro_support.socket import router as socket_router
 
@@ -47,12 +52,38 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.allowed_origins = frozenset(settings.allowed_origins)
     app.state.database = database = Database(settings)
     key = settings.identity_key_file.read_text(encoding="utf-8").strip()
+    redis_password = settings.redis_password_file.read_text(encoding="utf-8").strip()
+    if not redis_password:
+        raise ValueError("Support Redis password is required")
+    app.state.notifications = notifications = NotificationBus()
     try:
-        async with httpx.AsyncClient(
-            base_url=str(settings.identity_url), timeout=3, trust_env=False
-        ) as client:
+        async with (
+            httpx.AsyncClient(
+                base_url=str(settings.identity_url), timeout=3, trust_env=False
+            ) as client,
+            Redis(
+                host=settings.redis_host,
+                username="support",
+                password=redis_password,
+                protocol=2,
+                socket_connect_timeout=1,
+                socket_timeout=2,
+                retry=Retry(NoBackoff(), 0),
+                health_check_interval=5,
+                max_connections=4,
+                lib_name=None,
+                lib_version=None,
+            ) as redis,
+            asyncio.TaskGroup() as tasks,
+        ):
             app.state.authorization = IdentityAuthorization(client, key)
-            yield
+            listener = tasks.create_task(notifications.listen(redis))
+            publisher = tasks.create_task(publish_outbox(database, redis))
+            try:
+                yield
+            finally:
+                listener.cancel()
+                publisher.cancel()
     finally:
         await database.engine.dispose()
 

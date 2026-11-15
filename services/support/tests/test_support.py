@@ -1,14 +1,16 @@
 import asyncio
 import json
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from redis.asyncio import Redis
 from sqlalchemy import func, select
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosedError, InvalidStatus
 
+from nivaro_support.live import CHANNEL
 from nivaro_support.models import AssignmentRow, MessageOutboxRow, MessageRow
 from nivaro_support.settings import Database, Settings
 from nivaro_support.socket_contracts import SERVER
@@ -20,12 +22,13 @@ ORIGIN = "http://127.0.0.1:8082"
 CUSTOMER = "/api/v1/support/conversations"
 STAFF = "/api/v1/admin/support/conversations"
 SOCKET = "ws://support:8000/ws/support"
+REPLICA_SOCKET = "ws://support-replica:8000/ws/support"
 STAFF_PROTOCOL = "nivaro.support.staff.v1"
 
 
-def open_socket(headers=None, *, origin=ORIGIN, subprotocols=None):
+def open_socket(headers=None, *, origin=ORIGIN, subprotocols=None, endpoint=SOCKET):
     return connect(
-        SOCKET,
+        endpoint,
         origin=origin,
         additional_headers={"Cookie": headers["Cookie"]} if headers else None,
         subprotocols=subprotocols,
@@ -48,10 +51,95 @@ def frame(kind, conversation, payload, **references):
 
 async def exchange(socket, request):
     await socket.send(json.dumps(request))
-    raw = await asyncio.wait_for(socket.recv(), timeout=8)
-    response = SERVER.validate_json(raw).model_dump(mode="json")
+    response = await receive(socket)
     assert response["request_id"] == request["request_id"]
     return response
+
+
+async def receive(socket, timeout=8):
+    return SERVER.validate_json(await asyncio.wait_for(socket.recv(), timeout)).model_dump(
+        mode="json"
+    )
+
+
+async def receive_created(socket, accepted):
+    result = await receive(socket)
+    assert result["type"] == "message.created"
+    assert result["conversation_id"] == accepted["conversation_id"]
+    assert result["payload"]["id"] == accepted["payload"]["message_id"]
+    assert result["payload"]["sequence"] == accepted["payload"]["sequence"]
+    return result["payload"]
+
+
+def send_frame(conversation, body):
+    return frame("message.send", conversation, {"body": body}, client_message_id=str(uuid4()))
+
+
+async def wait_for_replicas(redis):
+    async with asyncio.timeout(8):
+        while dict(await redis.pubsub_numsub(CHANNEL)).get(CHANNEL) != 2:
+            await asyncio.sleep(0.1)
+
+
+async def verify_redis_recovery(db, owner_headers, agent_headers, conversation):
+    async with (
+        Redis(
+            host="redis-support",
+            username="support_qa",
+            password=os.environ["NIVARO_QA_SUPPORT_REDIS_PASSWORD"],
+            decode_responses=True,
+            socket_timeout=2,
+        ) as redis,
+        open_socket(owner_headers) as customer,
+        open_socket(agent_headers, subprotocols=[STAFF_PROTOCOL], endpoint=REPLICA_SOCKET) as agent,
+    ):
+        await wait_for_replicas(redis)
+        subscribed = await exchange(
+            agent, frame("conversation.subscribe", conversation, {"after": 2})
+        )
+        assert subscribed["payload"]["messages"] == []
+        customer_message = await exchange(
+            customer, send_frame(conversation, "Live customer message")
+        )
+        assert customer_message["payload"]["sequence"] == 3
+        assert (await receive_created(agent, customer_message))["body"] == "Live customer message"
+
+        await redis.execute_command("ACL", "SETUSER", "support", "off")
+        try:
+            assert await redis.execute_command("CLIENT", "KILL", "USER", "support") >= 2
+            assert dict(await redis.pubsub_numsub(CHANNEL)).get(CHANNEL) == 0
+            offline = await exchange(
+                customer, send_frame(conversation, "Persisted during Redis outage")
+            )
+            assert offline["type"] == "message.accepted" and offline["payload"]["sequence"] == 4
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(agent.recv(), timeout=0.35)
+            async with db.sessions() as session:
+                outbox = await session.get(MessageOutboxRow, UUID(offline["payload"]["message_id"]))
+                assert outbox is not None and outbox.published_at is None
+            async with open_socket(
+                agent_headers, subprotocols=[STAFF_PROTOCOL], endpoint=REPLICA_SOCKET
+            ) as reconnected:
+                result = await exchange(
+                    reconnected, frame("sync.request", conversation, {"after": 3})
+                )
+                assert [message["id"] for message in result["payload"]["messages"]] == [
+                    offline["payload"]["message_id"]
+                ]
+        finally:
+            await redis.execute_command("ACL", "SETUSER", "support", "on")
+
+        assert (await receive_created(agent, offline))["body"] == "Persisted during Redis outage"
+        await wait_for_replicas(redis)
+        async with asyncio.timeout(8):
+            while True:
+                async with db.sessions() as session:
+                    row = await session.get(
+                        MessageOutboxRow, UUID(offline["payload"]["message_id"])
+                    )
+                    if row is not None and row.published_at is not None:
+                        break
+                await asyncio.sleep(0.1)
 
 
 async def customer_login(client, phone):
@@ -222,31 +310,31 @@ async def test_private_history_assignment_and_idempotent_delivery():
                     await asyncio.wait_for(outside.recv(), timeout=5)
                 assert oversized.value.rcvd is not None and oversized.value.rcvd.code == 1009
 
-            async with open_socket(owner_headers) as customer:
+            async with (
+                open_socket(owner_headers) as customer,
+                open_socket(
+                    credentials[winner][1], subprotocols=[STAFF_PROTOCOL], endpoint=REPLICA_SOCKET
+                ) as agent,
+            ):
                 initial = await exchange(customer, subscription)
                 assert initial["type"] == "sync.result" and initial["payload"]["messages"] == [
                     stored
                 ]
-
-            reply = {"client_message_id": str(uuid4()), "body": "Agent reply"}
-            sending = frame(
-                "message.send",
-                cid,
-                {"body": reply["body"]},
-                client_message_id=reply["client_message_id"],
-            )
-            async with open_socket(credentials[winner][1], subprotocols=[STAFF_PROTOCOL]) as agent:
+                sending = send_frame(cid, "Agent reply")
                 assert agent.subprotocol == STAFF_PROTOCOL
                 rejected = await exchange(agent, {**sending, "sender_id": str(uuid4())})
                 assert rejected["payload"] == {"code": "request.invalid"}
-                assert rejected["client_message_id"] == reply["client_message_id"]
+                assert rejected["client_message_id"] == sending["client_message_id"]
                 accepted = await exchange(agent, sending)
                 assert accepted["type"] == "message.accepted"
                 assert accepted["payload"]["sequence"] == 2
+                assert (await receive_created(customer, accepted))["body"] == "Agent reply"
 
             async with (
                 open_socket(owner_headers) as customer,
-                open_socket(credentials[winner][1], subprotocols=[STAFF_PROTOCOL]) as agent,
+                open_socket(
+                    credentials[winner][1], subprotocols=[STAFF_PROTOCOL], endpoint=REPLICA_SOCKET
+                ) as agent,
             ):
                 retried = await exchange(agent, {**sending, "request_id": str(uuid4())})
                 assert retried["payload"] == accepted["payload"]
@@ -259,6 +347,7 @@ async def test_private_history_assignment_and_idempotent_delivery():
             assert page["has_more"] and page["messages"] == [stored]
             last = (await support.get(history, headers=owner_headers, params={"after": 1})).json()
             assert not last["has_more"] and last["messages"] == recovered["payload"]["messages"]
+            await verify_redis_recovery(database, owner_headers, credentials[winner][1], cid)
 
             manager = credentials["manager"][1]
             assert (
@@ -268,13 +357,25 @@ async def test_private_history_assignment_and_idempotent_delivery():
                     json={"agent_id": credentials["sales"][0], "expected_version": 2},
                 )
             ).status_code == 403
-            async with open_socket(credentials[winner][1], subprotocols=[STAFF_PROTOCOL]) as agent:
+            async with open_socket(
+                credentials[winner][1], subprotocols=[STAFF_PROTOCOL], endpoint=REPLICA_SOCKET
+            ) as agent:
+                prior = await exchange(agent, frame("conversation.subscribe", cid, {"after": 4}))
+                assert prior["type"] == "sync.result"
                 changed = await support.put(
                     assignment,
                     headers=manager,
                     json={"agent_id": credentials[loser][0], "expected_version": 2},
                 )
                 assert changed.status_code == 200 and changed.json()["version"] == 3
+                marker = await support.post(
+                    history,
+                    headers=owner_headers,
+                    json={"client_message_id": str(uuid4()), "body": "Private after reassignment"},
+                )
+                assert marker.status_code == 200 and marker.json()["sequence"] == 5
+                with pytest.raises(TimeoutError):
+                    await asyncio.wait_for(agent.recv(), timeout=0.5)
                 assert (await exchange(agent, subscription))["payload"] == {
                     "code": "support.not_found"
                 }
@@ -288,7 +389,11 @@ async def test_private_history_assignment_and_idempotent_delivery():
             )
             assert status.status_code == 200 and status.json()["closed_at"] is not None
             assert (
-                await support.post(history, headers=owner_headers, json=reply)
+                await support.post(
+                    history,
+                    headers=owner_headers,
+                    json={"client_message_id": str(uuid4()), "body": "Closed conversation"},
+                )
             ).status_code == 409
             assert (
                 await support.post(history, headers=owner_headers, json=first_message)
@@ -315,7 +420,7 @@ async def test_private_history_assignment_and_idempotent_delivery():
                     .select_from(MessageOutboxRow)
                     .where(MessageOutboxRow.message_id.in_(messages))
                 )
-                == 2
+                == 5
             )
             assert (
                 await db.scalar(

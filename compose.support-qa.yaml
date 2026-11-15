@@ -1,0 +1,14 @@
+# For disposable support QA projects only. The control user can disconnect chat clients.
+services:
+  redis-support:
+    command:
+      - sh
+      - /etc/redis/start-support.sh
+      - --user
+      - support_qa
+      - 'on'
+      - '>${NIVARO_QA_SUPPORT_REDIS_PASSWORD:?Disposable support QA password required}'
+      - '+acl|setuser'
+      - '+client|kill'
+      - '+pubsub|numsub'
+    networks: [default, support-chat]

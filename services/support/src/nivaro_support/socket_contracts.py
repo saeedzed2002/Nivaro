@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, TypeAdapter
 
-from nivaro_support.contracts import Contract, History, MessageBody
+from nivaro_support.contracts import Contract, History, Message, MessageBody
 
 Cursor = Annotated[int, Field(strict=True, ge=0, le=9223372036854775807)]
 
@@ -64,6 +64,13 @@ class SyncResult(ServerFrame):
     payload: History
 
 
+class MessageCreated(Contract):
+    type: Literal["message.created"]
+    schema_version: Literal[1]
+    conversation_id: UUID
+    payload: Message
+
+
 class FailureCode(Contract):
     code: str
 
@@ -78,7 +85,9 @@ class SocketError(Contract):
 
 
 ClientMessage = Annotated[MessageSend | Subscription | SyncRequest, Field(discriminator="type")]
-ServerMessage = Annotated[MessageAccepted | SyncResult | SocketError, Field(discriminator="type")]
+ServerMessage = Annotated[
+    MessageAccepted | MessageCreated | SyncResult | SocketError, Field(discriminator="type")
+]
 CLIENT = TypeAdapter[ClientMessage](ClientMessage)
 SERVER = TypeAdapter[ServerMessage](ServerMessage)
 
