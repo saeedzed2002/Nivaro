@@ -14,12 +14,17 @@ holds the coupon row while checking and claiming its quota in the same
 transaction that records the order.
 
 Shipping and tax are configured per market and destination country using the
-JSON list `ORDERS_DELIVERY_RATES`. Each entry specifies `market`, `currency`,
+JSON list `ORDERS_DELIVERY_RATES`, passed by Compose from
+`NIVARO_ORDERS_DELIVERY_RATES`. Each entry specifies `market`, `currency`,
 `country`, `policy_version`, `shipping_minor`, `tax_basis_points`,
 `tax_included` and `shipping_taxable`. The default list is empty. A missing
 destination policy blocks confirmation. Each confirmed order records that
-policy along with its amounts. IRR discounts and calculated tax round down to
-whole tomans. USD amounts use cents. Tests use synthetic rates and coupons.
+policy along with its amounts. An Iran rate can include
+`free_shipping_threshold_minor` in rials. The amount must be in whole tomans.
+Shipping is waived when the merchandise subtotal after coupon discounts reaches
+the threshold. Taxable shipping uses the actual fee after applying the policy.
+Omit the threshold to use the flat fee. IRR discounts and calculated tax round
+down to whole tomans. USD amounts use cents. Tests use synthetic rates and coupons.
 
 The service starts with `compose.orders.yaml` and exposes its two health
 routes on the project network. Its reservation worker claims a short database
@@ -28,8 +33,8 @@ original operation ID before requesting a hold. An ambiguous response leaves
 the order pending for retry with bounded backoff. A live Catalog receipt moves
 the order to `awaiting_payment` and aligns the coupon claim's deadline with the
 stock hold. A definite rejection or expiry closes the order and releases its
-coupon claim. Checkout HTTP routes and the storefront will wire into the
-existing checkout application use cases in the next checkpoint.
+coupon claim. The storefront obtains the reviewed amounts, submits the explicit
+confirmation and reads the order's status through the Orders HTTP routes.
 
 Run the foundation checks with tested release and test images.
 

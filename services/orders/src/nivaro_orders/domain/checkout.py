@@ -139,11 +139,17 @@ class DeliveryRate(MarketTerms):
     tax_basis_points: Annotated[int, Field(strict=True, ge=0, le=10000)]
     tax_included: bool
     shipping_taxable: bool
+    free_shipping_threshold_minor: Amount | None = None
 
     @model_validator(mode="after")
     def validate_destination(self) -> Self:
         if self.market == "ir" and (self.country != "IR" or self.shipping_minor % 10):
             raise ValueError("The Iranian rate requires an Iranian destination and whole tomans")
+        threshold = self.free_shipping_threshold_minor
+        if threshold is not None and (self.market != "ir" or threshold % 10):
+            raise ValueError(
+                "The free-shipping threshold requires the Iran market and whole tomans"
+            )
         return self
 
 
@@ -192,7 +198,9 @@ def calculate_totals(
         if deduction == 0:
             raise CheckoutError("coupon.no_discount")
     net = subtotal - deduction
-    taxable = net + (rate.shipping_minor if rate.shipping_taxable else 0)
+    threshold = rate.free_shipping_threshold_minor
+    shipping = 0 if threshold is not None and net >= threshold else rate.shipping_minor
+    taxable = net + (shipping if rate.shipping_taxable else 0)
     divisor = 10_000 + rate.tax_basis_points if rate.tax_included else 10_000
     tax = taxable * rate.tax_basis_points // divisor
     tax -= tax % quantum
@@ -201,8 +209,8 @@ def calculate_totals(
         currency=quote.currency,
         subtotal_minor=subtotal,
         discount_minor=deduction,
-        shipping_minor=rate.shipping_minor,
+        shipping_minor=shipping,
         tax_minor=tax,
         tax_included=rate.tax_included,
-        total_minor=net + rate.shipping_minor + (0 if rate.tax_included else tax),
+        total_minor=net + shipping + (0 if rate.tax_included else tax),
     )

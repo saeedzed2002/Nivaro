@@ -186,7 +186,8 @@ async def price_checkout(
             "cart_fingerprint": quote.cart_fingerprint,
             "address": [str(address.id), address.version],
             "totals": totals.model_dump(mode="json"),
-            "delivery": rate.model_dump(mode="json"),
+            # Unset thresholds preserve confirmations issued before the policy field existed.
+            "delivery": rate.model_dump(mode="json", exclude_none=True),
             "coupon": str(coupon.id) if coupon else None,
         }
     )
@@ -241,7 +242,7 @@ async def stage_order(
             quote_id=quote.id,
             quote_expires_at=quote.expires_at,
             confirmation=confirmation,
-            delivery_policy=priced.rate.model_dump(mode="json"),
+            delivery_policy=priced.rate.model_dump(mode="json", exclude_none=True),
             **priced.review.totals.model_dump(),
         )
         operation.state = "pending_reservation"

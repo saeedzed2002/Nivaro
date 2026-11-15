@@ -12,9 +12,15 @@ import httpx
 import psycopg
 import pytest
 from aio_pika.exceptions import DeliveryError
+from pydantic import ValidationError
 from sqlalchemy import func, select, text, update
 
-from nivaro_orders.application.checkout import begin_checkout, review_checkout, stage_order
+from nivaro_orders.application.checkout import (
+    begin_checkout,
+    fingerprint,
+    review_checkout,
+    stage_order,
+)
 from nivaro_orders.application.reservations import advance_reservation, expire_unpaid
 from nivaro_orders.domain.checkout import (
     AddressSnapshot,
@@ -173,6 +179,31 @@ def test_market_money_coupons_and_tax_inclusion():
         quote(uuid4(), uuid4(), amount=1011)
 
 
+@pytest.mark.parametrize(
+    ("coupon_value", "shipping", "tax", "total"),
+    [(20, 200, 100, 1290), (15, 0, 90, 1090), (None, 0, 90, 1100)],
+)
+def test_iran_shipping_threshold_uses_rounded_discounted_subtotal(
+    coupon_value, shipping, tax, total
+):
+    policy = DeliveryRate.model_validate(
+        {**rate().model_dump(), "free_shipping_threshold_minor": 1000, "shipping_taxable": True}
+    )
+    discount = Discount(kind="fixed", value=coupon_value) if coupon_value is not None else None
+    result = calculate_totals(quote(uuid4(), uuid4()), address(), policy, discount)
+    assert (result.shipping_minor, result.tax_minor, result.total_minor) == (shipping, tax, total)
+
+
+@pytest.mark.parametrize(("country", "threshold"), [("IR", 1001), ("US", 1000)])
+def test_delivery_rejects_invalid_free_shipping_threshold(country, threshold):
+    with pytest.raises(
+        ValidationError, match="threshold requires the Iran market and whole tomans"
+    ):
+        DeliveryRate.model_validate(
+            {**rate(country).model_dump(), "free_shipping_threshold_minor": threshold}
+        )
+
+
 @pytest.fixture
 async def database():
     settings = Settings(db_pool_size=20)
@@ -259,6 +290,57 @@ async def test_checkout_idempotency_and_immutable_grouped_snapshot(database):
         assert saved_line.source_group_id == current_quote.groups[0].id
         assert await db.get(OrderTransition, (operation, 1)) is not None
         assert (await db.get(CheckoutOperation, operation)).state == "pending_reservation"
+
+
+async def test_shipping_policy_is_bound_to_confirmation_and_order_snapshot(database):
+    checkout = CheckoutFixture(database)
+    customer = uuid4()
+    operation = await checkout.request(customer, "legacy-delivery-policy")
+    current_quote = quote(operation, customer)
+    flat = await checkout.review(current_quote)
+    legacy_policy = {
+        "market": "ir",
+        "currency": "IRR",
+        "country": "IR",
+        "policy_version": "synthetic-ir",
+        "shipping_minor": 200,
+        "tax_basis_points": 900,
+        "tax_included": False,
+        "shipping_taxable": False,
+    }
+    assert flat.confirmation == fingerprint(
+        {
+            "operation": str(operation),
+            "quote": str(current_quote.id),
+            "cart_fingerprint": current_quote.cart_fingerprint,
+            "address": [str(checkout.address.id), checkout.address.version],
+            "totals": flat.totals.model_dump(mode="json"),
+            "delivery": legacy_policy,
+            "coupon": None,
+        }
+    )
+    checkout.rates = [
+        DeliveryRate.model_validate({**legacy_policy, "free_shipping_threshold_minor": 2000})
+    ]
+    same_amount = await checkout.review(current_quote)
+    assert same_amount.totals == flat.totals
+    with pytest.raises(CheckoutError, match="checkout.confirmation_changed"):
+        await checkout.save(current_quote, flat)
+
+    checkout.rates = [
+        DeliveryRate.model_validate({**legacy_policy, "free_shipping_threshold_minor": 1010})
+    ]
+    free = await checkout.review(current_quote)
+    assert free.totals.shipping_minor == 0
+    saved = await checkout.save(current_quote, free)
+    assert saved.delivery_policy == {**legacy_policy, "free_shipping_threshold_minor": 1010}
+    checkout.rates = [rate()]
+    replay = await checkout.save(current_quote, free)
+    assert (replay.id, replay.shipping_minor, replay.total_minor) == (
+        saved.id,
+        0,
+        free.totals.total_minor,
+    )
 
 
 @pytest.mark.parametrize(("limit", "single_customer"), [(1, False), (4, True)])

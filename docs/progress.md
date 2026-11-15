@@ -1,6 +1,6 @@
 # Implementation progress
 
-Current status, 2026-11-15: **P01–P05 verified, P06 in progress**. P05 implementation revision `68424c6746d12684b76541e2eaf451ee41076c55` passed both jobs in [GitHub Actions run 43629141240](https://github.com/saeedzed2002/Nivaro/actions/runs/43629141240). The owner's local storefront follows the working tree with Compose Watch and API source reload. The reservation lifecycle, Orders recovery, durable reservation expiry, and checkout storefront are locally verified. The configurable Iran free-shipping threshold and phase-end CI review remain open. Historical incomplete statuses below describe their original checkpoints.
+Current status, 2026-11-15: **P01–P05 verified, P06 locally verified with phase-end CI pending**. P05 implementation revision `68424c6746d12684b76541e2eaf451ee41076c55` passed both jobs in [GitHub Actions run 43629141240](https://github.com/saeedzed2002/Nivaro/actions/runs/43629141240). The owner's local storefront follows the working tree with Compose Watch and API source reload. Historical incomplete statuses below describe their original checkpoints.
 
 ## 2026-10-27 — P00/P01 in progress
 
@@ -507,3 +507,10 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - The result fetches the owned order by its real reference and refreshes pending reservations. A per-tab submission receipt allows retry with the original operation when an interrupted confirmation has an unknown outcome. The receipt carries identifiers and the confirmation digest. There is no payment provider in this phase.
 - Verified a release Docker image and the full disposable Caddy, Identity, Cart, Catalog, Orders and RabbitMQ path. The browser test covers return after sign-in, an invalid coupon, stale-address rejection and recovery of the same order after the response was deliberately dropped. Screenshots cover Persian dark desktop and English light mobile. The checkout route was also opened in the in-app browser on the owner's watched `localhost:8080` stack. Synthetic USD rates were supplied only to the disposable stack.
 - The checkout API revision `2245500` passed [GitHub Actions run 43709935240](https://github.com/saeedzed2002/Nivaro/actions/runs/43709935240). The next phase verification must use the final revision after closing the outstanding P06 shipping policy work.
+
+### P06 Iran delivery policy
+
+- The optional Iran-only `free_shipping_threshold_minor` is configured in rials, in whole tomans. The comparison uses merchandise subtotal after the rounded coupon discount. At or above the threshold, the fee is zero and tax uses the adjusted fee. Unconfigured thresholds use the flat fee.
+- The applied threshold is part of each confirmation and stored policy. Previously issued flat-fee confirmations retain their original fingerprint and confirmed orders retain their recorded amounts. A threshold change requires a new review before a new order is created, including when the final amount happens to match the old one.
+- **16 Orders tests plus the checkout browser journey passed** on disposable Docker. Coverage includes threshold boundaries, coupon rounding, shipping tax, rejecting thresholds for the independent international price book, replay and policy snapshots. Release readiness, schema and OpenAPI drift, Ruff, strict typing and RabbitMQ dead-letter routing passed. Test delivery rates are synthetic. The local default remains an empty rate list.
+- Promoted the verified Orders image to the owner's Docker stack with its existing PostgreSQL and RabbitMQ containers. Orders reported schema `0004_checkout_previews` and `/fa/checkout` returned HTTP 200 through the local gateway.
