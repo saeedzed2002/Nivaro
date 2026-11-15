@@ -53,6 +53,18 @@ class CheckoutOperation(Timestamps, Base):
     state: Mapped[str] = mapped_column(String(24))
 
 
+class CheckoutPreview(Base):
+    __tablename__ = "checkout_previews"
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("checkout_operations.id", ondelete="RESTRICT"), primary_key=True
+    )
+    quote_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    address_fingerprint: Mapped[str] = mapped_column(String(64))
+    totals_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    confirmation: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Coupon(Timestamps, Base):
     __tablename__ = "coupons"
     __table_args__ = (

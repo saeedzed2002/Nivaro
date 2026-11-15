@@ -52,13 +52,16 @@ class AddressSnapshot(Contract):
     phone: Annotated[str, Field(pattern=r"^\+[1-9][0-9]{7,14}$")]
 
 
-class QuotedLine(Contract):
+class CartLineSnapshot(Contract):
     id: UUID
     version: Version
     variant_id: UUID
     quantity: Annotated[int, Field(strict=True, ge=1, le=20)]
     group_id: UUID | None
     slot_key: Annotated[str, Field(max_length=32)] | None
+
+
+class QuotedLine(CartLineSnapshot):
     product_id: UUID
     product_name: Annotated[str, Field(min_length=1, max_length=240)]
     sku: Annotated[str, Field(min_length=1, max_length=100)]
@@ -68,7 +71,7 @@ class QuotedLine(Contract):
     price_version: Version
 
 
-class QuotedGroup(Contract):
+class CartGroupSnapshot(Contract):
     id: UUID
     version: Version
     name: Annotated[str, Field(min_length=1, max_length=100)]
@@ -76,12 +79,22 @@ class QuotedGroup(Contract):
     requires_dedicated_gpu: bool
     source_build_id: UUID | None
     source_build_version: Version | None
+
+
+class QuotedGroup(CartGroupSnapshot):
     selection_hash: Digest
     spec_versions: dict[str, Version]
     ruleset_version: Annotated[str, Field(min_length=1, max_length=80)]
     status: Literal["compatible", "incompatible", "needs_review", "incomplete"]
     findings: list[dict[str, JsonValue]]
     evaluated_at: AwareDatetime
+
+
+class CartSnapshot(MarketTerms):
+    id: UUID
+    version: Version
+    lines: list[CartLineSnapshot] = Field(max_length=100)
+    groups: list[CartGroupSnapshot] = Field(max_length=100)
 
 
 class CatalogQuote(MarketTerms):

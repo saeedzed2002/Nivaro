@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     delivery_rates: list[DeliveryRate] = Field(default_factory=list)
     identity_url: AnyHttpUrl = AnyHttpUrl("http://identity:8000")
     catalog_url: AnyHttpUrl = AnyHttpUrl("http://catalog:8000")
+    cart_url: AnyHttpUrl = AnyHttpUrl("http://cart:8000")
     client_secret_file: Path = Path("/run/secrets/orders_client_secret")
     event_broker_host: str = "rabbitmq"
     event_broker_password_file: Path = Path("/run/secrets/orders_event_broker_password")

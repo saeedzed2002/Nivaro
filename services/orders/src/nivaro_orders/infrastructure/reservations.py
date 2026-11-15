@@ -1,5 +1,3 @@
-import asyncio
-import json
 from typing import Literal
 from uuid import UUID
 
@@ -7,6 +5,7 @@ import httpx
 from pydantic import AwareDatetime, ValidationError
 
 from nivaro_orders.domain.checkout import Contract, MarketTerms
+from nivaro_orders.infrastructure.http_json import UpstreamUnavailable, request_json
 from nivaro_orders.settings import Settings
 
 REJECTIONS = frozenset(
@@ -61,35 +60,12 @@ class CatalogReservations:
         self.catalog = str(settings.catalog_url).rstrip("/")
         self.secret = client_secret
 
-    async def request(
-        self,
-        method: str,
-        url: str,
-        *,
-        json_body: dict[str, str] | None = None,
-        auth: tuple[str, str] | None = None,
-        headers: dict[str, str] | None = None,
-        params: dict[str, str] | None = None,
-    ) -> tuple[int, object]:
-        try:
-            async with asyncio.timeout(5):
-                async with self.http.stream(
-                    method, url, json=json_body, auth=auth, headers=headers, params=params
-                ) as response:
-                    body = bytearray()
-                    async for part in response.aiter_bytes(8192):
-                        body.extend(part)
-                        if len(body) > 16384:
-                            raise ReservationUnavailable()
-                    return response.status_code, json.loads(body)
-        except (httpx.HTTPError, TimeoutError, ValueError) as exc:
-            raise ReservationUnavailable() from exc
-
     async def recover_or_reserve(
         self, operation_id: UUID, quote_id: UUID, customer_id: UUID, cart_fingerprint: str
     ) -> Receipt:
         try:
-            status, body = await self.request(
+            status, body = await request_json(
+                self.http,
                 "POST",
                 self.identity + "/internal/v1/service-tokens",
                 json_body={"audience": "nivaro-catalog", "scope": "catalog.reserve"},
@@ -102,7 +78,8 @@ class CatalogReservations:
                 raise ReservationUnavailable()
             headers = {"Authorization": f"Bearer {token}"}
             root = self.catalog + "/internal/v1/catalog/reservations"
-            status, body = await self.request(
+            status, body = await request_json(
+                self.http,
                 "GET",
                 root + f"/{operation_id}",
                 headers=headers,
@@ -112,7 +89,8 @@ class CatalogReservations:
                 status == 404
                 and ErrorEnvelope.model_validate(body).error.code == "reservation.not_found"
             ):
-                status, body = await self.request(
+                status, body = await request_json(
+                    self.http,
                     "POST",
                     root,
                     headers=headers,
@@ -137,5 +115,5 @@ class CatalogReservations:
             ):
                 raise ReservationUnavailable()
             return receipt
-        except ValidationError as exc:
+        except (UpstreamUnavailable, ValidationError) as exc:
             raise ReservationUnavailable() from exc

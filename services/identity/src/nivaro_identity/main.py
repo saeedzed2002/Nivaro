@@ -47,7 +47,7 @@ from nivaro_identity.api.schemas import (
     StaffProfile,
     VerifyCode,
 )
-from nivaro_identity.api.service_tokens import SERVICE_TOKEN_PATH
+from nivaro_identity.api.service_tokens import CHECKOUT_CONTEXT_PATH, SERVICE_TOKEN_PATH
 from nivaro_identity.api.service_tokens import router as service_tokens_router
 from nivaro_identity.domain.errors import IdentityError
 from nivaro_identity.domain.security import SessionKind, Tokens, authenticate_value, digest
@@ -241,6 +241,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "/internal/v1/catalog/admin-check",
             "/internal/v1/cart/customer-check",
             SERVICE_TOKEN_PATH,
+            CHECKOUT_CONTEXT_PATH,
         }:
             try:
                 origin(request)

@@ -1,4 +1,4 @@
-# Use after compose.media.yaml and compose.dev.yaml on the owner's workstation.
+# Use last with compose.media.yaml, compose.dev.yaml, compose.orders.yaml and compose.events.yaml.
 services:
   web:
     image: nivaro-web:local-development
@@ -21,3 +21,9 @@ services:
     volumes:
       - ./services/cart/src:/workspace/src:ro
     command: [uvicorn, nivaro_cart.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]
+  orders:
+    environment:
+      PYTHONPATH: /workspace/src
+    volumes:
+      - ./services/orders/src:/workspace/src:ro
+    command: [uvicorn, nivaro_orders.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]

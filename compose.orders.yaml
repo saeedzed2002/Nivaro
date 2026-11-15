@@ -29,8 +29,11 @@ services:
     restart: 'no'
   orders:
     image: ${NIVARO_ORDERS_IMAGE:-nivaro-orders:release}
+    environment:
+      ORDERS_DELIVERY_RATES: '${NIVARO_ORDERS_DELIVERY_RATES:-[]}'
     secrets:
       - orders_db_password
+      - orders_client_secret
     depends_on:
       orders-init:
         condition: service_completed_successfully

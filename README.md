@@ -22,13 +22,13 @@ On the configured Windows workstation, use `http://localhost:8080/fa`. The
 `Nivaro Local Development` task starts the local Compose stack and Watch when
 the owner signs in. Web source and public asset edits sync into the running
 development container after Docker Desktop is available, including when it
-starts later in the session. Cart, catalog and identity APIs reload their locally
+starts later in the session. Cart, catalog, identity and orders APIs reload their locally
 mounted Python source. Workers use their selected images, and database migrations
 remain explicit verified updates.
 
 To register or restart the launcher from the repository root, run the following
 after initializing the existing local and media secrets and building the base
-backend images.
+backend images. The launcher includes Orders and the reservation event workers.
 
 ```powershell
 ./scripts/Start-LocalDev.ps1 -Install

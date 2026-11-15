@@ -2,8 +2,10 @@ param(
     [string]$OrdersImage = 'nivaro-orders:release',
     [string]$TestImage = 'nivaro-orders:test',
     [string]$CatalogImage = 'nivaro-catalog:release',
+    [string]$IdentityImage = 'nivaro-identity:release',
     [switch]$WithCatalog,
-    [switch]$WithEvents
+    [switch]$WithEvents,
+    [switch]$WithCheckout
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -11,20 +13,31 @@ $project = 'nivaro-orders-qa-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
 $config = @('-p', $project, '-f', "$root/compose.yaml", '-f', "$root/compose.identity-qa.yaml", '-f', "$root/compose.orders.yaml")
 $previousImage = $env:NIVARO_ORDERS_IMAGE
 $previousCatalogImage = $env:NIVARO_CART_QA_CATALOG_IMAGE
+$previousIdentityImage = $env:NIVARO_CART_QA_IDENTITY_IMAGE
 $previousPublisherImage = $env:NIVARO_EVENT_CATALOG_IMAGE
+$previousRates = $env:NIVARO_ORDERS_DELIVERY_RATES
 if ($project -notmatch '^nivaro-orders-qa-[a-f0-9]{8}$') { throw 'Unsafe test project.' }
 if ($WithEvents) {
-    $WithCatalog = $true
-    $config += @('-f', "$root/compose.media.yaml", '-f', "$root/compose.cart-qa.yaml", '-f', "$root/compose.events.yaml")
+    $config += @('-f', "$root/compose.media.yaml")
+}
+if ($WithEvents -or $WithCheckout) { $WithCatalog = $true }
+if ($WithCatalog) { $config += @('-f', "$root/compose.cart-qa.yaml") }
+if ($WithEvents) { $config += @('-f', "$root/compose.events.yaml") }
+if ($WithCheckout) {
+    $env:NIVARO_ORDERS_DELIVERY_RATES = '[{"market":"international","currency":"USD","country":"US","policy_version":"synthetic-checkout-test","shipping_minor":700,"tax_basis_points":0,"tax_included":false,"shipping_taxable":false}]'
 }
 try {
     & "$PSScriptRoot/Initialize-LocalSecrets.ps1"
     $env:NIVARO_ORDERS_IMAGE = $OrdersImage
     $services = @('orders')
-    if ($WithCatalog) { $services += @('catalog', 'identity', 'redis-cache') }
+    if ($WithCatalog) {
+        $env:NIVARO_CART_QA_CATALOG_IMAGE = $CatalogImage
+        $env:NIVARO_CART_QA_IDENTITY_IMAGE = $IdentityImage
+        $services += @('catalog', 'identity', 'redis-cache')
+    }
+    if ($WithCheckout) { $services += @('cart', 'gateway') }
     if ($WithEvents) {
         & "$PSScriptRoot/Initialize-MediaSecrets.ps1"
-        $env:NIVARO_CART_QA_CATALOG_IMAGE = $CatalogImage
         $env:NIVARO_EVENT_CATALOG_IMAGE = $CatalogImage
         $services += @('catalog-event-publisher', 'orders-expiry-consumer')
     }
@@ -42,7 +55,8 @@ try {
             '-v', "${root}/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro",
             '-v', "${root}/work/secrets/catalog_event_broker_password.txt:/run/secrets/catalog_event_broker_password:ro")
     }
-    docker run --rm --pull never --network "${project}_default" -e "ORDERS_DB_HOST=$project-postgres-1" -e ORDERS_DISPOSABLE_TESTS=1 -e PYTHONPATH=/app/src -v "${root}/work/secrets/orders_db_password.txt:/run/secrets/orders_db_password:ro" @integration $TestImage sh -ec 'alembic upgrade head && alembic check && ruff check . && ruff format --check . && mypy src && pytest -q'
+    if ($WithCheckout) { $integration += @('-e', 'ORDERS_CHECKOUT_E2E=1') }
+    docker run --rm --pull never --network "${project}_default" -e "ORDERS_DB_HOST=$project-postgres-1" -e ORDERS_DISPOSABLE_TESTS=1 -e PYTHONPATH=/app/src -v "${root}/work/secrets/orders_db_password.txt:/run/secrets/orders_db_password:ro" -v "${root}/contracts/openapi/orders.json:/contracts/orders.json:ro" @integration $TestImage sh -ec 'alembic upgrade head && alembic check && ruff check . && ruff format --check . && mypy src && pytest -q && python -m nivaro_orders.export_openapi /contracts/orders.json --check'
     if ($LASTEXITCODE -ne 0) { throw 'Orders foundation checks failed.' }
     if ($WithEvents) {
         $deadLettered = $false
@@ -62,10 +76,13 @@ try {
     if ($WithEvents) {
         docker compose @config logs --no-color --tail 40 catalog-event-publisher orders-expiry-consumer rabbitmq
     }
+    if ($WithCheckout) { docker compose @config logs --no-color --tail 40 orders gateway cart identity }
     throw
 } finally {
     docker compose @config down --volumes
     $env:NIVARO_ORDERS_IMAGE = $previousImage
     $env:NIVARO_CART_QA_CATALOG_IMAGE = $previousCatalogImage
+    $env:NIVARO_CART_QA_IDENTITY_IMAGE = $previousIdentityImage
     $env:NIVARO_EVENT_CATALOG_IMAGE = $previousPublisherImage
+    $env:NIVARO_ORDERS_DELIVERY_RATES = $previousRates
 }
