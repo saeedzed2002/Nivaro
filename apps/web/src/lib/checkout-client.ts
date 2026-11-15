@@ -35,3 +35,9 @@ export const confirmCheckout = (operationId: string, confirmation: string) => au
 
 export const orderStatus = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/orders/{order_id}', { params: { path: { order_id: id } }, signal })));
+
+export const startSimulatedPayment = (id: string, version: number) => authorized(async csrf =>
+  unwrap(await client.POST('/api/v1/orders/{order_id}/payment', {
+    params: { path: { order_id: id }, header: { 'Idempotency-Key': id } },
+    body: { order_version: version }, headers: { 'X-CSRF-Token': csrf },
+  })));

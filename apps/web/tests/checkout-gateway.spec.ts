@@ -93,5 +93,28 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
   await page.getByRole('button', { name: 'محاسبهٔ مبلغ نهایی' }).click();
   await expect(page.getByRole('button', { name: 'تأیید و ثبت سفارش' })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('checkout-fa-dark-desktop.png'), fullPage: true });
+  if (process.env.NIVARO_CHECKOUT_QA_PAYMENTS === '1') {
+    const orderUrl = `/api/v1/orders/${submittedId}`;
+    await page.goto(`/fa/checkout/result?order=${submittedId}&status=paid&result=success`);
+    await expect(page.getByRole('heading', { name: 'سفارش در انتظار پرداخت' })).toBeVisible();
+    const before = await (await page.request.get(orderUrl)).json();
+    expect(before.payment_state).toBeNull();
+    let submittedPayment = false;
+    await page.route(`**${orderUrl}/payment`, async route => {
+      const response = await route.fetch();
+      expect(response.status()).toBe(202);
+      submittedPayment = true;
+      await route.abort('failed');
+    });
+    await page.getByRole('button', { name: 'پرداخت آزمایشی' }).click();
+    await expect.poll(() => submittedPayment).toBe(true);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'پرداخت و موجودی سفارش تأیید شد' })).toBeVisible({ timeout: 20_000 });
+    const replay = await page.request.post(`${orderUrl}/payment`, {
+      headers: { ...headers, 'Idempotency-Key': submittedId }, data: { order_version: before.version },
+    });
+    expect(replay.status()).toBe(202);
+    expect((await replay.json()).status).toBe('paid');
+  }
   expect(exceptions).toEqual([]);
 });

@@ -362,3 +362,33 @@ class OrderPaymentCompensation(Base):
     retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(Integer, server_default="0")
     last_error: Mapped[str | None] = mapped_column(String(80))
+
+
+class OrderPaymentInitiation(Base):
+    __tablename__ = "order_payment_initiations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["order_id", "order_version"],
+            ["order_transitions.order_id", "order_transitions.version"],
+            name="order_payment_initiation_version",
+        ),
+        CheckConstraint(
+            "state IN ('queued','submitted','blocked') AND attempts >= 0 "
+            "AND (state = 'queued') = (retry_at IS NOT NULL)",
+            name="order_payment_initiation_state",
+        ),
+        Index(
+            "ix_order_payment_initiations_due",
+            "retry_at",
+            "order_id",
+            postgresql_where=text("retry_at IS NOT NULL"),
+        ),
+    )
+
+    order_id: Mapped[UUID] = mapped_column(primary_key=True)
+    order_version: Mapped[int] = mapped_column(Integer)
+    attempt_id: Mapped[UUID] = mapped_column(unique=True)
+    reservation_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    state: Mapped[str] = mapped_column(String(12))
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")

@@ -23,6 +23,7 @@ from nivaro_orders.application.checkout import (
 )
 from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
+from nivaro_orders.application.payment_initiation import request_payment
 from nivaro_orders.application.reservations import advance_reservation, expire_unpaid, transition
 from nivaro_orders.domain.checkout import (
     AddressSnapshot,
@@ -54,6 +55,7 @@ from nivaro_orders.infrastructure.models import (
     OrderItem,
     OrderPaymentAttempt,
     OrderPaymentCompensation,
+    OrderPaymentInitiation,
     OrderPaymentRefund,
     OrderTransition,
 )
@@ -865,6 +867,41 @@ def verified_capture(order):
             },
         }
     )
+
+
+async def test_customer_payment_requests_share_one_intent_and_enforce_hold_deadline(database):
+    checkout = CheckoutFixture(database)
+    payable = await checkout.payable("customer-payment")
+
+    async def submit(order):
+        async with database.sessions() as db:
+            await request_payment(db, order.customer_id, order.id, order.version, str(order.id))
+
+    await asyncio.gather(*(submit(payable) for _ in range(8)))
+    async with database.sessions() as db:
+        initiation = await db.get(OrderPaymentInitiation, payable.id)
+        assert (initiation.state, initiation.order_version, initiation.attempts) == (
+            "queued",
+            payable.version,
+            0,
+        )
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(OrderPaymentInitiation)
+                .where(OrderPaymentInitiation.order_id == payable.id)
+            )
+            == 1
+        )
+
+    short = await checkout.payable("short-payment-window")
+    async with database.sessions() as db, db.begin():
+        order = await db.get(Order, short.id)
+        order.reservation_expires_at = datetime.now(UTC) + timedelta(seconds=60)
+    with pytest.raises(CheckoutError, match="payment.not_payable"):
+        await submit(short)
+    async with database.sessions() as db:
+        assert await db.get(OrderPaymentInitiation, short.id) is None
 
 
 async def test_capture_after_cancellation_is_refunded_without_reopening_the_order(database):

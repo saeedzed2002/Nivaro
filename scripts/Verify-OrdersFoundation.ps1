@@ -23,6 +23,7 @@ $previousPhones = $env:NIVARO_QA_MOCK_PHONES
 $previousWebImage = $env:NIVARO_CART_QA_WEB_IMAGE
 $previousBrowserUrl = $env:TEST_BASE_URL
 $previousBrowserProject = $env:NIVARO_CHECKOUT_QA_PROJECT
+$previousBrowserPayments = $env:NIVARO_CHECKOUT_QA_PAYMENTS
 if ($project -notmatch '^nivaro-orders-qa-[a-f0-9]{8}$') { throw 'Unsafe test project.' }
 if ($Browser) { $WithCheckout = $true }
 if ($WithPaymentResults) { $WithEvents = $true }
@@ -96,6 +97,11 @@ try {
     if ($Browser) {
         $env:TEST_BASE_URL = 'http://127.0.0.1:8082'
         $env:NIVARO_CHECKOUT_QA_PROJECT = $project
+        $env:NIVARO_CHECKOUT_QA_PAYMENTS = if ($WithPaymentResults) { '1' } else { '0' }
+        if ($WithPaymentResults) {
+            docker compose @config up -d --no-build --pull never --no-deps orders-reservation-worker
+            if ($LASTEXITCODE -ne 0) { throw 'Disposable checkout worker did not start.' }
+        }
         Push-Location "$root/apps/web"
         try {
             node node_modules/@playwright/test/cli.js test tests/checkout-gateway.spec.ts
@@ -121,4 +127,5 @@ try {
     $env:NIVARO_CART_QA_WEB_IMAGE = $previousWebImage
     $env:TEST_BASE_URL = $previousBrowserUrl
     $env:NIVARO_CHECKOUT_QA_PROJECT = $previousBrowserProject
+    $env:NIVARO_CHECKOUT_QA_PAYMENTS = $previousBrowserPayments
 }

@@ -9,6 +9,7 @@ from nivaro_orders.application.checkout_flow import (
     OrderStatus,
     PreviewResponse,
 )
+from nivaro_orders.application.payment_initiation import StartPayment, request_payment
 from nivaro_orders.domain.checkout import CheckoutIntent, Contract
 from nivaro_orders.infrastructure.checkout_sources import CustomerContext, SourceError
 
@@ -67,4 +68,20 @@ async def confirm(request: Request, operation_id: UUID, body: ConfirmPreview) ->
 async def order_status(request: Request, order_id: UUID) -> OrderStatus:
     flow: CheckoutFlow = request.app.state.checkout
     context = await actor(request, flow, mutating=False)
+    return await flow.status(context.customer_id, order_id)
+
+
+@router.post("/{order_id}/payment", status_code=202, operation_id="startSimulatedPayment")
+async def start_simulated_payment(
+    request: Request,
+    order_id: UUID,
+    body: StartPayment,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=128)],
+) -> OrderStatus:
+    flow: CheckoutFlow = request.app.state.checkout
+    context = await actor(request, flow, mutating=True)
+    async with flow.database.sessions() as db:
+        await request_payment(
+            db, context.customer_id, order_id, body.order_version, idempotency_key
+        )
     return await flow.status(context.customer_id, order_id)

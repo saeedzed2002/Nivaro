@@ -115,3 +115,16 @@ uncertain stock sale or mismatched evidence retain a record for manual review.
 Run `./scripts/Verify-OrdersFoundation.ps1 -WithPaymentResults` with the current
 Orders, Payments and Catalog images to verify both event queues, scoped simulator
 calls, confirmed publication and the resulting records on a disposable stack.
+
+## Customer simulator checkout
+
+The owned `POST /api/v1/orders/{order_id}/payment` endpoint takes the reviewed
+order version and the order ID as the `Idempotency-Key`. It requires the same
+session, origin and CSRF checks as checkout confirmation. One durable request
+per order survives a dropped response and the browser can refresh the status.
+The worker checks Catalog's live reservation before starting a new simulator
+attempt. At least 90 seconds must remain. It uses the order's immutable amount
+and currency and reuses its stable attempt ID for recovery. After verification,
+the existing payment event flow controls stock finalization and order status.
+The simulated action runs on the existing result page. Visiting that page or
+supplying a result in its URL has no financial effect.

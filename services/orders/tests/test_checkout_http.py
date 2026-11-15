@@ -164,6 +164,45 @@ async def test_gateway_checks_authoritative_checkout_and_order_ownership():
         assert "Test Street" not in response.text
         assert expect(response) == order
 
+        payment_path = order_path + "/payment"
+        payment = {"order_version": order["version"]}
+        payment_headers = {"Idempotency-Key": order["id"]}
+        expect(
+            await other.post(payment_path, json=payment, headers=payment_headers),
+            404,
+            "checkout.not_found",
+        )
+        expect(
+            await customer.post(
+                payment_path, json=payment, headers={**payment_headers, "X-CSRF-Token": "wrong"}
+            ),
+            403,
+            "csrf.invalid",
+        )
+        expect(
+            await customer.post(
+                payment_path, json=payment, headers={"Idempotency-Key": str(uuid4())}
+            ),
+            422,
+            "checkout.invalid_idempotency_key",
+        )
+        expect(
+            await customer.post(
+                payment_path, json={"order_version": order["version"] + 1}, headers=payment_headers
+            ),
+            409,
+            "payment.order_changed",
+        )
+        expect(
+            await customer.post(
+                payment_path, json={**payment, "amount_minor": 1}, headers=payment_headers
+            ),
+            422,
+            "request.invalid",
+        )
+        assert expect(await customer.get(order_path + "?payment=paid")) == order
+        assert order["payment_state"] is None
+
         expect(
             await customer.patch(
                 item_path,

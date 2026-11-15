@@ -24,7 +24,7 @@ from nivaro_orders.domain.checkout import (
 from nivaro_orders.infrastructure.checkout_sources import CheckoutSources, CustomerContext
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.infrastructure.http_json import UpstreamUnavailable
-from nivaro_orders.infrastructure.models import CheckoutPreview, Order
+from nivaro_orders.infrastructure.models import CheckoutPreview, Order, OrderPaymentInitiation
 from nivaro_orders.settings import Settings
 
 
@@ -73,6 +73,7 @@ class OrderStatus(Contract):
     totals: Totals
     reservation_expires_at: datetime | None
     failure_code: str | None
+    payment_state: Literal["queued", "submitted", "blocked"] | None = None
 
 
 def fingerprint_cart(cart: CartSnapshot) -> str:
@@ -199,6 +200,7 @@ class CheckoutFlow:
             )
             if order is None:
                 raise CheckoutError("checkout.not_found")
+            initiation = await db.get(OrderPaymentInitiation, order.id)
             return OrderStatus.model_validate(
                 {
                     "id": order.id,
@@ -207,5 +209,6 @@ class CheckoutFlow:
                     "totals": Totals.model_validate(order, from_attributes=True),
                     "reservation_expires_at": order.reservation_expires_at,
                     "failure_code": order.reservation_error,
+                    "payment_state": initiation.state if initiation is not None else None,
                 }
             )

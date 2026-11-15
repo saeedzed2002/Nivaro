@@ -8,10 +8,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
+from nivaro_orders.application.payment_initiation import advance_customer_payment
 from nivaro_orders.application.reservations import advance_reservation, expire_unpaid
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.infrastructure.payment_compensations import PaymentCompensations
 from nivaro_orders.infrastructure.reservations import CatalogReservations
+from nivaro_orders.infrastructure.simulator_payments import SimulatorPayments
 from nivaro_orders.settings import Settings
 
 log = logging.getLogger(__name__)
@@ -29,6 +31,7 @@ async def run() -> None:
         ) as http:
             catalog = CatalogReservations(http, settings, secret)
             payments = PaymentCompensations(http, settings, secret)
+            simulator = SimulatorPayments(http, settings, secret)
             while True:
                 try:
                     async with database.sessions() as db:
@@ -46,6 +49,11 @@ async def run() -> None:
                             break
                     for _ in range(5):
                         if not await advance_refund(database.sessions, payments):
+                            break
+                    for _ in range(3):
+                        if not await advance_customer_payment(
+                            database.sessions, catalog, simulator
+                        ):
                             break
                     for _ in range(10):
                         if not await advance_reservation(database.sessions, catalog):

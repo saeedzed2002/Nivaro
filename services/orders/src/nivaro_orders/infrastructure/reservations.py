@@ -77,6 +77,27 @@ class CatalogReservations:
             raise ReservationUnavailable()
         return {"Authorization": f"Bearer {token}"}
 
+    async def read_hold(self, operation_id: UUID, customer_id: UUID) -> Receipt | None:
+        try:
+            headers = await self.authorization("catalog.reserve")
+            status, body = await request_json(
+                self.http,
+                "GET",
+                self.catalog + f"/internal/v1/catalog/reservations/{operation_id}",
+                headers=headers,
+                params={"customer_id": str(customer_id)},
+            )
+            if (
+                status == 404
+                and ErrorEnvelope.model_validate(body).error.code == "reservation.not_found"
+            ):
+                return None
+            if status != 200:
+                raise ReservationUnavailable()
+            return Receipt.model_validate(body)
+        except (UpstreamUnavailable, ValidationError) as exc:
+            raise ReservationUnavailable() from exc
+
     async def commit_paid(self, operation_id: UUID, customer_id: UUID) -> Receipt:
         try:
             headers = await self.authorization("catalog.finalize")

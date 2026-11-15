@@ -5,7 +5,7 @@ import { Clock, Package, RefreshCw, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { clearCheckoutAttempt, useCheckoutAttempt } from '@/lib/checkout-attempt';
-import { confirmCheckout, orderStatus, type OrderStatus } from '@/lib/checkout-client';
+import { confirmCheckout, orderStatus, startSimulatedPayment, type OrderStatus } from '@/lib/checkout-client';
 import { checkoutError, checkoutMessage, checkoutTime, loginRequired } from '@/lib/checkout-copy';
 import { formatCommerceMoney, text, type Locale } from '@/lib/content';
 import { IdentityError } from '@/lib/identity-client';
@@ -32,6 +32,7 @@ export function CheckoutResult({ locale, id }: { locale: Locale; id: string | nu
     refetchInterval: ({ state }) => {
       const status = state.data?.status;
       if (status === 'pending_reservation' || status === 'payment_processing' || status === 'refund_pending') return 3_000;
+      if (status === 'awaiting_payment' && (state.data?.payment_state === 'queued' || state.data?.payment_state === 'submitted')) return 3_000;
       return status === 'awaiting_payment' || status === 'expired' ? 15_000 : false;
     },
   });
@@ -44,21 +45,29 @@ export function CheckoutResult({ locale, id }: { locale: Locale; id: string | nu
       if (error instanceof IdentityError && error.status === 409) clearCheckoutAttempt(receipt.orderId);
     },
   });
+  const payment = useMutation({
+    mutationFn: (current: { id: string; version: number }) => startSimulatedPayment(current.id, current.version),
+    onSuccess: current => { client.setQueryData<OrderStatus>(key, prior => prior && prior.version > current.version ? prior : current); },
+  });
   const data = order.data;
-  const error = retry.error ?? order.error;
+  const error = payment.error ?? retry.error ?? order.error;
   const pendingAttempt = id !== null && attempt?.orderId === id ? attempt : null;
   const missing = order.error instanceof IdentityError && order.error.status === 404;
   const deadline = data?.status === 'awaiting_payment' ? data.reservation_expires_at : null;
   const title = data ? text(locale, ...headings[data.status]) : text(locale, 'وضعیت سفارش', 'Order status');
   const awaiting = deadline && checkoutTime(deadline, locale);
+  const payable = data?.status === 'awaiting_payment' && !data.payment_state;
+  const paymentInProgress = data?.status === 'awaiting_payment' && (data.payment_state === 'queued' || data.payment_state === 'submitted');
 
   return <main id="main-content" className="container checkout-result-page">
-    <section className="checkout-panel checkout-result-panel" aria-labelledby="checkout-result-heading" aria-busy={id !== null && (order.isFetching || retry.isPending)}>
+    <section className="checkout-panel checkout-result-panel" aria-labelledby="checkout-result-heading" aria-busy={id !== null && (order.isFetching || retry.isPending || payment.isPending)}>
       <div className="checkout-result-icon" aria-hidden="true"><Package /><Clock /></div>
       <h1 id="checkout-result-heading">{title}</h1>
       {!id && <p className="checkout-muted">{text(locale, 'شناسهٔ معتبر سفارش در نشانی صفحه نیست.', 'The page URL is missing a valid order reference.')}</p>}
       {id && order.isPending && <p className="checkout-muted" role="status">{text(locale, 'در حال دریافت وضعیت…', 'Checking order status…')}</p>}
       {awaiting && <p className="checkout-muted">{text(locale, 'موجودی تا زمان درج‌شده رزرو است.', 'Stock is reserved until the deadline shown below.')}</p>}
+      {paymentInProgress && <p className="checkout-muted" role="status">{text(locale, 'پرداخت آزمایشی در حال بررسی است.', 'The simulated payment is being verified.')}</p>}
+      {data?.status === 'awaiting_payment' && data.payment_state === 'blocked' && <p className="checkout-notice">{checkoutMessage(locale, 'payment.not_payable')}</p>}
       {data?.status === 'pending_reservation' && <p className="checkout-muted" role="status">{text(locale, 'رزرو موجودی در حال بررسی است. وضعیت خودکار به‌روز می‌شود.', 'Stock reservation is in progress. This status refreshes automatically.')}</p>}
       {data?.status === 'cancelled' && data.failure_code && <p className="checkout-notice">{checkoutMessage(locale, data.failure_code)}</p>}
       {data && <dl className="checkout-totals checkout-result-details">
@@ -70,7 +79,8 @@ export function CheckoutResult({ locale, id }: { locale: Locale; id: string | nu
         ? text(locale, 'نتیجهٔ ارسال هنوز در دسترس نیست. می‌توانی همان سفارش را دوباره ارسال کنی.', 'Submission hasn’t been confirmed. You can retry the same order.')
         : checkoutError(locale, error)}</p>}
       <div className="checkout-result-actions">
-        <Link className="button primary" href={`/${locale}/cart`}><ShoppingBag size={19} aria-hidden="true" />{text(locale, 'بازگشت به سبد خرید', 'Back to cart')}</Link>
+        {payable && <button className="button primary" disabled={payment.isPending} onClick={() => payment.mutate(data)}>{text(locale, 'پرداخت آزمایشی', 'Pay with simulator')}</button>}
+        <Link className={`button ${payable ? 'secondary' : 'primary'}`} href={`/${locale}/cart`}><ShoppingBag size={19} aria-hidden="true" />{text(locale, 'بازگشت به سبد خرید', 'Back to cart')}</Link>
         {id && loginRequired(error) ? <Link className="button secondary" href={`/${locale}/login?next=result&order=${id}`}>{text(locale, 'ورود به حساب', 'Sign in')}</Link>
           : id && <button className="button secondary" disabled={order.isFetching || retry.isPending} onClick={() => void order.refetch()}><RefreshCw size={17} aria-hidden="true" />{text(locale, 'به‌روزرسانی وضعیت', 'Refresh status')}</button>}
         {missing && pendingAttempt && !loginRequired(error) && <button className="button secondary" disabled={retry.isPending || order.isFetching} onClick={() => retry.mutate(pendingAttempt)}>{text(locale, 'تلاش دوباره برای ثبت سفارش', 'Retry order submission')}</button>}

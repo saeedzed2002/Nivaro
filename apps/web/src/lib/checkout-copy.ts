@@ -18,6 +18,8 @@ const messages: Record<string, [string, string]> = {
   'coupon.unavailable': ['این کد تخفیف برای سفارش قابل استفاده نیست.', 'This promo code cannot be used for this order.'],
   'coupon.quota_exhausted': ['سقف استفاده از این کد تخفیف پر شده است.', 'This promo code has reached its usage limit.'],
   'checkout.not_found': ['سفارش پیدا نشد.', 'Order not found.'],
+  'payment.not_payable': ['این سفارش دیگر قابل پرداخت نیست یا زمان کافی از رزرو نمانده است.', 'This order cannot be paid or has too little reservation time left.'],
+  'payment.order_changed': ['وضعیت سفارش تغییر کرده است. آن را دوباره بررسی کن.', 'The order changed. Check its current status.'],
 };
 
 export function checkoutMessage(locale: Locale, code?: string | null) {
