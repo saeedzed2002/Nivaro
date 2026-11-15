@@ -1,0 +1,365 @@
+{
+  "$defs": {
+    "Acceptance": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "message_id": {
+          "format": "uuid",
+          "title": "Message Id",
+          "type": "string"
+        },
+        "sequence": {
+          "title": "Sequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "message_id",
+        "sequence",
+        "created_at"
+      ],
+      "title": "Acceptance",
+      "type": "object"
+    },
+    "Conversation": {
+      "additionalProperties": false,
+      "properties": {
+        "assigned_agent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Assigned Agent Id"
+        },
+        "closed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Closed At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_sequence": {
+          "title": "Last Sequence",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "open",
+            "waiting",
+            "closed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "subject",
+        "status",
+        "assigned_agent_id",
+        "version",
+        "last_sequence",
+        "created_at",
+        "closed_at"
+      ],
+      "title": "Conversation",
+      "type": "object"
+    },
+    "FailureCode": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "FailureCode",
+      "type": "object"
+    },
+    "History": {
+      "additionalProperties": false,
+      "properties": {
+        "conversation": {
+          "$ref": "#/$defs/Conversation"
+        },
+        "has_more": {
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/Message"
+          },
+          "title": "Messages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "conversation",
+        "messages",
+        "has_more"
+      ],
+      "title": "History",
+      "type": "object"
+    },
+    "Message": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "client_message_id": {
+          "format": "uuid",
+          "title": "Client Message Id",
+          "type": "string"
+        },
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "sender_id": {
+          "format": "uuid",
+          "title": "Sender Id",
+          "type": "string"
+        },
+        "sender_kind": {
+          "enum": [
+            "customer",
+            "admin"
+          ],
+          "title": "Sender Kind",
+          "type": "string"
+        },
+        "sequence": {
+          "title": "Sequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "conversation_id",
+        "sender_id",
+        "sender_kind",
+        "client_message_id",
+        "sequence",
+        "body",
+        "created_at"
+      ],
+      "title": "Message",
+      "type": "object"
+    },
+    "MessageAccepted": {
+      "additionalProperties": false,
+      "properties": {
+        "client_message_id": {
+          "format": "uuid",
+          "title": "Client Message Id",
+          "type": "string"
+        },
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Acceptance"
+        },
+        "request_id": {
+          "format": "uuid",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "type": {
+          "const": "message.accepted",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "conversation_id",
+        "type",
+        "client_message_id",
+        "payload"
+      ],
+      "title": "MessageAccepted",
+      "type": "object"
+    },
+    "SocketError": {
+      "additionalProperties": false,
+      "properties": {
+        "client_message_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Client Message Id"
+        },
+        "conversation_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Conversation Id"
+        },
+        "payload": {
+          "$ref": "#/$defs/FailureCode"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Id"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "type": {
+          "const": "error",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "schema_version",
+        "request_id",
+        "conversation_id",
+        "client_message_id",
+        "payload"
+      ],
+      "title": "SocketError",
+      "type": "object"
+    },
+    "SyncResult": {
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/History"
+        },
+        "request_id": {
+          "format": "uuid",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "type": {
+          "const": "sync.result",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "conversation_id",
+        "type",
+        "payload"
+      ],
+      "title": "SyncResult",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "discriminator": {
+    "mapping": {
+      "error": "#/$defs/SocketError",
+      "message.accepted": "#/$defs/MessageAccepted",
+      "sync.result": "#/$defs/SyncResult"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/MessageAccepted"
+    },
+    {
+      "$ref": "#/$defs/SyncResult"
+    },
+    {
+      "$ref": "#/$defs/SocketError"
+    }
+  ],
+  "title": "support-server-v1"
+}

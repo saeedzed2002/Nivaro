@@ -1,13 +1,17 @@
 import asyncio
+import json
 import os
 from uuid import uuid4
 
 import httpx
 import pytest
 from sqlalchemy import func, select
+from websockets.asyncio.client import connect
+from websockets.exceptions import ConnectionClosedError, InvalidStatus
 
 from nivaro_support.models import AssignmentRow, MessageOutboxRow, MessageRow
 from nivaro_support.settings import Database, Settings
+from nivaro_support.socket_contracts import SERVER
 
 pytestmark = pytest.mark.skipif(
     os.getenv("SUPPORT_DISPOSABLE_TESTS") != "1", reason="Disposable support stack required"
@@ -15,6 +19,39 @@ pytestmark = pytest.mark.skipif(
 ORIGIN = "http://127.0.0.1:8082"
 CUSTOMER = "/api/v1/support/conversations"
 STAFF = "/api/v1/admin/support/conversations"
+SOCKET = "ws://support:8000/ws/support"
+STAFF_PROTOCOL = "nivaro.support.staff.v1"
+
+
+def open_socket(headers=None, *, origin=ORIGIN, subprotocols=None):
+    return connect(
+        SOCKET,
+        origin=origin,
+        additional_headers={"Cookie": headers["Cookie"]} if headers else None,
+        subprotocols=subprotocols,
+        open_timeout=5,
+        close_timeout=2,
+        proxy=None,
+    )
+
+
+def frame(kind, conversation, payload, **references):
+    return {
+        "type": kind,
+        "schema_version": 1,
+        "request_id": str(uuid4()),
+        "conversation_id": conversation,
+        "payload": payload,
+        **references,
+    }
+
+
+async def exchange(socket, request):
+    await socket.send(json.dumps(request))
+    raw = await asyncio.wait_for(socket.recv(), timeout=8)
+    response = SERVER.validate_json(raw).model_dump(mode="json")
+    assert response["request_id"] == request["request_id"]
+    return response
 
 
 async def customer_login(client, phone):
@@ -86,6 +123,16 @@ async def test_private_history_assignment_and_idempotent_delivery():
             assertion = await support.get(CUSTOMER)
             assert assertion.status_code == 401 and assertion.headers["cache-control"] == "no-store"
             assert (await support.get(STAFF, headers=credentials["sales"][1])).status_code == 403
+            for connection, code in (
+                (open_socket(), 401),
+                (open_socket(owner_headers, origin=None), 403),
+                (open_socket(owner_headers, origin="https://other.test"), 403),
+                (open_socket(credentials["sales"][1], subprotocols=[STAFF_PROTOCOL]), 403),
+            ):
+                with pytest.raises(InvalidStatus) as denied:
+                    async with connection:
+                        pytest.fail("Unauthorized WebSocket upgrade")
+                assert denied.value.response.status_code == code
 
             creation = {"subject": "Help with an order", "client_conversation_id": str(uuid4())}
             assert (
@@ -165,13 +212,53 @@ async def test_private_history_assignment_and_idempotent_delivery():
             assert (
                 await support.get(staff_history, headers=credentials[loser][1])
             ).status_code == 404
+            subscription = frame("conversation.subscribe", cid, {"after": 0})
+            async with open_socket(other_headers) as outside:
+                assert (await exchange(outside, subscription))["payload"] == {
+                    "code": "support.not_found"
+                }
+                await outside.send("x" * 16385)
+                with pytest.raises(ConnectionClosedError) as oversized:
+                    await asyncio.wait_for(outside.recv(), timeout=5)
+                assert oversized.value.rcvd is not None and oversized.value.rcvd.code == 1009
+
+            async with open_socket(owner_headers) as customer:
+                initial = await exchange(customer, subscription)
+                assert initial["type"] == "sync.result" and initial["payload"]["messages"] == [
+                    stored
+                ]
+
             reply = {"client_message_id": str(uuid4()), "body": "Agent reply"}
-            sent = await support.post(staff_history, headers=credentials[winner][1], json=reply)
-            assert sent.status_code == 200 and sent.json()["sequence"] == 2
+            sending = frame(
+                "message.send",
+                cid,
+                {"body": reply["body"]},
+                client_message_id=reply["client_message_id"],
+            )
+            async with open_socket(credentials[winner][1], subprotocols=[STAFF_PROTOCOL]) as agent:
+                assert agent.subprotocol == STAFF_PROTOCOL
+                rejected = await exchange(agent, {**sending, "sender_id": str(uuid4())})
+                assert rejected["payload"] == {"code": "request.invalid"}
+                assert rejected["client_message_id"] == reply["client_message_id"]
+                accepted = await exchange(agent, sending)
+                assert accepted["type"] == "message.accepted"
+                assert accepted["payload"]["sequence"] == 2
+
+            async with (
+                open_socket(owner_headers) as customer,
+                open_socket(credentials[winner][1], subprotocols=[STAFF_PROTOCOL]) as agent,
+            ):
+                retried = await exchange(agent, {**sending, "request_id": str(uuid4())})
+                assert retried["payload"] == accepted["payload"]
+                recovered = await exchange(customer, frame("sync.request", cid, {"after": 1}))
+                assert recovered["type"] == "sync.result"
+                assert [message["id"] for message in recovered["payload"]["messages"]] == [
+                    accepted["payload"]["message_id"]
+                ]
             page = (await support.get(history, headers=owner_headers, params={"limit": 1})).json()
             assert page["has_more"] and page["messages"] == [stored]
             last = (await support.get(history, headers=owner_headers, params={"after": 1})).json()
-            assert not last["has_more"] and last["messages"] == [sent.json()]
+            assert not last["has_more"] and last["messages"] == recovered["payload"]["messages"]
 
             manager = credentials["manager"][1]
             assert (
@@ -181,12 +268,16 @@ async def test_private_history_assignment_and_idempotent_delivery():
                     json={"agent_id": credentials["sales"][0], "expected_version": 2},
                 )
             ).status_code == 403
-            changed = await support.put(
-                assignment,
-                headers=manager,
-                json={"agent_id": credentials[loser][0], "expected_version": 2},
-            )
-            assert changed.status_code == 200 and changed.json()["version"] == 3
+            async with open_socket(credentials[winner][1], subprotocols=[STAFF_PROTOCOL]) as agent:
+                changed = await support.put(
+                    assignment,
+                    headers=manager,
+                    json={"agent_id": credentials[loser][0], "expected_version": 2},
+                )
+                assert changed.status_code == 200 and changed.json()["version"] == 3
+                assert (await exchange(agent, subscription))["payload"] == {
+                    "code": "support.not_found"
+                }
             assert (
                 await support.get(staff_history, headers=credentials[winner][1])
             ).status_code == 404
@@ -202,6 +293,19 @@ async def test_private_history_assignment_and_idempotent_delivery():
             assert (
                 await support.post(history, headers=owner_headers, json=first_message)
             ).json() == stored
+            async with open_socket(owner_headers) as customer, open_socket(owner_headers) as idle:
+                logged_out = await identity.post(
+                    "/api/v1/auth/logout", headers=owner_headers, json={"all_devices": False}
+                )
+                assert logged_out.status_code == 200, logged_out.text
+                denied = await exchange(customer, subscription)
+                assert denied["payload"] == {"code": "auth.required"}
+                with pytest.raises(ConnectionClosedError) as closed:
+                    await asyncio.wait_for(customer.recv(), timeout=8)
+                assert closed.value.rcvd is not None and closed.value.rcvd.code == 4401
+                with pytest.raises(ConnectionClosedError) as idle_closed:
+                    await asyncio.wait_for(idle.recv(), timeout=30)
+                assert idle_closed.value.rcvd is not None and idle_closed.value.rcvd.code == 4401
 
         async with database.sessions() as db:
             messages = select(MessageRow.id).where(MessageRow.conversation_id == cid)

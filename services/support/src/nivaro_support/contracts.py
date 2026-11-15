@@ -6,6 +6,10 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstrai
 Status = Literal["open", "waiting", "closed"]
 Kind = Literal["customer", "admin"]
 Version = Annotated[int, Field(strict=True, ge=1, le=2147483647)]
+MessageBody = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=4000, pattern=r"^[^\x00]*$"),
+]
 
 
 class Contract(BaseModel):
@@ -40,12 +44,7 @@ class StateChange(Contract):
 
 class SendMessage(Contract):
     client_message_id: UUID
-    body: Annotated[
-        str,
-        StringConstraints(
-            strip_whitespace=True, min_length=1, max_length=4000, pattern=r"^[^\x00]*$"
-        ),
-    ]
+    body: MessageBody
 
 
 class Conversation(Contract):

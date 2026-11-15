@@ -34,9 +34,24 @@ class IdentityAuthorization:
             or request.headers.get("sec-fetch-site") == "cross-site"
         ):
             raise SupportError("auth.forbidden", 403)
+        return await self.check_session(
+            access, kind, origin=origin, csrf=csrf, target_agent_id=target_agent_id
+        )
+
+    async def check_session(
+        self,
+        access: str,
+        kind: Kind,
+        *,
+        origin: str = "",
+        csrf: str = "",
+        target_agent_id: UUID | None = None,
+    ) -> Actor:
+        if not access or len(access) > 8192:
+            raise SupportError("auth.required", 401)
         body = {
             "access_token": access,
-            "mutating": mutating,
+            "mutating": bool(csrf),
             "origin": origin,
             "csrf_token": csrf,
             "kind": kind,

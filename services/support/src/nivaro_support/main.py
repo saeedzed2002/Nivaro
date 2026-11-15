@@ -36,6 +36,7 @@ from nivaro_support.conversations import (
 )
 from nivaro_support.limits import BoundedBody
 from nivaro_support.settings import Database, Settings
+from nivaro_support.socket import router as socket_router
 
 SCHEMA = "0001_support_conversations"
 
@@ -43,6 +44,7 @@ SCHEMA = "0001_support_conversations"
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
+    app.state.allowed_origins = frozenset(settings.allowed_origins)
     app.state.database = database = Database(settings)
     key = settings.identity_key_file.read_text(encoding="utf-8").strip()
     try:
@@ -178,3 +180,4 @@ async def ready(db: DB) -> dict[str, str]:
 
 app.include_router(customer)
 app.include_router(staff)
+app.include_router(socket_router)

@@ -28,4 +28,4 @@ COPY --chown=support:support alembic.ini ./
 COPY --chown=support:support migrations ./migrations
 USER support
 EXPOSE 8000
-CMD ["uvicorn", "nivaro_support.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+CMD ["uvicorn", "nivaro_support.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--ws", "websockets-sansio", "--ws-max-size", "16384", "--ws-ping-interval", "25", "--ws-ping-timeout", "35", "--ws-per-message-deflate", "false"]

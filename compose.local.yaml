@@ -1,4 +1,4 @@
-# Use last with the media, development, orders, events and payments overlays.
+# Use last with the media, development, orders, events, payments and support overlays.
 services:
   web:
     image: nivaro-web:local-development
@@ -33,3 +33,10 @@ services:
     volumes:
       - ./services/payments/src:/workspace/src:ro
     command: [uvicorn, nivaro_payments.main:app, --host, 0.0.0.0, --reload, --reload-dir, /workspace/src, --no-access-log]
+  support:
+    environment:
+      PYTHONPATH: /workspace/src
+      UVICORN_RELOAD: 'true'
+      UVICORN_RELOAD_DIRS: /workspace/src
+    volumes:
+      - ./services/support/src:/workspace/src:ro

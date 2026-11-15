@@ -1,4 +1,4 @@
-# Private support foundation. The gateway remains the only published HTTP port.
+# Private support HTTP and WebSocket endpoints behind the gateway.
 services:
   identity:
     environment:
@@ -30,6 +30,8 @@ services:
     restart: 'no'
   support:
     image: ${NIVARO_SUPPORT_IMAGE:-nivaro-support:release}
+    environment:
+      SUPPORT_ALLOWED_ORIGINS: '${SUPPORT_ALLOWED_ORIGINS:-["http://127.0.0.1:8080","http://localhost:8080"]}'
     secrets: [support_db_password, support_identity_service_key]
     depends_on:
       support-init:

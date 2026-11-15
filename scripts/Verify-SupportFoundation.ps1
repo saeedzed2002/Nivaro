@@ -9,6 +9,7 @@ $project = 'nivaro-support-qa-' + [Guid]::NewGuid().ToString('N').Substring(0, 8
 $config = @('-p', $project, '-f', "$root/compose.yaml", '-f', "$root/compose.identity-qa.yaml", '-f', "$root/compose.cart-qa.yaml", '-f', "$root/compose.support.yaml")
 $previousSupport = $env:NIVARO_SUPPORT_IMAGE
 $previousIdentity = $env:NIVARO_CART_QA_IDENTITY_IMAGE
+$previousOrigins = $env:SUPPORT_ALLOWED_ORIGINS
 $testPassword = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
 if ($project -notmatch '^nivaro-support-qa-[a-f0-9]{8}$') { throw 'Unsafe test project.' }
 
@@ -16,6 +17,7 @@ try {
     & "$PSScriptRoot/Initialize-LocalSecrets.ps1"
     $env:NIVARO_SUPPORT_IMAGE = $SupportImage
     $env:NIVARO_CART_QA_IDENTITY_IMAGE = $IdentityImage
+    $env:SUPPORT_ALLOWED_ORIGINS = '["http://127.0.0.1:8082"]'
     docker compose @config up -d --no-build --pull never --wait --wait-timeout 85 support
     if ($LASTEXITCODE -ne 0) { throw 'Disposable support stack failed readiness.' }
 
@@ -55,9 +57,10 @@ asyncio.run(seed())
         -e SUPPORT_DISPOSABLE_TESTS=1 -e "SUPPORT_TEST_PASSWORD=$testPassword" -e PYTHONPATH=/app/src `
         -v "${root}/work/secrets/support_db_password.txt:/run/secrets/support_db_password:ro" `
         -v "${root}/contracts/openapi/support.json:/contracts/support.json:ro" `
-        $TestImage sh -ec 'alembic upgrade head && alembic check && ruff check . && ruff format --check . && mypy src && pytest -q && python -m nivaro_support.export_openapi /contracts/support.json --check'
+        -v "${root}/contracts/websocket:/contracts/websocket:ro" `
+        $TestImage sh -ec 'alembic upgrade head && alembic check && ruff check . && ruff format --check . && mypy src && pytest -q && python -m nivaro_support.export_openapi /contracts/support.json --check && python -m nivaro_support.socket_contracts /contracts/websocket --check'
     if ($LASTEXITCODE -ne 0) { throw 'Support foundation checks failed.' }
-    Write-Output 'Support migrations, private assignment, durable history and OpenAPI checks passed.'
+    Write-Output 'Support migrations, private assignment, durable history, WebSocket and HTTP contract checks passed.'
 } catch {
     docker compose @config logs --no-color --tail 25 support identity
     throw
@@ -65,4 +68,5 @@ asyncio.run(seed())
     docker compose @config down --volumes
     $env:NIVARO_SUPPORT_IMAGE = $previousSupport
     $env:NIVARO_CART_QA_IDENTITY_IMAGE = $previousIdentity
+    $env:SUPPORT_ALLOWED_ORIGINS = $previousOrigins
 }

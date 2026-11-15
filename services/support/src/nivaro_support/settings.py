@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=5, ge=1, le=20)
     identity_url: AnyHttpUrl = AnyHttpUrl("http://identity:8000")
     identity_key_file: Path = Path("/run/secrets/support_identity_service_key")
+    allowed_origins: list[str] = ["http://127.0.0.1:8080", "http://localhost:8080"]
 
     def database_url(self) -> URL:
         password = self.db_password_file.read_text(encoding="utf-8").strip()
