@@ -21,7 +21,8 @@ The seed contains 12 documented products and 13 variants; reference prices remai
 On the configured Windows workstation, use `http://localhost:8080/fa`. The
 `Nivaro Local Development` task starts the local Compose stack and Watch when
 the owner signs in. Web source and public asset edits sync into the running
-development container. Cart, catalog and identity APIs reload their locally
+development container after Docker Desktop is available, including when it
+starts later in the session. Cart, catalog and identity APIs reload their locally
 mounted Python source. Workers use their selected images, and database migrations
 remain explicit verified updates.
 

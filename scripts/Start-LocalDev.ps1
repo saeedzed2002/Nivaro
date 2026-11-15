@@ -33,18 +33,11 @@ if ($Install) {
 New-Item -ItemType Directory -Path (Join-Path $root 'work') -Force | Out-Null
 $log = Join-Path $root 'work/local-dev-watch.log'
 Set-Content -LiteralPath $log -Value "Starting Nivaro development at $(Get-Date -Format o)"
-$dockerReady = $false
-for ($attempt = 0; $attempt -lt 24; $attempt++) {
+Add-Content -LiteralPath $log -Value 'Waiting for Docker Desktop.'
+while ($true) {
     docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
-    if ($LASTEXITCODE -eq 0) {
-        $dockerReady = $true
-        break
-    }
+    if ($LASTEXITCODE -eq 0) { break }
     Start-Sleep -Seconds 5
-}
-if (-not $dockerReady) {
-    Add-Content -LiteralPath $log -Value 'Docker Desktop did not become ready.'
-    exit 1
 }
 
 $compose = @('compose', '-p', 'nivaro', '-f', 'compose.yaml', '-f', 'compose.media.yaml', '-f', 'compose.dev.yaml', '-f', 'compose.local.yaml')
