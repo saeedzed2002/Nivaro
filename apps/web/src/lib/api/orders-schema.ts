@@ -35,6 +35,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payments/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Attempts */
+        get: operations["listStaffPaymentAttempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/attempts/{attempt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Attempt */
+        get: operations["readStaffPaymentAttempt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/checkout/preview": {
         parameters: {
             query?: never;
@@ -143,6 +177,8 @@ export interface components {
     schemas: {
         /** @enum {string} */
         Action: "prepare" | "ship" | "deliver";
+        /** @enum {string} */
+        AttemptStatus: "pending" | "ambiguous" | "failed" | "succeeded" | "amount_mismatch";
         /** CheckoutIntent */
         CheckoutIntent: {
             /**
@@ -158,6 +194,29 @@ export interface components {
             coupon_code?: string | null;
             currency: components["schemas"]["Currency"];
             market: components["schemas"]["Market"];
+        };
+        /** CompensationView */
+        CompensationView: {
+            /** Captured Minor */
+            captured_minor: number;
+            /** Closes Order */
+            closes_order: boolean;
+            /** Last Error */
+            last_error: string | null;
+            /** Reason */
+            reason: string;
+            /**
+             * Refund Id
+             * Format: uuid
+             */
+            refund_id: string;
+            /** Retry At */
+            retry_at: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "awaiting_evidence" | "completed" | "manual_review";
         };
         /** ConfirmPreview */
         ConfirmPreview: {
@@ -267,6 +326,60 @@ export interface components {
         };
         /** @enum {string} */
         Market: "ir" | "international";
+        /** OperationsAttempt */
+        OperationsAttempt: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Captured Minor */
+            captured_minor: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            currency: components["schemas"]["Currency"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            market: components["schemas"]["Market"];
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Order Version */
+            order_version: number;
+            /** Provider Reference */
+            provider_reference: string;
+            /** Reconcile At */
+            reconcile_at: string | null;
+            /** Reconciliation Attempts */
+            reconciliation_attempts: number;
+            /**
+             * Simulated
+             * @constant
+             */
+            simulated: true;
+            status: components["schemas"]["AttemptStatus"];
+            /** Verified At */
+            verified_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** OperationsDetails */
+        OperationsDetails: {
+            attempt: components["schemas"]["OperationsAttempt"];
+            order: components["schemas"]["PaymentOrderView"] | null;
+        };
+        /** OperationsPage */
+        OperationsPage: {
+            /** Attempts */
+            attempts: components["schemas"]["OperationsAttempt"][];
+            /** Next Before */
+            next_before: string | null;
+        };
         /** OrderDetails */
         OrderDetails: {
             address: components["schemas"]["DeliveryAddress"];
@@ -355,6 +468,25 @@ export interface components {
             totals: components["schemas"]["Totals"];
             /** Version */
             version: number;
+        };
+        /** PaymentOrderView */
+        PaymentOrderView: {
+            compensation: components["schemas"]["CompensationView"] | null;
+            currency: components["schemas"]["Currency"];
+            /** Disposition */
+            disposition: string | null;
+            market: components["schemas"]["Market"];
+            /** Recorded Outcome */
+            recorded_outcome: string | null;
+            /** Reservation Error */
+            reservation_error: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
+            /** Total Minor */
+            total_minor: number;
         };
         /** Prepare */
         Prepare: {
@@ -747,6 +879,144 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listStaffPaymentAttempts: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["AttemptStatus"] | null;
+                market?: components["schemas"]["Market"] | null;
+                order_id?: string | null;
+                before?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationsPage"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readStaffPaymentAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationsDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

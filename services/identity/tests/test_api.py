@@ -94,8 +94,15 @@ async def test_identity_issues_only_downscoped_orders_tokens_accepted_by_catalog
     assert not any(path.startswith("/internal/") for path in catalog_app.openapi()["paths"])
 
 
-@pytest.mark.parametrize("role, allowed", [("sales_manager", True), ("catalog_manager", False)])
-async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allowed):
+@pytest.mark.parametrize(
+    "role, allowed, financial",
+    [
+        ("sales_manager", True, False),
+        ("catalog_manager", False, False),
+        ("super_admin", True, True),
+    ],
+)
+async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allowed, financial):
     client, app, db = api
     user_id, password = await admin_account(db, role)
     signed_in = await client.post(
@@ -111,6 +118,13 @@ async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allo
     mutation = {"origin": ORIGIN, "csrf_token": signed_in.json()["csrf_token"]}
     write = await client.post(path, json={**access, "mutation": mutation}, auth=credential)
     assert read.status_code == write.status_code == (200 if allowed else 403)
+    payment_area = {**access, "area": "payments"}
+    payment_read = await client.post(path, json=payment_area, auth=credential)
+    assert payment_read.status_code == (200 if financial else 403)
+    payment_write = await client.post(
+        path, json={**payment_area, "mutation": mutation}, auth=credential
+    )
+    assert payment_write.status_code == 403
     if allowed:
         assert read.json() == write.json() == {"actor_id": str(user_id)}
         bad = await client.post(

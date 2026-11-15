@@ -1,4 +1,5 @@
 import asyncio
+from typing import Literal
 from uuid import UUID
 
 import httpx
@@ -33,6 +34,9 @@ class StaffContext(Contract):
     actor_id: UUID
 
 
+type StaffArea = Literal["orders", "payments"]
+
+
 class ErrorCode(BaseModel):
     code: str
 
@@ -62,13 +66,18 @@ class CheckoutSources:
         self.catalog = str(settings.catalog_url).rstrip("/")
         self.auth = ("orders", secret)
 
-    async def staff(self, access: str, mutation: dict[str, str] | None) -> StaffContext:
+    async def staff(
+        self, access: str, mutation: dict[str, str] | None, *, area: StaffArea = "orders"
+    ) -> StaffContext:
+        payload: dict[str, object] = {"staff_access": access, "mutation": mutation}
+        if area != "orders":
+            payload["area"] = area
         status, body = await request_json(
             self.http,
             "POST",
             self.identity + "/internal/v1/orders/staff-context",
             auth=self.auth,
-            json_body={"staff_access": access, "mutation": mutation},
+            json_body=payload,
         )
         if status in {401, 403}:
             code = parse(ErrorEnvelope, body).error.code

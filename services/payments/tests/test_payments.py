@@ -21,6 +21,7 @@ from nivaro_payments.settings import Database, Settings
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 ROOT = "/internal/v1/payments/attempts"
+OPERATIONS = "/internal/v1/payments/operations/attempts"
 integration = pytest.mark.skipif(
     os.getenv("PAYMENTS_E2E") != "1", reason="Disposable payments stack required"
 )
@@ -125,6 +126,56 @@ async def events(database, aggregate_id):
                 select(OutboxEvent).where(OutboxEvent.aggregate_id == UUID(aggregate_id))
             )
         ).all()
+
+
+@integration
+async def test_operations_lists_discrepancies_with_stable_pagination(clients, database):
+    payments, _, _ = clients
+    first = intent("USD", scenario="overpayment")
+    second = {**first, "id": str(uuid4())}
+    for body in (first, second):
+        start = await headers(clients, "payments.start", key=body["id"])
+        expect(await payments.post(ROOT, headers=start, json=body))
+        verify = await headers(clients, "payments.verify")
+        expect(await payments.post(f"{ROOT}/{body['id']}/verify", headers=verify))
+    ids = sorted([UUID(first["id"]), UUID(second["id"])], reverse=True)
+    async with database.sessions.begin() as db:
+        await db.execute(update(Attempt).where(Attempt.id.in_(ids)).values(created_at=NOW))
+
+    expect(await payments.get(OPERATIONS), 401, code="service.unauthorized")
+    expect(await payments.get(OPERATIONS, headers=verify), 403, code="service.forbidden")
+    ordinary_read = await headers(clients, "payments.read")
+    expect(await payments.get(OPERATIONS, headers=ordinary_read), 403, code="service.forbidden")
+    read = await headers(clients, "payments.operations.read")
+    expect(await payments.get(f"{ROOT}/{ids[0]}", headers=read), 403, code="service.forbidden")
+    filters = {
+        "status": "amount_mismatch",
+        "market": "international",
+        "order_id": first["order_id"],
+        "limit": 1,
+    }
+    page = expect(await payments.get(OPERATIONS, params=filters, headers=read))
+    assert [row["id"] for row in page["attempts"]] == [str(ids[0])]
+    assert page["next_before"] == str(ids[0])
+    detail = expect(await payments.get(f"{OPERATIONS}/{ids[0]}", headers=read))
+    assert detail == page["attempts"][0]
+    assert (detail["amount_minor"], detail["captured_minor"], detail["currency"]) == (
+        1000,
+        1001,
+        "USD",
+    )
+    assert detail["verified_at"] and detail["reconcile_at"] is None
+    tail = expect(
+        await payments.get(
+            OPERATIONS, params={**filters, "before": page["next_before"]}, headers=read
+        )
+    )
+    assert [row["id"] for row in tail["attempts"]] == [str(ids[1])]
+    assert tail["next_before"] is None
+    empty = expect(await payments.get(OPERATIONS, params={**filters, "market": "ir"}, headers=read))
+    assert empty == {"attempts": [], "next_before": None}
+    async with httpx.AsyncClient(base_url="http://gateway:8080", timeout=10) as gateway:
+        assert (await gateway.get(OPERATIONS, headers=read)).status_code == 404
 
 
 @integration

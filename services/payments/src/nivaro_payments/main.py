@@ -5,19 +5,23 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 import httpx
-from fastapi import APIRouter, Depends, FastAPI, Header, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nivaro_payments import attempts
+from nivaro_payments import attempts, operations
 from nivaro_payments.authorization import OrdersAuthorization, require
 from nivaro_payments.contracts import (
+    AttemptState,
     AttemptView,
     CompensationIntent,
+    Market,
     OperationKey,
+    OperationsAttempt,
+    OperationsPage,
     PaymentError,
     PaymentIntent,
     RefundIntent,
@@ -27,7 +31,7 @@ from nivaro_payments.limits import BoundedBody
 from nivaro_payments.provider import Provider, Simulator
 from nivaro_payments.settings import Database, Settings
 
-SCHEMA = "0003_payment_delivery"
+SCHEMA = "0004_payment_operations"
 router = APIRouter(prefix="/internal/v1/payments", tags=["payments"])
 
 
@@ -45,6 +49,27 @@ def provider(request: Request) -> Provider:
 DB = Annotated[AsyncSession, Depends(session)]
 Adapter = Annotated[Provider, Depends(provider)]
 Key = Annotated[OperationKey, Header(alias="Idempotency-Key")]
+
+
+@router.get("/operations/attempts", dependencies=[Depends(require("payments.operations.read"))])
+async def operations_list(
+    db: DB,
+    status: AttemptState | None = None,
+    market: Market | None = None,
+    order_id: UUID | None = None,
+    before: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> OperationsPage:
+    return await operations.list_attempts(
+        db, status=status, market=market, order_id=order_id, before=before, limit=limit
+    )
+
+
+@router.get(
+    "/operations/attempts/{attempt_id}", dependencies=[Depends(require("payments.operations.read"))]
+)
+async def operations_detail(db: DB, attempt_id: UUID) -> OperationsAttempt:
+    return OperationsAttempt.model_validate(await attempts.read_attempt(db, attempt_id))
 
 
 @router.post(

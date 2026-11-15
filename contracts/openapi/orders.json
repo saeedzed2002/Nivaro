@@ -9,6 +9,16 @@
         ],
         "type": "string"
       },
+      "AttemptStatus": {
+        "enum": [
+          "pending",
+          "ambiguous",
+          "failed",
+          "succeeded",
+          "amount_mismatch"
+        ],
+        "type": "string"
+      },
       "CheckoutIntent": {
         "additionalProperties": false,
         "properties": {
@@ -56,6 +66,72 @@
           "address_version"
         ],
         "title": "CheckoutIntent",
+        "type": "object"
+      },
+      "CompensationView": {
+        "additionalProperties": false,
+        "properties": {
+          "captured_minor": {
+            "title": "Captured Minor",
+            "type": "integer"
+          },
+          "closes_order": {
+            "title": "Closes Order",
+            "type": "boolean"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "refund_id": {
+            "format": "uuid",
+            "title": "Refund Id",
+            "type": "string"
+          },
+          "retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry At"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "awaiting_evidence",
+              "completed",
+              "manual_review"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refund_id",
+          "captured_minor",
+          "closes_order",
+          "reason",
+          "state",
+          "retry_at",
+          "last_error"
+        ],
+        "title": "CompensationView",
         "type": "object"
       },
       "ConfirmPreview": {
@@ -370,6 +446,169 @@
         ],
         "type": "string"
       },
+      "OperationsAttempt": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_minor": {
+            "title": "Amount Minor",
+            "type": "integer"
+          },
+          "captured_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured Minor"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "order_version": {
+            "title": "Order Version",
+            "type": "integer"
+          },
+          "provider_reference": {
+            "title": "Provider Reference",
+            "type": "string"
+          },
+          "reconcile_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconcile At"
+          },
+          "reconciliation_attempts": {
+            "title": "Reconciliation Attempts",
+            "type": "integer"
+          },
+          "simulated": {
+            "const": true,
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "id",
+          "order_id",
+          "order_version",
+          "amount_minor",
+          "captured_minor",
+          "status",
+          "version",
+          "provider_reference",
+          "verified_at",
+          "simulated",
+          "created_at",
+          "reconcile_at",
+          "reconciliation_attempts"
+        ],
+        "title": "OperationsAttempt",
+        "type": "object"
+      },
+      "OperationsDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "$ref": "#/components/schemas/OperationsAttempt"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentOrderView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "attempt",
+          "order"
+        ],
+        "title": "OperationsDetails",
+        "type": "object"
+      },
+      "OperationsPage": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsAttempt"
+            },
+            "maxItems": 50,
+            "title": "Attempts",
+            "type": "array"
+          },
+          "next_before": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before"
+          }
+        },
+        "required": [
+          "attempts",
+          "next_before"
+        ],
+        "title": "OperationsPage",
+        "type": "object"
+      },
       "OrderDetails": {
         "additionalProperties": false,
         "properties": {
@@ -655,6 +894,94 @@
           "failure_code"
         ],
         "title": "OrderStatus",
+        "type": "object"
+      },
+      "PaymentOrderView": {
+        "additionalProperties": false,
+        "properties": {
+          "compensation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompensationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "disposition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disposition"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "recorded_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded Outcome"
+          },
+          "reservation_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reservation Error"
+          },
+          "status": {
+            "enum": [
+              "pending_reservation",
+              "awaiting_payment",
+              "expired",
+              "cancelled",
+              "payment_processing",
+              "payment_review",
+              "paid",
+              "refund_pending",
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_minor": {
+            "title": "Total Minor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "status",
+          "total_minor",
+          "reservation_error",
+          "recorded_outcome",
+          "disposition",
+          "compensation"
+        ],
+        "title": "PaymentOrderView",
         "type": "object"
       },
       "Prepare": {
@@ -1521,6 +1848,240 @@
         "summary": "Change",
         "tags": [
           "staff orders"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/attempts": {
+      "get": {
+        "operationId": "listStaffPaymentAttempts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AttemptStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "market",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Market"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Order Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "List Attempts",
+        "tags": [
+          "staff payments"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/attempts/{attempt_id}": {
+      "get": {
+        "operationId": "readStaffPaymentAttempt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsDetails"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Read Attempt",
+        "tags": [
+          "staff payments"
         ]
       }
     },

@@ -1,5 +1,5 @@
 import hmac
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -20,7 +20,13 @@ basic = HTTPBasic(auto_error=False)
 ORDERS_SERVICE_SCOPES = {
     "nivaro-catalog": frozenset({"catalog.quote", "catalog.reserve", "catalog.finalize"}),
     "nivaro-payments": frozenset(
-        {"payments.start", "payments.read", "payments.verify", "payments.refund"}
+        {
+            "payments.start",
+            "payments.read",
+            "payments.verify",
+            "payments.refund",
+            "payments.operations.read",
+        }
     ),
 }
 ORDERS_DELEGATED_GRANTS = {
@@ -98,6 +104,7 @@ class OrdersStaffRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     staff_access: Annotated[SecretStr, Field(min_length=1, max_length=8192)]
     mutation: CheckoutMutation | None = None
+    area: Literal["orders", "payments"] = "orders"
 
 
 class OrdersStaffContext(BaseModel):
@@ -116,7 +123,12 @@ async def orders_staff_context(
     settings: Settings = request.app.state.settings
     async with database.sessions() as db:
         staff = await sessions.authenticate(db, body.staff_access.get_secret_value(), "admin")
-        required = "orders.fulfill" if body.mutation is not None else "orders.read"
+        if body.area == "payments":
+            if body.mutation is not None:
+                raise IdentityError("permission.denied", 403)
+            required = "payments.read"
+        else:
+            required = "orders.fulfill" if body.mutation is not None else "orders.read"
         if required not in staff.permissions:
             raise IdentityError("permission.denied", 403)
         if body.mutation is not None:

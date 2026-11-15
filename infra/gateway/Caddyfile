@@ -41,6 +41,9 @@
   handle /api/v1/admin/orders/* {
     reverse_proxy orders:8000
   }
+  handle /api/v1/admin/payments/* {
+    reverse_proxy orders:8000
+  }
   @support path /api/v1/support/* /api/v1/admin/support/* /ws/support
   handle @support {
     reverse_proxy support:8000

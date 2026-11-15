@@ -1,13 +1,18 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 import httpx
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, Field
 
-from nivaro_orders.domain.checkout import MarketTerms
-from nivaro_orders.infrastructure.checkout_sources import ErrorEnvelope, authorization, parse
+from nivaro_orders.domain.checkout import Contract, Market, MarketTerms
+from nivaro_orders.infrastructure.checkout_sources import (
+    ErrorEnvelope,
+    SourceError,
+    authorization,
+    parse,
+)
 from nivaro_orders.infrastructure.http_json import UpstreamUnavailable, request_json
 from nivaro_orders.infrastructure.reservations import ServiceToken
 from nivaro_orders.settings import Settings
@@ -24,17 +29,31 @@ class PaymentIntent:
     reservation_expires_at: datetime
 
 
+type AttemptStatus = Literal["pending", "ambiguous", "failed", "succeeded", "amount_mismatch"]
+
+
 class AttemptReceipt(MarketTerms):
     id: UUID
     order_id: UUID
     order_version: int
     amount_minor: int
     captured_minor: int | None
-    status: Literal["pending", "ambiguous", "failed", "succeeded", "amount_mismatch"]
+    status: AttemptStatus
     version: int
     provider_reference: str
     verified_at: AwareDatetime | None
     simulated: Literal[True]
+
+
+class OperationsAttempt(AttemptReceipt):
+    created_at: AwareDatetime
+    reconcile_at: AwareDatetime | None
+    reconciliation_attempts: int
+
+
+class OperationsPage(Contract):
+    attempts: Annotated[list[OperationsAttempt], Field(max_length=50)]
+    next_before: UUID | None
 
 
 class PaymentBlocked(Exception):
@@ -46,13 +65,14 @@ class SimulatorPayments:
         self.http = http
         self.identity = str(settings.identity_url).rstrip("/")
         self.attempts = str(settings.payments_url).rstrip("/") + "/internal/v1/payments/attempts"
+        self.operations = (
+            str(settings.payments_url).rstrip("/") + "/internal/v1/payments/operations/attempts"
+        )
         self.secret = secret
 
-    async def request_attempt(
-        self,
-        intent: PaymentIntent,
-        operation: Literal["read", "start", "verify"],
-    ) -> AttemptReceipt | None:
+    async def headers(
+        self, operation: Literal["read", "start", "verify", "operations.read"]
+    ) -> dict[str, str]:
         status, body = await request_json(
             self.http,
             "POST",
@@ -62,7 +82,59 @@ class SimulatorPayments:
         )
         if status != 200:
             raise UpstreamUnavailable()
-        headers = authorization(parse(ServiceToken, body).access_token)
+        return authorization(parse(ServiceToken, body).access_token)
+
+    async def list_operations(
+        self,
+        status: AttemptStatus | None,
+        market: Market | None,
+        order_id: UUID | None,
+        before: UUID | None,
+        limit: int,
+    ) -> OperationsPage:
+        query = {
+            "status": status,
+            "market": market,
+            "order_id": order_id,
+            "before": before,
+            "limit": limit,
+        }
+        response_status, body = await request_json(
+            self.http,
+            "GET",
+            self.operations,
+            headers=await self.headers("operations.read"),
+            params={key: str(value) for key, value in query.items() if value is not None},
+            max_bytes=65536,
+        )
+        if response_status == 404 and parse(ErrorEnvelope, body).error.code == "payment.not_found":
+            raise SourceError("payments.cursor_not_found", 404)
+        if response_status != 200:
+            raise UpstreamUnavailable()
+        return parse(OperationsPage, body)
+
+    async def read_operation(self, attempt_id: UUID) -> OperationsAttempt:
+        status, body = await request_json(
+            self.http,
+            "GET",
+            f"{self.operations}/{attempt_id}",
+            headers=await self.headers("operations.read"),
+        )
+        if status == 404 and parse(ErrorEnvelope, body).error.code == "payment.not_found":
+            raise SourceError("payment.not_found", 404)
+        if status != 200:
+            raise UpstreamUnavailable()
+        attempt = parse(OperationsAttempt, body)
+        if attempt.id != attempt_id:
+            raise UpstreamUnavailable()
+        return attempt
+
+    async def request_attempt(
+        self,
+        intent: PaymentIntent,
+        operation: Literal["read", "start", "verify"],
+    ) -> AttemptReceipt | None:
+        headers = await self.headers(operation)
         if operation == "start":
             headers["Idempotency-Key"] = f"customer-payment-{intent.id}"
             status, body = await request_json(

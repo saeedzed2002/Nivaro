@@ -59,6 +59,17 @@ class AttemptView(Contract):
     simulated: Literal[True] = True
 
 
+class OperationsAttempt(AttemptView):
+    created_at: AwareDatetime
+    reconcile_at: AwareDatetime | None
+    reconciliation_attempts: int
+
+
+class OperationsPage(Contract):
+    attempts: list[OperationsAttempt]
+    next_before: UUID | None
+
+
 class RefundIntent(Contract):
     id: UUID
     currency: Currency

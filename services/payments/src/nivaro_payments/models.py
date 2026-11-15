@@ -38,6 +38,7 @@ class Attempt(Base):
         ),
         CheckConstraint("order_version > 0 AND version > 0", name="payment_versions"),
         CheckConstraint("reconciliation_attempts >= 0", name="payment_reconciliation_attempts"),
+        Index("ix_payment_attempts_created", "created_at", "id"),
         Index(
             "ix_payment_reconciliation_due",
             "reconcile_at",

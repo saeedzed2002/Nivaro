@@ -17,7 +17,7 @@ from nivaro_orders.application.fulfillment import (
 )
 from nivaro_orders.application.order_history import OrderHistory, list_orders
 from nivaro_orders.domain.checkout import Market, OrderState
-from nivaro_orders.infrastructure.checkout_sources import SourceError
+from nivaro_orders.infrastructure.checkout_sources import SourceError, StaffArea
 
 router = APIRouter(
     prefix="/api/v1/admin/orders",
@@ -32,12 +32,14 @@ def placement_boundary(day: date) -> datetime:
     return datetime.combine(day, time.min, TEHRAN).astimezone(UTC)
 
 
-async def staff_actor(request: Request, flow: CheckoutFlow, *, mutating: bool) -> UUID:
+async def staff_actor(
+    request: Request, flow: CheckoutFlow, *, mutating: bool, area: StaffArea = "orders"
+) -> UUID:
     access = request.cookies.get("nivaro_admin_access", "")
     if not access or len(access) > 8192:
         raise SourceError("session.invalid", 401)
     return (
-        await flow.sources.staff(access, mutation_context(request) if mutating else None)
+        await flow.sources.staff(access, mutation_context(request) if mutating else None, area=area)
     ).actor_id
 
 

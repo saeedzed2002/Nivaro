@@ -176,6 +176,8 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
     await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
 
     expect((await page.request.get('/api/v1/admin/orders/history')).status()).toBe(401);
+    const paymentAttemptsUrl = '/api/v1/admin/payments/attempts';
+    expect((await page.request.get(paymentAttemptsUrl)).status()).toBe(401);
     const password = randomBytes(24).toString('base64url');
     if (!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project)) throw new Error('Disposable Orders stack required');
     const setup = spawnSync('docker', ['exec', '-i', `${project}-identity-1`, 'python', '-c', `
@@ -238,6 +240,19 @@ asyncio.run(manage('bootstrap-admin'))
       await staff.getByRole('button', { name: 'Clear filters' }).click();
       await expect(referenceFilter).toHaveValue('');
       await expect(marketFilter).toHaveValue('');
+      const paymentList = await staff.request.get(paymentAttemptsUrl, {
+        params: { order_id: submittedId, status: 'succeeded', market: 'international' },
+      });
+      expect(paymentList.status()).toBe(200);
+      expect(paymentList.headers()['cache-control']).toBe('no-store');
+      const { attempts } = await paymentList.json();
+      expect(attempts).toHaveLength(1);
+      const paymentDetail = await staff.request.get(`${paymentAttemptsUrl}/${attempts[0].id}`);
+      expect(paymentDetail.status()).toBe(200);
+      expect(await paymentDetail.json()).toMatchObject({
+        attempt: { order_id: submittedId, amount_minor: 46600, captured_minor: 46600, currency: 'USD' },
+        order: { status: 'paid', recorded_outcome: 'payment.succeeded', disposition: 'selected', compensation: null },
+      });
       await row.getByRole('link', { name: 'View order' }).click();
       await staff.setViewportSize({ width: 1487, height: 1058 });
       await expect(staff.getByText('22 Example Street', { exact: true })).toBeVisible();

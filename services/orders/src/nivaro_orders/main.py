@@ -13,12 +13,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from nivaro_orders.api.checkout import router
 from nivaro_orders.api.fulfillment import router as fulfillment_router
 from nivaro_orders.api.limits import BoundedBody
+from nivaro_orders.api.payment_operations import router as payment_operations_router
 from nivaro_orders.application.checkout_flow import CheckoutFlow
 from nivaro_orders.domain.checkout import CheckoutError
 from nivaro_orders.infrastructure.checkout_sources import CheckoutSources, SourceError
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.infrastructure.http_json import UpstreamUnavailable
 from nivaro_orders.infrastructure.reservations import CatalogReservations
+from nivaro_orders.infrastructure.simulator_payments import SimulatorPayments
 from nivaro_orders.settings import Settings
 
 SCHEMA = "0011_order_delivered"
@@ -47,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     CheckoutSources(http, settings, secret),
                     CatalogReservations(http, settings, secret),
                 )
+                app.state.payment_attempts = SimulatorPayments(http, settings, secret)
                 yield
         finally:
             await database.engine.dispose()
@@ -116,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(router)
     app.include_router(fulfillment_router)
+    app.include_router(payment_operations_router)
     return app
 
 

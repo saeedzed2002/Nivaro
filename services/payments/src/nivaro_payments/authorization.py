@@ -15,7 +15,13 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
 
 from nivaro_payments.contracts import PaymentError
 
-type Scope = Literal["payments.start", "payments.read", "payments.verify", "payments.refund"]
+type Scope = Literal[
+    "payments.start",
+    "payments.read",
+    "payments.verify",
+    "payments.refund",
+    "payments.operations.read",
+]
 bearer = HTTPBearer(auto_error=False)
 
 
