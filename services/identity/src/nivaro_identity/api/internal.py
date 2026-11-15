@@ -11,9 +11,11 @@ import jwt
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from nivaro_identity.domain.errors import IdentityError
+from nivaro_identity.domain.security import SessionKind
 
 CATALOG_CUSTOMER_CHECK_PATH = "/internal/v1/catalog/customer-check"
 CATALOG_MODERATOR_CHECK_PATH = "/internal/v1/catalog/moderator-check"
+SUPPORT_CHECK_PATH = "/internal/v1/support/session-check"
 
 
 class CatalogCheck(BaseModel):
@@ -25,7 +27,7 @@ class CatalogCheck(BaseModel):
 
     def fingerprint(self) -> str:
         return hashlib.sha256(
-            json.dumps(self.model_dump(), sort_keys=True, separators=(",", ":")).encode()
+            json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
 
 
@@ -49,6 +51,21 @@ class CartPrincipal(BaseModel):
 
 class CatalogCustomerPrincipal(BaseModel):
     user_id: UUID
+
+
+class SupportCheck(CatalogCheck):
+    kind: SessionKind
+    target_agent_id: UUID | None = None
+
+
+class SupportPrincipal(BaseModel):
+    user_id: UUID
+    kind: SessionKind
+    can_manage: bool
+
+
+def authenticate_support(authorization: str, body: SupportCheck, key: str | None) -> None:
+    _authenticate_service(authorization, body, key, "support", "support.session_introspect")
 
 
 def authenticate_catalog(authorization: str, body: CatalogCheck, key: str | None) -> None:

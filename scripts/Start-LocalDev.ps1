@@ -49,7 +49,7 @@ while ($true) {
     Start-Sleep -Seconds 5
 }
 
-$compose = @('compose', '-p', 'nivaro', '-f', 'compose.yaml', '-f', 'compose.media.yaml', '-f', 'compose.dev.yaml', '-f', 'compose.orders.yaml', '-f', 'compose.events.yaml', '-f', 'compose.payments.yaml', '-f', 'compose.payment-events.yaml', '-f', 'compose.local.yaml')
+$compose = @('compose', '-p', 'nivaro', '-f', 'compose.yaml', '-f', 'compose.media.yaml', '-f', 'compose.dev.yaml', '-f', 'compose.orders.yaml', '-f', 'compose.events.yaml', '-f', 'compose.payments.yaml', '-f', 'compose.payment-events.yaml', '-f', 'compose.support.yaml', '-f', 'compose.local.yaml')
 docker image inspect nivaro-web:local-development *> $null
 if ($LASTEXITCODE -ne 0) {
     if ((Invoke-DockerLogged @compose build web) -ne 0) { exit 1 }
@@ -65,6 +65,12 @@ if (-not $paymentsImage) { $paymentsImage = 'nivaro-payments:release' }
 docker image inspect $paymentsImage *> $null
 if ($LASTEXITCODE -ne 0) {
     if ((Invoke-DockerLogged @compose build payments-init) -ne 0) { exit 1 }
+}
+$supportImage = $env:NIVARO_SUPPORT_IMAGE
+if (-not $supportImage) { $supportImage = 'nivaro-support:release' }
+docker image inspect $supportImage *> $null
+if ($LASTEXITCODE -ne 0) {
+    if ((Invoke-DockerLogged @compose build support-init) -ne 0) { exit 1 }
 }
 if ((Invoke-DockerLogged @compose up -d --no-build --pull never --wait --wait-timeout 120) -ne 0) { exit 1 }
 Invoke-DockerLogged @compose watch --no-up web | Out-Null

@@ -24,15 +24,19 @@ from starlette.concurrency import run_in_threadpool
 from nivaro_identity.api.internal import (
     CATALOG_CUSTOMER_CHECK_PATH,
     CATALOG_MODERATOR_CHECK_PATH,
+    SUPPORT_CHECK_PATH,
     CartCheck,
     CartPrincipal,
     CatalogCheck,
     CatalogCustomerPrincipal,
     CatalogPrincipal,
+    SupportCheck,
+    SupportPrincipal,
     authenticate_cart,
     authenticate_catalog,
     authenticate_catalog_customer,
     authenticate_catalog_moderator,
+    authenticate_support,
 )
 from nivaro_identity.api.limits import BoundedBody
 from nivaro_identity.api.schemas import (
@@ -198,6 +202,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if settings.cart_service_key_file
             else None
         )
+        app.state.support_service_key = (
+            settings.secret(settings.support_service_key_file)
+            if settings.support_service_key_file
+            else None
+        )
         app.state.orders_client_secret = (
             settings.secret(settings.orders_client_secret_file)
             if settings.orders_client_secret_file
@@ -250,6 +259,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "/internal/v1/catalog/admin-check",
             CATALOG_CUSTOMER_CHECK_PATH,
             CATALOG_MODERATOR_CHECK_PATH,
+            SUPPORT_CHECK_PATH,
             "/internal/v1/cart/customer-check",
             SERVICE_TOKEN_PATH,
             CHECKOUT_CONTEXT_PATH,
@@ -640,7 +650,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise IdentityError("address.changed", 409)
         return AddressResponse.model_validate(address)
 
-    async def checked_catalog_session(
+    async def checked_session(
         body: CatalogCheck, db: DB, kind: SessionKind, permission: str | None = None
     ) -> Authenticated:
         auth: Authenticated = await app.state.sessions.authenticate(db, body.access_token, kind)
@@ -657,7 +667,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         authenticate_catalog(
             request.headers.get("authorization", ""), body, app.state.catalog_service_key
         )
-        auth = await checked_catalog_session(body, db, "admin", "catalog.write")
+        auth = await checked_session(body, db, "admin", "catalog.write")
         return CatalogPrincipal(
             user_id=auth.user.id, session_id=auth.session.id, permissions=auth.permissions
         )
@@ -669,7 +679,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         authenticate_catalog_moderator(
             request.headers.get("authorization", ""), body, app.state.catalog_service_key
         )
-        auth = await checked_catalog_session(body, db, "admin", "reviews.moderate")
+        auth = await checked_session(body, db, "admin", "reviews.moderate")
         return CatalogPrincipal(
             user_id=auth.user.id, session_id=auth.session.id, permissions=auth.permissions
         )
@@ -681,8 +691,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         authenticate_catalog_customer(
             request.headers.get("authorization", ""), body, app.state.catalog_service_key
         )
-        auth = await checked_catalog_session(body, db, "customer")
+        auth = await checked_session(body, db, "customer")
         return CatalogCustomerPrincipal(user_id=auth.user.id)
+
+    @app.post(SUPPORT_CHECK_PATH, include_in_schema=False)
+    async def support_session_check(
+        body: SupportCheck, request: Request, db: DB
+    ) -> SupportPrincipal:
+        authenticate_support(
+            request.headers.get("authorization", ""), body, app.state.support_service_key
+        )
+        auth = await checked_session(
+            body, db, body.kind, "support.reply" if body.kind == "admin" else None
+        )
+        can_manage = body.kind == "admin" and "users.manage" in auth.permissions
+        if body.target_agent_id is not None:
+            if (
+                not body.mutating
+                or body.kind != "admin"
+                or (body.target_agent_id != auth.user.id and not can_manage)
+            ):
+                raise IdentityError("permission.denied", 403)
+            target = await db.scalar(
+                select(Administrator.user_id)
+                .join(User, User.id == Administrator.user_id)
+                .where(
+                    Administrator.user_id == body.target_agent_id,
+                    Administrator.role.in_(("support_agent", "super_admin")),
+                    User.disabled.is_(False),
+                )
+            )
+            if target is None:
+                raise IdentityError("support.agent_unavailable", 403)
+        return SupportPrincipal(user_id=auth.user.id, kind=body.kind, can_manage=can_manage)
 
     @app.post("/internal/v1/cart/customer-check", include_in_schema=False)
     async def cart_customer_check(body: CartCheck, request: Request, db: DB) -> CartPrincipal:

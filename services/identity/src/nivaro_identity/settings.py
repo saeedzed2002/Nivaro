@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     trust_gateway_client_ip: bool = False
     catalog_service_key_file: Path | None = None
     cart_service_key_file: Path | None = None
+    support_service_key_file: Path | None = None
     orders_client_secret_file: Path | None = None
 
     @model_validator(mode="after")
