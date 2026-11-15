@@ -43,7 +43,7 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Addresses | P03 | [Addresses](pages/account-addresses.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Order history | P07 | Pending |
 | Order detail / timeline | P07 | Pending |
-| Customer support | P09 | Pending |
+| Customer support | P09 | [Conversation workspace](pages/customer-support.png), generated and inspected before implementation |
 | Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implemented and locally verified |
 | Administrator dashboard | P10 | Pending |
 | Administrator products | P04 | [Products](pages/admin-products.png), generated/inspected 2026-10-28; list/search/filter/pagination implementation added 2026-10-29, verification below |
@@ -55,9 +55,17 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Payments / reconciliation | P07 | Pending |
 | Users / permissions | P10 | Pending |
 | Administrator profile / avatar | P04 | [Staff profile](pages/admin-profile.png), generated and inspected 2026-11-07 before implementation; own avatar/name, read-only staff email/role, dark desktop and light mobile |
-| Support inbox | P09 | Pending |
+| Support inbox | P09 | [Inbox](pages/admin-support-inbox.png), generated and inspected before implementation |
 
 Record reference creation and inspection before starting each template. Carry empty, loading, error, keyboard, mobile and localized variations into implementation QA. Dialogs explaining inactive P01 features do not pretend to implement those pages.
+
+### P09 support inbox reference
+
+- The built-in image generator produced a light English desktop inbox. Inspected before implementation. Retain the queue and message panes, highlighted current row, subject and assignment actions, and labeled reply composer. Use the existing administration navigation and theme, actual roles and server states. The image contains illustrative names, order numbers and status combinations. Unassigned threads show a claim action and only reveal messages after authorization.
+
+### P09 customer support reference
+
+- The built-in image generator produced a dark Persian desktop workspace. Inspected before implementation. Retain the account breadcrumb, queue at the reading edge, new conversation action, selected row, and labeled text composer. Reuse current storefront navigation and theme tokens. Message text, times, order references and status wording in the image are illustrative. Stack the two panes on narrow screens and use the API's actual status values.
 
 ### P02 reference inspection
 

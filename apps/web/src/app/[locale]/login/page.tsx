@@ -10,6 +10,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   if (!isLocale(locale)) notFound();
   const destination = next === 'checkout' ? `/${locale}/checkout`
     : next === 'orders' ? `/${locale}/account/orders`
+    : next === 'support' ? `/${locale}/account/support`
     : next === 'review' && typeof product === 'string' && product.length <= 160 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(product) ? `/${locale}/products/${product}?review=1#reviews`
     : next === 'order' && typeof order === 'string' && isUuid(order) ? `/${locale}/account/orders/${order}`
     : next === 'result' && typeof order === 'string' && isUuid(order) ? `/${locale}/checkout/result?order=${order}` : undefined;
