@@ -43,3 +43,36 @@ schema, Docker readiness, role isolation, money, idempotency and coupon
 contention. The catalog option starts Identity and Catalog and uses their real
 HTTP endpoints to test recovery after a successful reservation response is
 lost.
+
+## Durable reservation expiry
+
+Use `compose.events.yaml` with the media and Orders overlays. The broker
+initializer supplies a separate `commerce-events` vhost and distinct Catalog
+publisher and Orders consumer credentials. A broker already running with the
+earlier definitions needs to reload the updated definitions before starting
+the event workers. Keep all existing broker volumes and passwords.
+
+Catalog releases stock and inserts the versioned
+`inventory.reservation.expired` outbox envelope in the same database
+transaction. It marks publication only after a persistent, routed message is
+confirmed. Orders stores its inbox identifier and expiry effect together and
+acknowledges after that transaction commits. The envelope carries the checkout
+operation, quote, market, currency and deadline. Unmatched or stale events
+cannot change a newer hold.
+
+The expiry queue bounds redelivery and transfers exhausted or malformed
+messages to its durable error queue. [RabbitMQ quorum queue documentation](https://www.rabbitmq.com/docs/quorum-queues)
+
+- Inspect outbox lag with the oldest `created_at` whose `published_at` is
+  null. Inspect terminal failures by `failed_at` and `last_error`. A broker
+  operator can check pending and error queue depths on `commerce-events`
+  with `rabbitmqctl list_queues -p commerce-events name messages`.
+- Once the publisher fault is corrected, replay a specific failed outbox
+  record by resetting `attempts`, `failed_at` and `available_at` only for
+  its event ID with no active lease and no publication timestamp. Keep its
+  original event ID and envelope. For a valid dead-lettered message, replay
+  to the original routing key with the original message ID, and acknowledge
+  the error-queue copy only after the rerouted message is confirmed.
+- Run `./scripts/Verify-OrdersFoundation.ps1 -WithEvents` with the current
+  service images to verify real publishing, handling and dead-lettering on a
+  disposable broker and databases.

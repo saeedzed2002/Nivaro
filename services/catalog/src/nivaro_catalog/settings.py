@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     media_broker_host: str = "rabbitmq"
     media_broker_user: str = "nivaro_catalog_media"
     media_broker_password_file: Path = Path("/run/secrets/catalog_media_broker_password")
+    event_broker_host: str = "rabbitmq"
+    event_broker_password_file: Path = Path("/run/secrets/catalog_event_broker_password")
 
     def database_url(self) -> URL:
         password = (

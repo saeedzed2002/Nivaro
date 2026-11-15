@@ -3,10 +3,15 @@ import os
 import sys
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from json import dumps
+from pathlib import Path
 from uuid import uuid4
 
+import aio_pika
 import httpx
+import psycopg
 import pytest
+from aio_pika.exceptions import DeliveryError
 from sqlalchemy import func, select, text, update
 
 from nivaro_orders.application.checkout import begin_checkout, review_checkout, stage_order
@@ -22,11 +27,14 @@ from nivaro_orders.domain.checkout import (
     QuotedLine,
     calculate_totals,
 )
+from nivaro_orders.domain.events import ExpiredReservation, ExpiryPayload
+from nivaro_orders.expiry_consumer import apply_expiry
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.infrastructure.models import (
     CheckoutOperation,
     Coupon,
     CouponClaim,
+    InboxEvent,
     Order,
     OrderAddress,
     OrderConfiguration,
@@ -445,6 +453,7 @@ async def test_lost_response_after_real_catalog_hold_is_recovered_by_operation_i
             assert quoted.is_success, quoted.text
             current = CatalogQuote.model_validate(quoted.json())
             await checkout.save(current, await checkout.review(current))
+            return current
 
         await stage_for(operation)
         client = CatalogReservations(http, settings, secret)
@@ -499,6 +508,127 @@ async def test_lost_response_after_real_catalog_hold_is_recovered_by_operation_i
             with suppress(ProcessLookupError):
                 worker.terminate()
             await worker.wait()
+
+        if os.getenv("ORDERS_EVENT_E2E") == "1":
+            event_operation = await checkout.request(customer, "durable-expiry")
+            event_quote = await stage_for(event_operation)
+            held = await client.recover_or_reserve(
+                event_operation, event_quote.id, customer, event_quote.cart_fingerprint
+            )
+            assert held.state == "held"
+            await verify_broker_expiry(database, client, event_quote)
+
+
+async def verify_broker_expiry(database, client, current):
+    settings = Settings()
+    catalog_password = Path("/run/secrets/catalog_db_password").read_text().strip()
+    async with await psycopg.AsyncConnection.connect(
+        host=settings.db_host,
+        dbname="nivaro_catalog",
+        user="nivaro_catalog",
+        password=catalog_password,
+    ) as catalog_db:
+        async with catalog_db.transaction():
+            await catalog_db.execute(
+                "UPDATE stock_reservations SET expires_at=clock_timestamp()-interval '1 second' WHERE operation_id=%s",
+                (current.operation_id,),
+            )
+        result = await client.recover_or_reserve(
+            current.operation_id, current.id, current.customer_id, current.cart_fingerprint
+        )
+        assert result.state == "expired"
+        async with asyncio.timeout(15):
+            while True:
+                async with catalog_db.transaction():
+                    rows = await catalog_db.execute(
+                        "SELECT id,envelope,published_at FROM event_outbox WHERE aggregate_id=%s",
+                        (current.operation_id,),
+                    )
+                    found = await rows.fetchall()
+                async with database.sessions() as db:
+                    saved = await db.get(Order, current.operation_id)
+                    if found and found[0][2] is not None and saved.status == "expired":
+                        event_id, envelope, _ = found[0]
+                        assert len(found) == 1 and saved.version == 2
+                        assert (
+                            await db.scalar(
+                                select(func.count())
+                                .select_from(InboxEvent)
+                                .where(InboxEvent.event_id == event_id)
+                            )
+                            == 1
+                        )
+                        break
+                await asyncio.sleep(0.2)
+
+    secret = Path("/run/secrets/catalog_event_broker_password").read_text().strip()
+    async with await aio_pika.connect(
+        host="rabbitmq",
+        login="nivaro_catalog_events",
+        password=secret,
+        virtualhost="commerce-events",
+        timeout=5,
+    ) as broker:
+        async with broker.channel(publisher_confirms=True, on_return_raises=True) as channel:
+            exchange = await channel.get_exchange("nivaro.events", ensure=False)
+            await exchange.publish(
+                aio_pika.Message(
+                    dumps(envelope).encode(),
+                    content_type="application/json",
+                    message_id=str(event_id),
+                ),
+                "inventory.reservation.expired",
+                mandatory=True,
+            )
+            await exchange.publish(
+                aio_pika.Message(b"{}", content_type="application/json", message_id=str(uuid4())),
+                "inventory.reservation.expired",
+                mandatory=True,
+            )
+            with pytest.raises(DeliveryError):
+                await exchange.publish(
+                    aio_pika.Message(b"{}"), "inventory.no-binding", mandatory=True
+                )
+
+
+async def test_replayed_expiry_records_one_inbox_effect(database):
+    checkout = CheckoutFixture(database)
+    customer = uuid4()
+    operation = await checkout.request(customer, "event-replay")
+    current = quote(operation, customer)
+    await checkout.save(current, await checkout.review(current))
+    now = datetime.now(UTC)
+    event = ExpiredReservation(
+        event_id=uuid4(),
+        event_type="inventory.reservation.expired",
+        schema_version=1,
+        occurred_at=now,
+        producer="catalog",
+        aggregate_id=operation,
+        aggregate_version=2,
+        correlation_id=operation,
+        causation_id=None,
+        payload=ExpiryPayload(
+            market="ir", currency="IRR", quote_id=current.id, expires_at=now - timedelta(seconds=1)
+        ),
+    )
+
+    async def consume():
+        async with database.sessions() as db:
+            await apply_expiry(db, event)
+
+    await asyncio.gather(*(consume() for _ in range(4)))
+    async with database.sessions() as db:
+        order = await db.get(Order, operation)
+        assert (order.status, order.version) == ("expired", 2)
+        assert (
+            await db.scalar(
+                select(func.count())
+                .select_from(InboxEvent)
+                .where(InboxEvent.event_id == event.event_id)
+            )
+            == 1
+        )
 
 
 async def test_expiry_updates_order_transition_once(database):

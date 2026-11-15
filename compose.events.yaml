@@ -1,0 +1,33 @@
+# Apply alongside compose.media.yaml and compose.orders.yaml.
+services:
+  catalog-event-publisher:
+    image: ${NIVARO_EVENT_CATALOG_IMAGE:-nivaro-catalog:release}
+    command: [python, -m, nivaro_catalog.event_publisher]
+    secrets:
+      - catalog_db_password
+      - catalog_event_broker_password
+    depends_on:
+      catalog-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+  orders-expiry-consumer:
+    image: ${NIVARO_ORDERS_IMAGE:-nivaro-orders:release}
+    command: [python, -m, nivaro_orders.expiry_consumer]
+    secrets:
+      - orders_db_password
+      - orders_event_broker_password
+    depends_on:
+      orders-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+secrets:
+  catalog_event_broker_password:
+    file: ./work/secrets/catalog_event_broker_password.txt
+  orders_event_broker_password:
+    file: ./work/secrets/orders_event_broker_password.txt

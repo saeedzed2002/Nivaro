@@ -19,6 +19,7 @@ from nivaro_catalog.domain.checkout import (
     ReservationRequest,
 )
 from nivaro_catalog.domain.contracts import Market, Offer, Variant
+from nivaro_catalog.domain_events import reservation_expired
 from nivaro_catalog.infrastructure.models import (
     AllocationRow,
     ProductRow,
@@ -224,7 +225,7 @@ async def reserve(db: AsyncSession, command: ReservationRequest) -> Reservation:
         if prior is not None:
             if prior.quote_id != quote.id:
                 raise CheckoutError("reservation.conflicting_request", "Operation already reserved")
-            await change_state(db, prior, "read")
+            await change_state(db, prior, "read", quote=quote)
             return receipt(prior, quote)
 
         quantities: Counter[UUID] = Counter()
@@ -272,7 +273,9 @@ async def reserve(db: AsyncSession, command: ReservationRequest) -> Reservation:
         return receipt(hold, quote)
 
 
-async def change_state(db: AsyncSession, row: ReservationRow, action: Action) -> None:
+async def change_state(
+    db: AsyncSession, row: ReservationRow, action: Action, *, quote: Quote | None = None
+) -> None:
     if row.state != "held":
         if (row.state, action) in {("committed", "release"), ("released", "commit")}:
             raise CheckoutError("reservation.state_conflict", "Reservation is already finalized")
@@ -288,12 +291,16 @@ async def change_state(db: AsyncSession, row: ReservationRow, action: Action) ->
     }
     variants = await db.scalars(ordered_variants(set(quantities)).with_for_update())
     # The DB clock is read after lock waits so a late commit cannot win by starting early.
-    if row.expires_at <= await database_time(db):
+    now = await database_time(db)
+    if row.expires_at <= now:
         row.state = "expired"
     elif action == "read":
         return
     else:
         row.state = "committed" if action == "commit" else "released"
+    row.version += 1
+    if row.state == "expired":
+        db.add(reservation_expired(row, quote or await load_quote(db, row.quote_id), now))
     for variant in variants:
         quantity = quantities[variant.id]
         variant.reserved -= quantity
@@ -312,7 +319,7 @@ async def reservation_action(
         quote = await load_quote(db, row.quote_id)
         if quote.customer_id != customer_id:
             raise CheckoutError("reservation.not_found", "Reservation not found", 404)
-        await change_state(db, row, action)
+        await change_state(db, row, action, quote=quote)
         return receipt(row, quote)
 
 

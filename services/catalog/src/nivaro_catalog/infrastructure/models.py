@@ -157,6 +157,7 @@ class ReservationRow(Timestamps, Base):
         CheckConstraint(
             "state IN ('held','committed','released','expired')", name="reservation_state"
         ),
+        CheckConstraint("version > 0", name="reservation_version"),
         Index(
             "ix_reservations_held_expiry",
             "expires_at",
@@ -170,6 +171,38 @@ class ReservationRow(Timestamps, Base):
     )
     state: Mapped[str] = mapped_column(String(12))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    version: Mapped[int] = mapped_column(Integer, server_default="1")
+
+
+class OutboxRow(Base):
+    __tablename__ = "event_outbox"
+    __table_args__ = (
+        UniqueConstraint(
+            "event_type", "aggregate_id", "aggregate_version", name="uq_outbox_transition"
+        ),
+        CheckConstraint("attempts >= 0", name="outbox_attempts"),
+        CheckConstraint("(lease_id IS NULL) = (lease_until IS NULL)", name="outbox_lease"),
+        CheckConstraint("published_at IS NULL OR failed_at IS NULL", name="outbox_terminal_state"),
+        Index(
+            "ix_outbox_pending",
+            "available_at",
+            "id",
+            postgresql_where=text("published_at IS NULL AND failed_at IS NULL"),
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(80))
+    aggregate_id: Mapped[UUID] = mapped_column()
+    aggregate_version: Mapped[int] = mapped_column(Integer)
+    envelope: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, server_default="0")
+    lease_id: Mapped[UUID | None] = mapped_column()
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(80))
 
 
 class AllocationRow(Base):

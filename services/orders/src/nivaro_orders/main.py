@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from nivaro_orders.infrastructure.database import Database
 from nivaro_orders.settings import Settings
 
-SCHEMA = "0002_reservation_recovery"
+SCHEMA = "0003_reservation_inbox"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

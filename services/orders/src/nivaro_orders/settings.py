@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     identity_url: AnyHttpUrl = AnyHttpUrl("http://identity:8000")
     catalog_url: AnyHttpUrl = AnyHttpUrl("http://catalog:8000")
     client_secret_file: Path = Path("/run/secrets/orders_client_secret")
+    event_broker_host: str = "rabbitmq"
+    event_broker_password_file: Path = Path("/run/secrets/orders_event_broker_password")
 
     @model_validator(mode="after")
     def unique_destinations(self) -> Self:

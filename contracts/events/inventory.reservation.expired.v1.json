@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Inventory reservation expired v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "event_type", "schema_version", "occurred_at", "producer",
+    "aggregate_id", "aggregate_version", "correlation_id", "causation_id", "payload"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "inventory.reservation.expired" },
+    "schema_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "catalog" },
+    "aggregate_id": { "type": "string", "format": "uuid" },
+    "aggregate_version": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+    "correlation_id": { "type": "string", "format": "uuid" },
+    "causation_id": {
+      "oneOf": [{ "type": "string", "format": "uuid" }, { "type": "null" }]
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["quote_id", "market", "currency", "expires_at"],
+      "properties": {
+        "quote_id": { "type": "string", "format": "uuid" },
+        "market": { "enum": ["ir", "international"] },
+        "currency": { "enum": ["IRR", "USD"] },
+        "expires_at": { "type": "string", "format": "date-time" }
+      },
+      "oneOf": [
+        { "properties": { "market": { "const": "ir" }, "currency": { "const": "IRR" } } },
+        { "properties": { "market": { "const": "international" }, "currency": { "const": "USD" } } }
+      ]
+    }
+  }
+}

@@ -191,7 +191,7 @@ async def live() -> dict[str, str]:
 @app.get("/health/ready", include_in_schema=False)
 async def ready(db: SessionDep) -> dict[str, str]:
     revision = await db.scalar(text("SELECT version_num FROM alembic_version"))
-    if revision != "0007_checkout_inventory":
+    if revision != "0008_reservation_outbox":
         raise HTTPException(503, "Catalog schema revision is not ready")
     return {"status": "ok", "service": "catalog", "schema": revision}
 

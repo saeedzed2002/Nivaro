@@ -239,3 +239,14 @@ class OrderTransition(Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class InboxEvent(Base):
+    __tablename__ = "event_inbox"
+    consumer_name: Mapped[str] = mapped_column(String(80), primary_key=True)
+    event_id: Mapped[UUID] = mapped_column(primary_key=True)
+    aggregate_id: Mapped[UUID] = mapped_column()
+    aggregate_version: Mapped[int] = mapped_column(Integer)
+    processed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

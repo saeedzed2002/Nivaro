@@ -9,15 +9,17 @@ import httpx
 import pytest
 from sqlalchemy import delete, func, select, update
 
-from nivaro_catalog.application.checkout import expire_one
+from nivaro_catalog.application.checkout import change_state, database_time, expire_one
 from nivaro_catalog.domain.checkout import CartGroup, CartLine, CartSnapshot, QuoteRequest
 from nivaro_catalog.domain.contracts import CPU, Prebuilt
 from nivaro_catalog.domain.evaluation import selection_hash
+from nivaro_catalog.event_publisher import claim, finish
 from nivaro_catalog.infrastructure.database import Database
 from nivaro_catalog.infrastructure.models import (
     AllocationRow,
     CategoryRow,
     OfferRow,
+    OutboxRow,
     ProductRow,
     QuoteRow,
     ReservationRow,
@@ -162,6 +164,7 @@ async def checkout(monkeypatch):
                 operations = select(ReservationRow.operation_id).where(
                     ReservationRow.quote_id.in_(fixture.quotes)
                 )
+                await db.execute(delete(OutboxRow).where(OutboxRow.aggregate_id.in_(operations)))
                 await db.execute(
                     delete(AllocationRow).where(AllocationRow.operation_id.in_(operations))
                 )
@@ -355,3 +358,67 @@ async def test_expiry_worker_and_commit_race_release_once(checkout):
         assert not await expire_one(db)
     assert (await checkout.reserve(command)).json()["state"] == "expired"
     assert await checkout.stock(variant) == (1, 0)
+    async with checkout.database.sessions() as db:
+        rows = (
+            await db.scalars(
+                select(OutboxRow).where(OutboxRow.aggregate_id == command.operation_id)
+            )
+        ).all()
+        assert len(rows) == 1
+        event = rows[0]
+        assert event.envelope["event_type"] == "inventory.reservation.expired"
+        assert event.envelope["aggregate_version"] == 2
+        assert event.envelope["payload"]["quote_id"] == str(command.quote_id)
+        assert event.published_at is None
+
+    # A stale publisher cannot mark a delivery reclaimed by a different process.
+    async with checkout.database.sessions() as db:
+        first = await claim(db)
+        assert first is not None and first.id == event.id
+        async with db.begin():
+            await db.execute(
+                update(OutboxRow)
+                .where(OutboxRow.id == event.id)
+                .values(lease_until=func.clock_timestamp() - timedelta(seconds=1))
+            )
+        second = await claim(db)
+        assert second is not None and second.lease_id != first.lease_id
+        await finish(db, first, confirmed=True)
+        async with db.begin():
+            current = await db.get(OutboxRow, event.id, populate_existing=True)
+            assert current.published_at is None and current.lease_id == second.lease_id
+        await finish(db, second, confirmed=False)
+        async with db.begin():
+            current = await db.get(OutboxRow, event.id, populate_existing=True)
+            assert current.published_at is None and current.attempts == 2
+            assert current.lease_until is None and current.available_at > await database_time(db)
+
+
+async def test_rollback_preserves_held_stock_and_discards_expiry_event(checkout):
+    variant = await checkout.add(1)
+    command = checkout.command([variant])
+    assert (await checkout.quote(command)).is_success
+    assert (await checkout.reserve(command)).is_success
+    async with checkout.database.sessions() as db:
+        with pytest.raises(RuntimeError, match="forced rollback"):
+            async with db.begin():
+                hold = await db.get(ReservationRow, command.operation_id, with_for_update=True)
+                hold.expires_at = await database_time(db) - timedelta(seconds=1)
+                await change_state(db, hold, "read")
+                await db.flush()
+                assert (
+                    await db.scalar(
+                        select(OutboxRow).where(OutboxRow.aggregate_id == command.operation_id)
+                    )
+                ) is not None
+                raise RuntimeError("forced rollback")
+        async with db.begin():
+            hold = await db.get(ReservationRow, command.operation_id)
+            assert hold.state == "held"
+            assert (
+                await db.scalar(
+                    select(OutboxRow).where(OutboxRow.aggregate_id == command.operation_id)
+                )
+                is None
+            )
+    assert await checkout.stock(variant) == (1, 1)
