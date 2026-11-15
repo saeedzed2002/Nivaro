@@ -108,6 +108,9 @@ async def verify_redis_recovery(db, owner_headers, agent_headers, conversation):
         try:
             assert await redis.execute_command("CLIENT", "KILL", "USER", "support") >= 2
             assert dict(await redis.pubsub_numsub(CHANNEL)).get(CHANNEL) == 0
+            await send_activity(agent, conversation, "presence")
+            available = await exchange(agent, frame("sync.request", conversation, {"after": 3}))
+            assert available["payload"]["messages"] == []
             offline = await exchange(
                 customer, send_frame(conversation, "Persisted during Redis outage")
             )
@@ -180,6 +183,53 @@ async def verify_read_cursors(owner_headers, agent_headers, outsider_headers, co
         assert rejected["payload"] == {"code": "support.read_ahead"}
         forbidden = await exchange(outsider, frame("message.read", conversation, {"sequence": 3}))
         assert forbidden["payload"] == {"code": "support.not_found"}
+
+
+async def send_activity(socket, conversation, signal, active=True):
+    await socket.send(json.dumps(frame(f"{signal}.changed", conversation, {"active": active})))
+
+
+async def wait_for_activity(socket, signal, active):
+    async with asyncio.timeout(8):
+        while True:
+            response = await receive(socket)
+            if response["type"] == f"{signal}.changed":
+                duration = response["payload"]["expires_in_ms"]
+                if bool(duration) == active:
+                    return duration
+
+
+async def verify_activity(owner_headers, agent_headers, outsider_headers, conversation):
+    async with (
+        open_socket(owner_headers) as customer,
+        open_socket(agent_headers, subprotocols=[STAFF_PROTOCOL], endpoint=REPLICA_SOCKET) as agent,
+        open_socket(outsider_headers) as outsider,
+    ):
+        subscribed = frame("conversation.subscribe", conversation, {"after": 4})
+        await exchange(customer, subscribed)
+        await exchange(agent, subscribed)
+        denied = await exchange(outsider, frame("presence.changed", conversation, {"active": True}))
+        assert denied["payload"] == {"code": "support.subscription_required"}
+        await send_activity(customer, conversation, "presence")
+        await send_activity(agent, conversation, "presence")
+        assert 0 < await wait_for_activity(customer, "presence", True) <= 24_000
+        assert 0 < await wait_for_activity(agent, "presence", True) <= 24_000
+
+        await send_activity(customer, conversation, "typing")
+        typing_ms = await wait_for_activity(agent, "typing", True)
+        assert 0 < typing_ms <= 5_000
+        await asyncio.sleep(5.1)
+        await send_activity(agent, conversation, "presence")
+        assert await wait_for_activity(agent, "typing", False) == 0
+
+        async with open_socket(owner_headers, endpoint=REPLICA_SOCKET) as second_tab:
+            await exchange(second_tab, subscribed)
+            await send_activity(second_tab, conversation, "presence")
+            await wait_for_activity(agent, "presence", True)
+            await customer.close()
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(agent.recv(), timeout=0.4)
+        assert await wait_for_activity(agent, "presence", False) == 0
 
 
 async def customer_login(client, phone):
@@ -389,6 +439,7 @@ async def test_private_history_assignment_and_idempotent_delivery():
             assert not last["has_more"] and last["messages"] == recovered["payload"]["messages"]
             await verify_redis_recovery(database, owner_headers, credentials[winner][1], cid)
             await verify_read_cursors(owner_headers, credentials[winner][1], other_headers, cid)
+            await verify_activity(owner_headers, credentials[winner][1], other_headers, cid)
 
             manager = credentials["manager"][1]
             assert (

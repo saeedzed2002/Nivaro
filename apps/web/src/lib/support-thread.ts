@@ -10,6 +10,8 @@ export type ThreadState = {
   conversation: Conversation;
   pending: Pending | null;
   receipts: ReadState;
+  presence: boolean;
+  typing: boolean;
   error?: string;
 };
 
@@ -18,7 +20,7 @@ export function startSupportThread(
 ) {
   const state: ThreadState = {
     conversation, connection: 'connecting', messages: [], pending: null,
-    receipts: { own_sequence: 0, peer_sequence: 0 },
+    receipts: { own_sequence: 0, peer_sequence: 0 }, presence: false, typing: false,
   };
   const bySequence = new Map<number, SupportMessage>();
   let cursor = 0;
@@ -32,6 +34,8 @@ export function startSupportThread(
   let readTimeout: ReturnType<typeof setTimeout> | undefined;
   let readRequest: string | undefined;
   let wantedRead = 0;
+  let lastTyping = 0;
+  const activityTimers: Partial<Record<'presence' | 'typing', ReturnType<typeof setTimeout>>> = {};
   let request: string | undefined;
   let sent: string | undefined;
   let needsSubscription = true;
@@ -101,12 +105,33 @@ export function startSupportThread(
     readRequest = undefined;
   }
 
+  function signal(type: 'presence.changed' | 'typing.changed', active: boolean) {
+    if (state.connection !== 'online' || needsSubscription || state.conversation.status === 'closed') return false;
+    return transmit({ type, request_id: crypto.randomUUID(), payload: { active } });
+  }
+
+  function showActivity(kind: 'presence' | 'typing', duration: number) {
+    clearTimeout(activityTimers[kind]);
+    state[kind] = duration > 0;
+    if (duration > 0) activityTimers[kind] = setTimeout(() => {
+      state[kind] = false;
+      emit();
+    }, duration);
+  }
+
+  function resetActivity() {
+    lastTyping = 0;
+    showActivity('presence', 0);
+    showActivity('typing', 0);
+  }
+
   function deny(code: string) {
     state.connection = 'denied';
     state.error = code;
     state.messages = [];
     bySequence.clear();
     settleRead();
+    resetActivity();
     socket?.close();
     emit();
   }
@@ -145,6 +170,7 @@ export function startSupportThread(
           if (frame.request_id !== request) return;
           clearTimeout(timeout);
           request = undefined;
+          const subscribed = needsSubscription;
           needsSubscription = false;
           attempts = 0;
           state.connection = 'online';
@@ -152,11 +178,16 @@ export function startSupportThread(
           state.conversation = frame.payload.conversation;
           merge(frame.payload.messages);
           state.receipts = frame.payload.receipts;
+          if (subscribed) signal('presence.changed', true);
           sendPending();
           sendRead();
           if (frame.payload.has_more || cursor < highest) sync();
           break;
         }
+        case 'presence.changed':
+        case 'typing.changed':
+          showActivity(frame.type === 'presence.changed' ? 'presence' : 'typing', frame.payload.expires_in_ms);
+          break;
         case 'message.created':
           merge([frame.payload]);
           sendRead();
@@ -203,6 +234,7 @@ export function startSupportThread(
       clearTimeout(timeout);
       clearTimeout(deliveryTimeout);
       settleRead();
+      resetActivity();
       request = undefined;
       sent = undefined;
       if (code === 4403) { deny('auth.forbidden'); return; }
@@ -218,15 +250,27 @@ export function startSupportThread(
   }
 
   const periodic = setInterval(sync, 20_000);
+  const presence = setInterval(() => signal('presence.changed', true), 8_000);
   emit();
   void open(false);
   return {
+    setTyping(active: boolean) {
+      if (!active) {
+        if (lastTyping) signal('typing.changed', false);
+        lastTyping = 0;
+        return;
+      }
+      const now = performance.now();
+      if ((!lastTyping || now - lastTyping >= 1500) && signal('typing.changed', true)) lastTyping = now;
+    },
     markRead(sequence: number) {
       wantedRead = Math.max(wantedRead, sequence);
       sendRead();
     },
     submit(body: string) {
       if (state.pending || state.connection !== 'online' || !body.trim()) return false;
+      if (lastTyping) signal('typing.changed', false);
+      lastTyping = 0;
       state.pending = { id: crypto.randomUUID(), body: body.trim() };
       sendPending();
       emit();
@@ -246,10 +290,12 @@ export function startSupportThread(
     close() {
       disposed = true;
       clearInterval(periodic);
+      clearInterval(presence);
       clearTimeout(reconnect);
       clearTimeout(timeout);
       clearTimeout(deliveryTimeout);
       settleRead();
+      resetActivity();
       socket?.close();
     },
   };

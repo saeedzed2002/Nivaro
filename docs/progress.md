@@ -672,3 +672,11 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - The disposable two-replica test verified concurrent updates from different replicas, stale and duplicate updates, denial for an unrelated customer and for a sequence ahead of history, durable reads during Redis disconnection, catch-up after Redis returned, and the customer view after reassignment. Both desktop browser contexts showed the read receipt after reconnect, and the staff receipt survived a reload. Contract checks, strict Python typing, ESLint and TypeScript passed.
 - Local Docker upgraded to `0002_support_read_cursors` and both browser routes returned HTTP 200. Existing conversation, message and outbox row counts were preserved, and PostgreSQL, RabbitMQ, Redis state and web retained their containers.
 - Typing and presence, retention execution and final GitHub Actions verification remain open.
+
+### P09 typing and conversation presence
+
+- Presence and typing are private, expiring Redis activity records for the customer and current assigned agent. Each connection renews its own 24-second presence lease while viewing the conversation. Typing expires after five seconds. A clean disconnect ends that connection's contribution and another active tab can keep the participant present.
+- The two-replica Docker integration covered subscription authorization, cross-replica activity, typing expiry, single-tab versus final-tab disconnect, and continued message and read receipt commits while Redis access was disabled. Ruff, strict Python typing, TypeScript, ESLint and contract checks passed.
+- A browser test pinned the customer and agent to different replicas. It verified presence both ways, typing expiry with the draft still in the input, presence expiry during interrupted transport, renewed presence on reconnect, and recovery of history and read receipts.
+- Local Docker runs the updated Support source with its Redis account restricted to the activity namespace and notification channel. Both chat routes returned HTTP 200. PostgreSQL, RabbitMQ, Identity, Redis state and web retained their containers.
+- Retention execution and final GitHub Actions verification remain open.

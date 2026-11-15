@@ -51,6 +51,7 @@ type Frame = { conversation_id: string; schema_version: 1 };
 export type SupportFrame =
   | Frame & { type: 'message.created'; payload: SupportMessage }
   | Frame & { type: 'message.read'; request_id: string | null; payload: ReadState }
+  | Frame & { type: 'presence.changed' | 'typing.changed'; payload: { expires_in_ms: number } }
   | Frame & { type: 'sync.result'; request_id: string; payload: SupportHistory }
   | Frame & { type: 'message.accepted'; request_id: string; client_message_id: string; payload: { message_id: string; sequence: number; created_at: string } }
   | { type: 'error'; schema_version: 1; conversation_id: string | null; request_id: string | null; client_message_id: string | null; payload: { code: string } };
@@ -94,6 +95,10 @@ export function decodeSupportFrame(raw: unknown): SupportFrame | null {
   if (!isSupportId(conversation_id)) return null;
   if (type === 'message.created') return isMessage(payload, conversation_id) ? frame as SupportFrame : null;
   if (type === 'message.read') return nullableId(request_id) && isReadState(payload) ? frame as SupportFrame : null;
+  if (type === 'presence.changed' || type === 'typing.changed') {
+    const maximum = type === 'presence.changed' ? 24000 : 5000;
+    return count(payload.expires_in_ms) && payload.expires_in_ms <= maximum ? frame as SupportFrame : null;
+  }
   if (!isSupportId(request_id)) return null;
   if (type === 'sync.result') return isHistory(payload, conversation_id) ? frame as SupportFrame : null;
   if (type === 'message.accepted') return isSupportId(client_message_id) && isSupportId(payload.message_id)

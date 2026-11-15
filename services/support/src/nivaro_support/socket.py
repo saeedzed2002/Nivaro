@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import Response
 from starlette.types import Message as ASGIMessage
 
+from nivaro_support.activity import ActivitySession
 from nivaro_support.authorization import IdentityAuthorization
 from nivaro_support.contracts import Actor, Kind, SendMessage, SupportError
 from nivaro_support.conversations import mark_read, send_message
@@ -17,6 +18,9 @@ from nivaro_support.settings import Database
 from nivaro_support.socket_contracts import (
     CLIENT,
     Acceptance,
+    ActivityChanged,
+    ActivityExpiry,
+    ActivityFrame,
     ClientMessage,
     FailureCode,
     MarkRead,
@@ -69,8 +73,24 @@ def failure(raw: dict[str, object], code: str) -> SocketError:
 
 
 async def handle_frame(
-    db: Database, actor: Actor, frame: ClientMessage, stream: ConversationStream
-) -> ServerMessage:
+    db: Database,
+    actor: Actor,
+    frame: ClientMessage,
+    stream: ConversationStream,
+    activity: ActivitySession,
+) -> ServerMessage | None:
+    if isinstance(frame, ActivityFrame):
+        if stream.conversation != frame.conversation_id:
+            raise SupportError("support.subscription_required", 403)
+        await activity.update(
+            db,
+            actor,
+            frame.conversation_id,
+            "typing" if frame.type == "typing.changed" else "presence",
+            frame.payload.active,
+        )
+        stream.wake.set()
+        return None
     if isinstance(frame, MessageSend):
         async with db.sessions() as session:
             stored = await send_message(
@@ -104,7 +124,10 @@ async def handle_frame(
             payload=receipts,
         )
     if isinstance(frame, Subscription):
+        previous = stream.conversation
         page = await stream.subscribe(db, actor, frame.conversation_id, frame.payload.after)
+        if previous != frame.conversation_id:
+            await activity.leave()
     else:
         page = await history(db, actor, frame.conversation_id, frame.payload.after)
         if frame.conversation_id == stream.conversation:
@@ -136,7 +159,11 @@ async def next_input(socket: WebSocket, wake: asyncio.Event) -> tuple[ASGIMessag
 
 
 async def forward(
-    socket: WebSocket, db: Database, actor: Actor, stream: ConversationStream
+    socket: WebSocket,
+    db: Database,
+    actor: Actor,
+    stream: ConversationStream,
+    activity: ActivitySession,
 ) -> None:
     conversation = stream.conversation
     if conversation is None:
@@ -147,6 +174,7 @@ async def forward(
         if exc.status != 404:
             raise
         stream.close()
+        await activity.leave()
         return
     async with asyncio.timeout(5):
         for message in page.messages:
@@ -170,6 +198,16 @@ async def forward(
             )
     stream.receipts = page.receipts
     stream.advance(page)
+    for signal, duration in await activity.changes(db, actor, conversation):
+        await send(
+            socket,
+            ActivityChanged(
+                type="typing.changed" if signal == "typing" else "presence.changed",
+                schema_version=1,
+                conversation_id=conversation,
+                payload=ActivityExpiry(expires_in_ms=duration),
+            ),
+        )
     if page.has_more:
         stream.wake.set()
 
@@ -203,6 +241,7 @@ async def support_socket(socket: WebSocket) -> None:
 
     await socket.accept(subprotocol=protocol)
     stream = ConversationStream(socket.app.state.notifications)
+    activity = ActivitySession(socket.app.state.activity_redis)
     try:
         while True:
             event, notified = await next_input(socket, stream.wake)
@@ -229,18 +268,19 @@ async def support_socket(socket: WebSocket) -> None:
             if event is not None:
                 try:
                     frame = CLIENT.validate_python(raw)
-                    result = await handle_frame(database, actor, frame, stream)
+                    result = await handle_frame(database, actor, frame, stream, activity)
                 except ValidationError:
                     result = failure(raw, "request.invalid")
                 except SupportError as exc:
                     result = failure(raw, exc.code)
                 except SQLAlchemyError:
                     result = failure(raw, "support.unavailable")
-                await send(socket, result)
-            if notified:
+                if result is not None:
+                    await send(socket, result)
+            if notified or (event is None and activity.current is not None):
                 if event is not None:
                     actor = await authorization.check_session(access, kind)
-                await forward(socket, database, actor, stream)
+                await forward(socket, database, actor, stream, activity)
     except SupportError as exc:
         await close(socket, {401: 4401, 403: 4403}.get(exc.status, 1013))
     except (SQLAlchemyError, TimeoutError):
@@ -249,6 +289,7 @@ async def support_socket(socket: WebSocket) -> None:
         return
     finally:
         stream.close()
+        await activity.leave()
 
 
 async def send(socket: WebSocket, frame: ServerMessage) -> None:

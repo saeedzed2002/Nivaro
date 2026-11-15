@@ -13,6 +13,6 @@ maxmemory-policy noeviction
 appendonly no
 save ""
 user default off
-user support on #$digest resetchannels &nivaro.support.message.v1 +ping +publish +subscribe +unsubscribe
+user support on #$digest resetchannels &nivaro.support.message.v1 ~nivaro:support:activity:* +ping +publish +subscribe +unsubscribe +multi +exec +discard +zadd +zrem +zremrangebyscore +zrange +pexpire
 CONF
 exec redis-server /tmp/nivaro-support-redis.conf "$@"

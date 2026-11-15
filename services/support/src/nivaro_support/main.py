@@ -77,6 +77,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             asyncio.TaskGroup() as tasks,
         ):
             app.state.authorization = IdentityAuthorization(client, key)
+            app.state.activity_redis = redis
             listener = tasks.create_task(notifications.listen(redis))
             publisher = tasks.create_task(publish_outbox(database, redis))
             try:

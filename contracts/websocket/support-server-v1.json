@@ -26,6 +26,56 @@
       "title": "Acceptance",
       "type": "object"
     },
+    "ActivityChanged": {
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ActivityExpiry"
+        },
+        "schema_version": {
+          "const": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "type": {
+          "enum": [
+            "typing.changed",
+            "presence.changed"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "schema_version",
+        "conversation_id",
+        "payload"
+      ],
+      "title": "ActivityChanged",
+      "type": "object"
+    },
+    "ActivityExpiry": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_in_ms": {
+          "maximum": 24000,
+          "minimum": 0,
+          "title": "Expires In Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "expires_in_ms"
+      ],
+      "title": "ActivityExpiry",
+      "type": "object"
+    },
     "Conversation": {
       "additionalProperties": false,
       "properties": {
@@ -446,7 +496,9 @@
       "message.accepted": "#/$defs/MessageAccepted",
       "message.created": "#/$defs/MessageCreated",
       "message.read": "#/$defs/ReadChanged",
-      "sync.result": "#/$defs/SyncResult"
+      "presence.changed": "#/$defs/ActivityChanged",
+      "sync.result": "#/$defs/SyncResult",
+      "typing.changed": "#/$defs/ActivityChanged"
     },
     "propertyName": "type"
   },
@@ -462,6 +514,9 @@
     },
     {
       "$ref": "#/$defs/ReadChanged"
+    },
+    {
+      "$ref": "#/$defs/ActivityChanged"
     },
     {
       "$ref": "#/$defs/SocketError"

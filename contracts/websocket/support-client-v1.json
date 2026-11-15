@@ -1,5 +1,60 @@
 {
   "$defs": {
+    "ActivityFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "conversation_id": {
+          "format": "uuid",
+          "title": "Conversation Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ActivityInput"
+        },
+        "request_id": {
+          "format": "uuid",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "maximum": 1,
+          "minimum": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "type": {
+          "enum": [
+            "typing.changed",
+            "presence.changed"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "conversation_id",
+        "type",
+        "payload"
+      ],
+      "title": "ActivityFrame",
+      "type": "object"
+    },
+    "ActivityInput": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "title": "Active",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "active"
+      ],
+      "title": "ActivityInput",
+      "type": "object"
+    },
     "HistoryCursor": {
       "additionalProperties": false,
       "properties": {
@@ -214,7 +269,9 @@
       "conversation.subscribe": "#/$defs/Subscription",
       "message.read": "#/$defs/MarkRead",
       "message.send": "#/$defs/MessageSend",
-      "sync.request": "#/$defs/SyncRequest"
+      "presence.changed": "#/$defs/ActivityFrame",
+      "sync.request": "#/$defs/SyncRequest",
+      "typing.changed": "#/$defs/ActivityFrame"
     },
     "propertyName": "type"
   },
@@ -230,6 +287,9 @@
     },
     {
       "$ref": "#/$defs/MarkRead"
+    },
+    {
+      "$ref": "#/$defs/ActivityFrame"
     }
   ],
   "title": "support-client-v1"

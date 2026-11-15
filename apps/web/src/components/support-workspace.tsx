@@ -179,7 +179,7 @@ function SupportThread({ locale, scope, userId, conversation, onUpdated, onRefre
   const [initial] = useState(conversation);
   const [state, setState] = useState<ThreadState>({
     conversation, messages: [], connection: 'connecting', pending: null,
-    receipts: { own_sequence: 0, peer_sequence: 0 },
+    receipts: { own_sequence: 0, peer_sequence: 0 }, presence: false, typing: false,
   });
   const [draft, setDraft] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -249,6 +249,9 @@ function SupportThread({ locale, scope, userId, conversation, onUpdated, onRefre
       <div><h2 id="support-thread-title"><bdi>{row.subject}</bdi></h2><div className="support-thread-meta">
         <span>{statusLabel(locale, row.status)}</span>
         <span className={`support-connection ${state.connection}`} role="status">{connection}</span>
+        {row.status !== 'closed' && state.connection === 'online' && (state.typing || state.presence) &&
+          <span role="status">{state.typing ? text(locale, 'طرف گفتگو در حال تایپ است…', 'The other participant is typing…')
+            : text(locale, 'طرف گفتگو حاضر است', 'The other participant is here')}</span>}
       </div></div>
       {scope === 'admin' && !blocked && <label className="field">{text(locale, 'وضعیت گفت‌وگو', 'Conversation status')}
         <select value={row.status} disabled={change.isPending || state.connection !== 'online'}
@@ -285,7 +288,11 @@ function SupportThread({ locale, scope, userId, conversation, onUpdated, onRefre
             <button type="button" className="button secondary" disabled={!allowed} onClick={() => control.current?.retry()}>{text(locale, 'ارسال دوباره', 'Retry send')}</button>
             <button type="button" className="button secondary" onClick={() => { if (state.pending) setDraft(state.pending.body); control.current?.discard(); }}>{text(locale, 'ویرایش پیام', 'Edit message')}</button>
           </div>}
-        </div> : <label className="field">{title}<textarea dir="auto" value={draft} onChange={event => setDraft(event.target.value)}
+        </div> : <label className="field">{title}<textarea dir="auto" value={draft} onChange={event => {
+          const value = event.target.value;
+          setDraft(value);
+          control.current?.setTyping(Boolean(value.trim()));
+        }} onBlur={() => control.current?.setTyping(false)}
           maxLength={4000} rows={2} disabled={row.status === 'closed'}/></label>}
         {row.status === 'closed' && <p className="muted">{text(locale, 'گفت‌وگو بسته است.', 'This conversation is closed.')}</p>}
         <button type="submit" className="button primary" disabled={!allowed || !!state.pending || !draft.trim()}><Send size={16}/>{text(locale, 'ارسال', 'Send')}</button>

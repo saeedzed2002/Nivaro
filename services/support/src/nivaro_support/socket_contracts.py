@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, Field, TypeAdapter
+from pydantic import AwareDatetime, Field, StrictBool, TypeAdapter
 
 from nivaro_support.contracts import Contract, History, Message, MessageBody, ReadState
 
@@ -50,6 +50,15 @@ class MarkRead(ClientFrame):
     payload: ReadCursor
 
 
+class ActivityInput(Contract):
+    active: StrictBool
+
+
+class ActivityFrame(ClientFrame):
+    type: Literal["typing.changed", "presence.changed"]
+    payload: ActivityInput
+
+
 class ServerFrame(Contract):
     schema_version: Literal[1]
     request_id: UUID
@@ -88,6 +97,17 @@ class ReadChanged(Contract):
     payload: ReadState
 
 
+class ActivityExpiry(Contract):
+    expires_in_ms: Annotated[int, Field(ge=0, le=24000)]
+
+
+class ActivityChanged(Contract):
+    type: Literal["typing.changed", "presence.changed"]
+    schema_version: Literal[1]
+    conversation_id: UUID
+    payload: ActivityExpiry
+
+
 class FailureCode(Contract):
     code: str
 
@@ -102,10 +122,10 @@ class SocketError(Contract):
 
 
 ClientMessage = Annotated[
-    MessageSend | Subscription | SyncRequest | MarkRead, Field(discriminator="type")
+    MessageSend | Subscription | SyncRequest | MarkRead | ActivityFrame, Field(discriminator="type")
 ]
 ServerMessage = Annotated[
-    MessageAccepted | MessageCreated | SyncResult | ReadChanged | SocketError,
+    MessageAccepted | MessageCreated | SyncResult | ReadChanged | ActivityChanged | SocketError,
     Field(discriminator="type"),
 ]
 CLIENT = TypeAdapter[ClientMessage](ClientMessage)
