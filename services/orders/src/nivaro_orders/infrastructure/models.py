@@ -107,10 +107,15 @@ class Order(Timestamps, Base):
         CheckConstraint(MARKET_CURRENCY, name="order_market_currency"),
         CheckConstraint(
             "status IN ('pending_reservation','awaiting_payment','expired','cancelled',"
-            "'payment_processing','payment_review','paid','refund_pending','refunded')",
+            "'payment_processing','payment_review','paid','refund_pending','refunded',"
+            "'processing','shipped','delivered')",
             name="order_status",
         ),
         CheckConstraint("version > 0 AND cart_version > 0", name="order_versions"),
+        CheckConstraint(
+            "(status IN ('shipped','delivered')) = (tracking_reference IS NOT NULL)",
+            name="order_tracking_state",
+        ),
         CheckConstraint(
             "subtotal_minor > 0 AND discount_minor BETWEEN 0 AND subtotal_minor AND "
             "shipping_minor >= 0 AND tax_minor >= 0 AND total_minor >= 0 AND "
@@ -124,6 +129,7 @@ class Order(Timestamps, Base):
             name="order_whole_tomans",
         ),
         Index("ix_orders_customer_created", "customer_id", "created_at", "id"),
+        Index("ix_orders_created", "created_at", "id"),
         Index(
             "ix_orders_pending_reservation",
             "reservation_retry_at",
@@ -144,6 +150,7 @@ class Order(Timestamps, Base):
     )
     customer_id: Mapped[UUID] = mapped_column()
     status: Mapped[str] = mapped_column(String(24))
+    tracking_reference: Mapped[str | None] = mapped_column(String(80))
     version: Mapped[int] = mapped_column(Integer)
     cart_id: Mapped[UUID] = mapped_column()
     cart_version: Mapped[int] = mapped_column(Integer)
@@ -247,6 +254,7 @@ class OrderTransition(Base):
     )
     version: Mapped[int] = mapped_column(Integer, primary_key=True)
     customer_id: Mapped[UUID] = mapped_column()
+    staff_actor_id: Mapped[UUID | None] = mapped_column()
     status: Mapped[str] = mapped_column(String(24))
     reason: Mapped[str] = mapped_column(String(80))
     occurred_at: Mapped[datetime] = mapped_column(

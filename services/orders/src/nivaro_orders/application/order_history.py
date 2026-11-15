@@ -71,13 +71,23 @@ class OrderDetails(HistoryEntry):
     standalone: list[PurchasedItem]
     groups: list[PurchasedGroup]
     timeline: list[StateChange]
+    tracking_reference: str | None = None
 
 
 async def list_orders(
-    db: AsyncSession, customer_id: UUID, before: UUID | None, limit: int
+    db: AsyncSession,
+    customer_id: UUID | None,
+    before: UUID | None,
+    limit: int,
+    *,
+    status: OrderState | None = None,
 ) -> OrderHistory:
-    owned = select(Order).where(Order.customer_id == customer_id)
+    owned = select(Order)
+    if customer_id is not None:
+        owned = owned.where(Order.customer_id == customer_id)
     query = owned.order_by(Order.created_at.desc(), Order.id.desc()).limit(limit + 1)
+    if status is not None:
+        query = query.where(Order.status == status)
     if before is not None:
         boundary = await db.scalar(owned.where(Order.id == before))
         if boundary is None:
@@ -127,6 +137,7 @@ async def read_details(db: AsyncSession, customer_id: UUID, order_id: UUID) -> O
     return OrderDetails(
         **HistoryEntry.model_validate(order, from_attributes=True).model_dump(),
         totals=Totals.model_validate(order, from_attributes=True),
+        tracking_reference=order.tracking_reference,
         address=DeliveryAddress.model_validate(address, from_attributes=True),
         standalone=by_group[None],
         groups=[

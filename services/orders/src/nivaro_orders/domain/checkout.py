@@ -15,6 +15,9 @@ OrderState = Literal[
     "paid",
     "refund_pending",
     "refunded",
+    "processing",
+    "shipped",
+    "delivered",
 ]
 Version = Annotated[int, Field(strict=True, ge=1, le=2_147_483_647)]
 Amount = Annotated[int, Field(strict=True, ge=0, le=9_000_000_000_000_000)]

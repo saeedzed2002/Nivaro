@@ -11,11 +11,38 @@
 .order-pages { display:flex; flex-wrap:wrap; gap:10px; }
 .order-empty { margin-block:20px; }
 .order-empty p { margin-block:0 14px; }
+.order-snapshot-header { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto; gap:20px; padding:16px 20px; margin-block:12px 20px; }
+.order-snapshot-header div { min-width:0; }
+.order-snapshot-header dt { color:var(--muted); font-size:12px; margin-bottom:6px; }
+.order-snapshot-header dd { margin:0; font-size:14px; }
+.order-detail-grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; align-items:start; }
+.order-detail-side { display:grid; gap:16px; min-width:0; }
+.order-detail-card { padding:20px; }
+.order-detail-card h2 { font-size:18px; margin:0 0 14px; }
+.order-detail-card h3 { margin:0; font-size:15px; }
+.purchased-group { background:var(--input); border:1px solid var(--line); border-radius:8px; padding:12px; margin-block:12px; }
+.purchased-items,.order-timeline { list-style:none; padding:0; margin:0; }
+.purchased-items li { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:14px; padding-block:12px; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.purchased-items li:last-child { border-bottom:0; }
+.purchased-items strong,.purchased-items small { display:block; }
+.order-item-price { text-align:end; }
+.order-item-price small,.order-timeline time { color:var(--muted); font-size:12px; }
+.order-price-summary { margin-block:12px 0; }
+.order-total { border-top:1px solid var(--line); font-weight:700; }
+.order-detail-card address { display:grid; gap:6px; font-style:normal; overflow-wrap:anywhere; }
+.order-tracking { overflow-wrap:anywhere; margin-bottom:0; }
+.order-timeline { padding-inline-start:12px; }
+.order-timeline li { position:relative; display:grid; justify-items:start; gap:5px; padding:0 14px 14px; border-inline-start:1px solid var(--line); }
+.order-timeline li:last-child { padding-bottom:0; border-color:transparent; }
+.order-timeline li::before { content:""; position:absolute; inset-inline-start:-5px; top:9px; width:9px; height:9px; border-radius:50%; background:var(--accent); }
 @media(max-width:1060px) {
   .order-history-entry { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
   .order-history-entry>div:first-child { grid-column:1 / -1; }
+  .order-detail-grid { grid-template-columns:1fr; }
 }
 @media(max-width:500px) {
   .order-history-entry { padding:15px; }
   .order-history-entry .order-open { justify-self:end; }
+  .order-snapshot-header { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .order-snapshot-header>div:first-child { grid-column:1 / -1; }
 }

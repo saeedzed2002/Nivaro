@@ -29,6 +29,10 @@ class CustomerContext(Contract):
     address_token: str | None
 
 
+class StaffContext(Contract):
+    actor_id: UUID
+
+
 class ErrorCode(BaseModel):
     code: str
 
@@ -57,6 +61,22 @@ class CheckoutSources:
         self.cart = str(settings.cart_url).rstrip("/")
         self.catalog = str(settings.catalog_url).rstrip("/")
         self.auth = ("orders", secret)
+
+    async def staff(self, access: str, mutation: dict[str, str] | None) -> StaffContext:
+        status, body = await request_json(
+            self.http,
+            "POST",
+            self.identity + "/internal/v1/orders/staff-context",
+            auth=self.auth,
+            json_body={"staff_access": access, "mutation": mutation},
+        )
+        if status in {401, 403}:
+            code = parse(ErrorEnvelope, body).error.code
+            if code != "service.unauthorized":
+                raise SourceError(code, status)
+        if status != 200:
+            raise UpstreamUnavailable()
+        return parse(StaffContext, body)
 
     async def customer(self, access: str, mutation: dict[str, str] | None) -> CustomerContext:
         status, body = await request_json(

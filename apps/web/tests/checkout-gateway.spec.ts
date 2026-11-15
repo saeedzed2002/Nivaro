@@ -124,16 +124,22 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
     await expect(page.getByRole('heading', { name: 'سفارش‌های من' })).toBeVisible();
     const orders = page.getByRole('listitem').filter({ hasText: submittedId });
     await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
-    const orderStatus = orders.getByRole('link', { name: 'وضعیت سفارش' });
-    await expect(orderStatus).toHaveAttribute('href', `/fa/checkout/result?order=${submittedId}`);
+    const details = orders.getByRole('link', { name: 'مشاهدهٔ جزئیات' });
+    await expect(details).toHaveAttribute('href', `/fa/account/orders/${submittedId}`);
     await page.screenshot({ path: test.info().outputPath('orders-fa-dark-desktop.png'), fullPage: true });
+    await details.click();
+    await expect(page.getByRole('heading', { name: 'جزئیات سفارش', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'اقلام خریداری‌شده', exact: true })).toBeVisible();
+    await expect(page.getByText('22 Example Street', { exact: true })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'تاریخچهٔ وضعیت' })).toContainText('پرداخت‌شده');
+    await page.screenshot({ path: test.info().outputPath('order-detail-fa-dark-desktop.png'), fullPage: true });
     await page.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await page.setViewportSize({ width: 360, height: 800 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
-    await page.screenshot({ path: test.info().outputPath('orders-fa-light-mobile.png'), fullPage: true });
-    await orderStatus.click();
-    await expect(page.getByRole('heading', { name: 'پرداخت و موجودی سفارش تأیید شد' })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath('order-detail-fa-light-mobile.png'), fullPage: true });
+    await page.getByRole('link', { name: 'بازگشت به سفارش‌ها' }).click();
+    await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
   }
   expect(exceptions).toEqual([]);
 });

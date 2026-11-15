@@ -38,6 +38,9 @@
   handle /api/v1/orders/* {
     reverse_proxy orders:8000
   }
+  handle /api/v1/admin/orders/* {
+    reverse_proxy orders:8000
+  }
   handle {
     reverse_proxy {$NIVARO_WEB_UPSTREAM:web:3000}
   }

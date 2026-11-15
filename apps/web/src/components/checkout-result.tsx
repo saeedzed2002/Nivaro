@@ -20,6 +20,9 @@ const headings: Record<OrderStatus['status'], [string, string]> = {
   paid: ['پرداخت و موجودی سفارش تأیید شد', 'Payment and stock confirmed'],
   refund_pending: ['بازپرداخت در حال انجام است', 'Refund in progress'],
   refunded: ['بازپرداخت تأیید شد', 'Refund confirmed'],
+  processing: ['سفارش در حال آماده‌سازی است', 'Preparing your order'],
+  shipped: ['سفارش ارسال شد', 'Order shipped'],
+  delivered: ['سفارش تحویل شد', 'Order delivered'],
 };
 
 export function CheckoutResult({ locale, id }: { locale: Locale; id: string | null }) {
@@ -81,6 +84,7 @@ export function CheckoutResult({ locale, id }: { locale: Locale; id: string | nu
       <div className="checkout-result-actions">
         {payable && <button className="button primary" disabled={payment.isPending} onClick={() => payment.mutate(data)}>{text(locale, 'پرداخت آزمایشی', 'Pay with simulator')}</button>}
         <Link className={`button ${payable ? 'secondary' : 'primary'}`} href={`/${locale}/cart`}><ShoppingBag size={19} aria-hidden="true" />{text(locale, 'بازگشت به سبد خرید', 'Back to cart')}</Link>
+        {data && <Link className="button secondary" href={`/${locale}/account/orders/${data.id}`}>{text(locale, 'جزئیات سفارش', 'Order details')}</Link>}
         {id && loginRequired(error) ? <Link className="button secondary" href={`/${locale}/login?next=result&order=${id}`}>{text(locale, 'ورود به حساب', 'Sign in')}</Link>
           : id && <button className="button secondary" disabled={order.isFetching || retry.isPending} onClick={() => void order.refetch()}><RefreshCw size={17} aria-hidden="true" />{text(locale, 'به‌روزرسانی وضعیت', 'Refresh status')}</button>}
         {missing && pendingAttempt && !loginRequired(error) && <button className="button secondary" disabled={retry.isPending || order.isFetching} onClick={() => retry.mutate(pendingAttempt)}>{text(locale, 'تلاش دوباره برای ثبت سفارش', 'Retry order submission')}</button>}

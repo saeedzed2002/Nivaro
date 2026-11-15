@@ -19,11 +19,12 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     "customer": [],
     "support_agent": ["support.reply"],
     "catalog_manager": ["catalog.write", "reviews.moderate"],
-    "sales_manager": ["orders.read"],
+    "sales_manager": ["orders.read", "orders.fulfill"],
     "super_admin": [
         "catalog.write",
         "reviews.moderate",
         "orders.read",
+        "orders.fulfill",
         "payments.refund",
         "support.reply",
         "users.manage",

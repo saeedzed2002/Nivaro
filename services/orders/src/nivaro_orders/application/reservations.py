@@ -103,7 +103,9 @@ async def transition(
             claim.state = "released"
 
 
-def record_order_transition(db: AsyncSession, order: Order, status: str, reason: str) -> None:
+def record_order_transition(
+    db: AsyncSession, order: Order, status: str, reason: str, *, staff_actor_id: UUID | None = None
+) -> None:
     order.status = status
     order.version += 1
     db.add(
@@ -111,6 +113,7 @@ def record_order_transition(db: AsyncSession, order: Order, status: str, reason:
             order_id=order.id,
             version=order.version,
             customer_id=order.customer_id,
+            staff_actor_id=staff_actor_id,
             status=status,
             reason=reason,
         )

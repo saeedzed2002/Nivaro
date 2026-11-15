@@ -147,3 +147,7 @@ Generated separate checkout and order-result references with the built-in image 
 ### P07 customer order history
 
 Generated `pages/account-orders.png` with the built-in generator and inspected it before implementing the page. The prompt specified a dark English desktop and light Persian mobile layout, with a compact masthead, the account sidebar, thin outlined order rows and status indicators. The implementation uses the real reference, date, original amount and status, with stacked rows on narrow screens. The mockup's filter and unrelated navigation are omitted because they have no implemented behavior.
+
+### P07 customer order details
+
+Generated `pages/account-order-details.png` with the built-in generator and inspected it before implementation. The prompt specified a single dark desktop account view with an order reference, status, grouped PC parts, original prices, delivery address and chronological timeline. Use the established account navigation and blue outlined panels, stack both columns for mobile and use logical alignment for RTL. All states, quantities, addresses, prices and tracking references come from the order API. The generated currency, example tracking journey and unrelated sidebar items are layout examples only.

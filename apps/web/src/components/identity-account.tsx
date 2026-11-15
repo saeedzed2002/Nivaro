@@ -12,9 +12,10 @@ import { ConfirmAction, IdentityNotice } from './identity-shared';
 
 import { AvatarEditor } from './avatar-editor';
 import { OrderHistory } from './order-history';
+import { CustomerOrderDetails } from './order-details';
 
 export type AccountView = 'overview' | 'profile' | 'addresses' | 'orders';
-export function IdentityAccount({ locale, initial, view, fromCheckout = false }: { locale: Locale; initial: InitialIdentity; view: AccountView; fromCheckout?: boolean }) {
+export function IdentityAccount({ locale, initial, view, orderId, fromCheckout = false }: { locale: Locale; initial: InitialIdentity; view: AccountView; orderId?: string; fromCheckout?: boolean }) {
   const [session, setSession] = useState(initial.session);
   const [error, setError] = useState<unknown>(initial.unavailable ? new IdentityError('identity.unavailable') : null);
   const [checking, setChecking] = useState(!initial.session && !initial.unavailable);
@@ -38,8 +39,9 @@ export function IdentityAccount({ locale, initial, view, fromCheckout = false }:
     overview: ['حساب من', 'My account'], profile: ['اطلاعات حساب', 'Account details'],
     addresses: ['نشانی‌های من', 'My addresses'], orders: ['سفارش‌های من', 'Order history'],
   };
-  const title = text(locale, ...titles[view]);
-  if (!session) return <main id="main-content" className="container account-page"><section className="identity-panel account-guard"><ShieldCheck size={36}/><h1>{title}</h1>{checking ? <p role="status">{text(locale, 'در حال بررسی نشست…', 'Checking your session…')}</p> : <><IdentityNotice error={error} locale={locale}/><div className="identity-actions"><Link className="button primary" href={`/${locale}/login${view === 'orders' ? '?next=orders' : ''}`}>{text(locale, 'ورود به حساب', 'Sign in')}</Link><button className="button secondary" onClick={() => void recover()}>{text(locale, 'تلاش مجدد', 'Retry')}</button></div></>}</section></main>;
+  const title = orderId ? text(locale, 'جزئیات سفارش', 'Order details') : text(locale, ...titles[view]);
+  const loginNext = orderId ? `?next=order&order=${orderId}` : view === 'orders' ? '?next=orders' : '';
+  if (!session) return <main id="main-content" className="container account-page"><section className="identity-panel account-guard"><ShieldCheck size={36}/><h1>{title}</h1>{checking ? <p role="status">{text(locale, 'در حال بررسی نشست…', 'Checking your session…')}</p> : <><IdentityNotice error={error} locale={locale}/><div className="identity-actions"><Link className="button primary" href={`/${locale}/login${loginNext}`}>{text(locale, 'ورود به حساب', 'Sign in')}</Link><button className="button secondary" onClick={() => void recover()}>{text(locale, 'تلاش مجدد', 'Retry')}</button></div></>}</section></main>;
   return <main id="main-content" className="container account-page">
     <div className="breadcrumb"><Link href={`/${locale}`}>{text(locale, 'خانه', 'Home')}</Link><span>/</span><Link href={`/${locale}/account`}>{text(locale, 'حساب من', 'My account')}</Link>{view !== 'overview' && <><span>/</span><span>{title}</span></>}</div>
     <div className="account-layout"><aside className="account-sidebar identity-panel"><div className="account-person"><UserRound size={30}/><strong>{session.profile.name || text(locale, 'حساب نیوارو', 'Nivaro account')}</strong><bdi dir="ltr">{session.profile.phone}</bdi></div><nav aria-label={text(locale, 'ناوبری حساب', 'Account navigation')}>
@@ -53,7 +55,7 @@ export function IdentityAccount({ locale, initial, view, fromCheckout = false }:
         <div className="account-shortcuts"><Link className="identity-panel" href={`/${locale}/account/profile`}><UserRound size={30}/><span><strong>{text(locale, 'اطلاعات حساب', 'Account details')}</strong><small>{text(locale, 'مشاهده و ویرایش اطلاعات شخصی', 'View and edit personal information')}</small></span><ArrowRight size={19}/></Link><Link className="identity-panel" href={`/${locale}/account/addresses`}><MapPin size={30}/><span><strong>{text(locale, 'نشانی‌ها', 'Addresses')}</strong><small>{text(locale, 'مدیریت نشانی‌های ذخیره‌شده', 'Manage your saved addresses')}</small></span><ArrowRight size={19}/></Link></div>
         <div className="account-promo"><Image src="/images/showroom.webp" alt="" fill sizes="(max-width: 760px) 100vw, 70vw"/><div><h2>{text(locale, 'برای ستاپ بعدی آماده شو', 'Ready for your next setup?')}</h2><p>{text(locale, 'قطعات و تجهیزات گیمینگ را بررسی کن.', 'Explore gaming hardware and peripherals.')}</p><Link className="button primary" href={`/${locale}/products`}>{text(locale, 'مشاهدهٔ قطعات', 'Explore components')}<ArrowRight size={18}/></Link></div></div>
         <div className="identity-panel account-security"><ShieldCheck size={30}/><div><h2>{text(locale, 'امنیت حساب', 'Account security')}</h2><p className="muted">{text(locale, 'نشست‌های خرید خود را در همهٔ دستگاه‌ها، شامل همین دستگاه، ببندید.', 'End your shopping sessions on every device, including this one.')}</p></div><ConfirmAction locale={locale} label={text(locale, 'خروج از همهٔ دستگاه‌ها', 'Sign out everywhere')} title={text(locale, 'از همهٔ دستگاه‌ها خارج شوید؟', 'Sign out on every device?')} busy={busy} onConfirm={() => signOut(true)}>{text(locale, 'این دستگاه نیز خارج می‌شود. نشست‌های مدیریتی جداگانه باقی می‌مانند.', 'This device will also be signed out. Separate staff sessions are unaffected.')}</ConfirmAction></div>
-      </> : view === 'profile' ? <div className="profile-workspace"><AvatarEditor locale={locale} scope="customer"/><ProfileForm locale={locale} session={session} onSaved={profile => setSession({ ...session, profile })}/></div> : view === 'orders' ? <OrderHistory locale={locale} customerId={session.profile.id}/> : <Addresses locale={locale} phone={session.profile.phone}/>}
+      </> : view === 'profile' ? <div className="profile-workspace"><AvatarEditor locale={locale} scope="customer"/><ProfileForm locale={locale} session={session} onSaved={profile => setSession({ ...session, profile })}/></div> : view === 'orders' ? (orderId ? <CustomerOrderDetails key={orderId} locale={locale} orderId={orderId} customerId={session.profile.id}/> : <OrderHistory locale={locale} customerId={session.profile.id}/>) : <Addresses locale={locale} phone={session.profile.phone}/>}
     </section></div>
   </main>;
 }

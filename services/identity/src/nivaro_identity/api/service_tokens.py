@@ -93,6 +93,38 @@ class CheckoutContext(BaseModel):
     address_token: str | None = None
 
 
+class OrdersStaffRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    staff_access: Annotated[SecretStr, Field(min_length=1, max_length=8192)]
+    mutation: CheckoutMutation | None = None
+
+
+class OrdersStaffContext(BaseModel):
+    actor_id: UUID
+
+
+@router.post("/internal/v1/orders/staff-context")
+async def orders_staff_context(
+    body: OrdersStaffRequest,
+    request: Request,
+    credentials: Annotated[HTTPBasicCredentials | None, Depends(basic)],
+) -> OrdersStaffContext:
+    require_orders(request, credentials)
+    database: Database = request.app.state.database
+    sessions: Sessions = request.app.state.sessions
+    settings: Settings = request.app.state.settings
+    async with database.sessions() as db:
+        staff = await sessions.authenticate(db, body.staff_access.get_secret_value(), "admin")
+        required = "orders.fulfill" if body.mutation is not None else "orders.read"
+        if required not in staff.permissions:
+            raise IdentityError("permission.denied", 403)
+        if body.mutation is not None:
+            if body.mutation.origin not in settings.allowed_origins:
+                raise IdentityError("origin.forbidden", 403)
+            sessions.check_csrf(staff.session, body.mutation.csrf_token.get_secret_value())
+        return OrdersStaffContext(actor_id=staff.user.id)
+
+
 @router.post(CHECKOUT_CONTEXT_PATH)
 async def checkout_context(
     body: CheckoutContextRequest,

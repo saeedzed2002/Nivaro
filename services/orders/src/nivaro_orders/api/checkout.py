@@ -36,20 +36,21 @@ router = APIRouter(
 )
 
 
+def mutation_context(request: Request) -> dict[str, str]:
+    origin = request.headers.get("origin", "")
+    csrf = request.headers.get("x-csrf-token", "")
+    if not origin or len(origin) > 256 or request.headers.get("sec-fetch-site") == "cross-site":
+        raise SourceError("origin.forbidden", 403)
+    if not csrf or len(csrf) > 128:
+        raise SourceError("csrf.invalid", 403)
+    return {"origin": origin, "csrf_token": csrf}
+
+
 async def actor(request: Request, flow: CheckoutFlow, *, mutating: bool) -> CustomerContext:
     access = request.cookies.get("nivaro_customer_access", "")
     if not access or len(access) > 8192:
         raise SourceError("session.invalid", 401)
-    mutation = None
-    if mutating:
-        origin = request.headers.get("origin", "")
-        csrf = request.headers.get("x-csrf-token", "")
-        if not origin or len(origin) > 256 or request.headers.get("sec-fetch-site") == "cross-site":
-            raise SourceError("origin.forbidden", 403)
-        if not csrf or len(csrf) > 128:
-            raise SourceError("csrf.invalid", 403)
-        mutation = {"origin": origin, "csrf_token": csrf}
-    return await flow.sources.customer(access, mutation)
+    return await flow.sources.customer(access, mutation_context(request) if mutating else None)
 
 
 @router.post("/checkout/preview", operation_id="previewCheckout")

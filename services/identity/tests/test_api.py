@@ -94,6 +94,46 @@ async def test_identity_issues_only_downscoped_orders_tokens_accepted_by_catalog
     assert not any(path.startswith("/internal/") for path in catalog_app.openapi()["paths"])
 
 
+@pytest.mark.parametrize("role, allowed", [("sales_manager", True), ("catalog_manager", False)])
+async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allowed):
+    client, app, db = api
+    user_id, password = await admin_account(db, role)
+    signed_in = await client.post(
+        "/api/v1/admin/auth/login", json={"email": "owner@example.com", "password": password}
+    )
+    assert signed_in.status_code == 200, signed_in.text
+    credential = ("orders", app.state.orders_client_secret)
+    path = "/internal/v1/orders/staff-context"
+    access = {"staff_access": client.cookies["nivaro_admin_access"]}
+    assert (await client.post(path, json=access)).status_code == 401
+    read = await client.post(path, json=access, auth=credential)
+    mutation = {"origin": ORIGIN, "csrf_token": signed_in.json()["csrf_token"]}
+    write = await client.post(path, json={**access, "mutation": mutation}, auth=credential)
+    assert read.status_code == write.status_code == (200 if allowed else 403)
+    if allowed:
+        assert read.json() == write.json() == {"actor_id": str(user_id)}
+        bad = await client.post(
+            path,
+            auth=credential,
+            json={**access, "mutation": {**mutation, "csrf_token": "invalid"}},
+        )
+        assert bad.status_code == 403 and bad.json()["error"]["code"] == "csrf.invalid"
+        wrong_origin = await client.post(
+            path,
+            auth=credential,
+            json={**access, "mutation": {**mutation, "origin": "https://bad.example"}},
+        )
+        assert (
+            wrong_origin.status_code == 403
+            and wrong_origin.json()["error"]["code"] == "origin.forbidden"
+        )
+    await login(client, SECOND)
+    customer = await client.post(
+        path, json={"staff_access": client.cookies["nivaro_customer_access"]}, auth=credential
+    )
+    assert customer.status_code == 401
+
+
 async def login(client, phone=PHONE):
     challenge = await client.post("/api/v1/auth/otp/request", json={"phone": phone})
     assert challenge.status_code == 200, challenge.text

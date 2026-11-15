@@ -21,11 +21,17 @@ from nivaro_orders.application.checkout import (
     review_checkout,
     stage_order,
 )
+from nivaro_orders.application.fulfillment import Deliver, Prepare, Ship, change_fulfillment
 from nivaro_orders.application.order_history import list_orders, read_details
 from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.payment_initiation import request_payment
-from nivaro_orders.application.reservations import advance_reservation, expire_unpaid, transition
+from nivaro_orders.application.reservations import (
+    advance_reservation,
+    expire_unpaid,
+    record_order_transition,
+    transition,
+)
 from nivaro_orders.domain.checkout import (
     AddressSnapshot,
     CatalogQuote,
@@ -353,6 +359,46 @@ async def test_customer_order_history_paginates_when_creation_times_match(databa
         assert next_page.next_before is None
         with pytest.raises(CheckoutError, match="checkout.not_found"):
             await list_orders(db, uuid4(), first.next_before, 2)
+
+
+async def test_staff_fulfillment_requires_commit_order_and_preserves_audited_replays(database):
+    order = await CheckoutFixture(database).payable("fulfillment-steps")
+    staff = uuid4()
+
+    async def change(command, actor=staff):
+        async with database.sessions() as db:
+            return await change_fulfillment(db, order.id, actor, command)
+
+    with pytest.raises(CheckoutError, match="orders.invalid_transition"):
+        await change(Prepare(action="prepare", expected_version=order.version))
+    async with database.sessions.begin() as db:
+        paid = await db.get(Order, order.id, with_for_update=True)
+        record_order_transition(db, paid, "paid", "payment.stock_committed")
+    paid_version = order.version + 1
+    with pytest.raises(CheckoutError, match="orders.invalid_transition"):
+        await change(Deliver(action="deliver", expected_version=paid_version))
+    prepare = Prepare(action="prepare", expected_version=paid_version)
+    replies = await asyncio.gather(*(change(prepare) for _ in range(5)))
+    assert {reply.version for reply in replies} == {paid_version + 1}
+    assert all(reply.allowed_actions == ["ship"] for reply in replies)
+    with pytest.raises(CheckoutError, match="orders.version_conflict"):
+        await change(prepare, uuid4())
+    ship = Ship(action="ship", expected_version=paid_version + 1, tracking_reference="TEST-482")
+    assert (await change(ship)).status == "shipped"
+    with pytest.raises(CheckoutError, match="orders.version_conflict"):
+        await change(ship.model_copy(update={"tracking_reference": "CHANGED"}))
+    delivered = await change(Deliver(action="deliver", expected_version=paid_version + 2))
+    assert delivered.tracking_reference == "TEST-482" and delivered.allowed_actions == []
+    assert (await change(ship)).status == "delivered"
+    assert [(row.status, row.staff_actor_id) for row in delivered.timeline[-3:]] == [
+        ("processing", staff),
+        ("shipped", staff),
+        ("delivered", staff),
+    ]
+    async with database.sessions() as db:
+        details = await read_details(db, order.customer_id, order.id)
+        assert details.tracking_reference == delivered.tracking_reference
+        assert details.timeline[-1].status == "delivered"
 
 
 async def test_shipping_policy_is_bound_to_confirmation_and_order_snapshot(database):

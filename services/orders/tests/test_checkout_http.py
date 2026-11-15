@@ -40,9 +40,12 @@ async def test_gateway_checks_authoritative_checkout_and_order_ownership():
         httpx.AsyncClient(base_url=BASE_URL, headers={"Origin": ORIGIN}) as other,
     ):
         assert (await other.post("/internal/v1/orders/checkout-context")).status_code == 404
+        assert (await other.post("/internal/v1/orders/staff-context")).status_code == 404
+        expect(await other.get("/api/v1/admin/orders/history"), 401, "session.invalid")
         expect(await other.get(f"{ORDERS}/{uuid4()}"), 401, "session.invalid")
         await sign_in(customer, "+12025550100")
         await sign_in(other, "+12025550101")
+        expect(await customer.get("/api/v1/admin/orders/history"), 401, "session.invalid")
         address_data = {
             "label": "Test delivery",
             "recipient": "Test Customer",

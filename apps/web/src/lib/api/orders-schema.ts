@@ -1,5 +1,40 @@
 /** Generated from contracts/openapi/orders.json. Run pnpm contracts:generate. */
 export interface paths {
+    "/api/v1/admin/orders/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["listStaffOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}/fulfillment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read */
+        get: operations["readOrderFulfillment"];
+        put?: never;
+        /** Change */
+        post: operations["changeOrderFulfillment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/checkout/preview": {
         parameters: {
             query?: never;
@@ -106,6 +141,8 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        Action: "prepare" | "ship" | "deliver";
         /** CheckoutIntent */
         CheckoutIntent: {
             /**
@@ -129,6 +166,16 @@ export interface components {
         };
         /** @enum {string} */
         Currency: "IRR" | "USD";
+        /** Deliver */
+        Deliver: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "deliver";
+            /** Expected Version */
+            expected_version: number;
+        };
         /** DeliveryAddress */
         DeliveryAddress: {
             /** City */
@@ -153,6 +200,27 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ErrorDetail"];
         };
+        /** FulfillmentView */
+        FulfillmentView: {
+            /** Allowed Actions */
+            allowed_actions: components["schemas"]["Action"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
+            /** Timeline */
+            timeline: components["schemas"]["StaffTransition"][];
+            /** Tracking Reference */
+            tracking_reference: string | null;
+            /** Version */
+            version: number;
+        };
         /** HistoryEntry */
         HistoryEntry: {
             /**
@@ -171,7 +239,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
             /** Total Minor */
             total_minor: number;
         };
@@ -200,12 +268,14 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
             /** Timeline */
             timeline: components["schemas"]["StateChange"][];
             /** Total Minor */
             total_minor: number;
             totals: components["schemas"]["Totals"];
+            /** Tracking Reference */
+            tracking_reference?: string | null;
         };
         /** OrderHistory */
         OrderHistory: {
@@ -231,10 +301,20 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
             totals: components["schemas"]["Totals"];
             /** Version */
             version: number;
+        };
+        /** Prepare */
+        Prepare: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "prepare";
+            /** Expected Version */
+            expected_version: number;
         };
         /** PreviewResponse */
         PreviewResponse: {
@@ -327,6 +407,37 @@ export interface components {
             /** Unit Price Minor */
             unit_price_minor: number;
         };
+        /** Ship */
+        Ship: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "ship";
+            /** Expected Version */
+            expected_version: number;
+            /** Tracking Reference */
+            tracking_reference: string;
+        };
+        /** StaffTransition */
+        StaffTransition: {
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Reason */
+            reason: string;
+            /** Staff Actor Id */
+            staff_actor_id: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
+            /** Version */
+            version: number;
+        };
         /** StartPayment */
         StartPayment: {
             /** Order Version */
@@ -343,7 +454,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded";
+            status: "pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered";
             /** Version */
             version: number;
         };
@@ -373,6 +484,240 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listStaffOrders: {
+        parameters: {
+            query?: {
+                before?: string | null;
+                status?: ("pending_reservation" | "awaiting_payment" | "expired" | "cancelled" | "payment_processing" | "payment_review" | "paid" | "refund_pending" | "refunded" | "processing" | "shipped" | "delivered") | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderHistory"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readOrderFulfillment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FulfillmentView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    changeOrderFulfillment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Prepare"] | components["schemas"]["Ship"] | components["schemas"]["Deliver"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FulfillmentView"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     previewCheckout: {
         parameters: {
             query?: never;

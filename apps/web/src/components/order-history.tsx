@@ -17,6 +17,9 @@ const labels: Record<OrderStatus['status'], [string, string]> = {
   payment_review: ['نیازمند بررسی', 'Needs review'],
   refund_pending: ['در حال بازپرداخت', 'Refund in progress'],
   refunded: ['بازپرداخت‌شده', 'Refunded'],
+  processing: ['در حال آماده‌سازی', 'Preparing'],
+  shipped: ['ارسال‌شده', 'Shipped'],
+  delivered: ['تحویل‌شده', 'Delivered'],
 };
 
 export function OrderStateLabel({ locale, status }: { locale: Locale; status: OrderStatus['status'] }) {
@@ -53,7 +56,7 @@ export function OrderHistory({ locale, customerId }: { locale: Locale; customerI
         <div><span className="muted">{text(locale, 'تاریخ ثبت', 'Placed')}</span><time dateTime={order.created_at}>{checkoutTime(order.created_at, locale)}</time></div>
         <div><span className="muted">{text(locale, 'مبلغ نهایی', 'Total')}</span><bdi>{formatCommerceMoney(order.total_minor, order.currency, locale)}</bdi></div>
         <OrderStateLabel locale={locale} status={order.status}/>
-        <Link className="text-link order-open" href={`/${locale}/checkout/result?order=${order.id}`}>{text(locale, 'وضعیت سفارش', 'Order status')}</Link>
+        <Link className="text-link order-open" href={`/${locale}/account/orders/${order.id}`}>{text(locale, 'مشاهدهٔ جزئیات', 'View details')}</Link>
       </li>)}
     </ul>
     {(pages.length > 1 || next) && <nav className="order-pages" aria-label={text(locale, 'صفحه‌بندی سفارش‌ها', 'Order history pages')}>

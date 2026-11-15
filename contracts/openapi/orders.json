@@ -1,6 +1,14 @@
 {
   "components": {
     "schemas": {
+      "Action": {
+        "enum": [
+          "prepare",
+          "ship",
+          "deliver"
+        ],
+        "type": "string"
+      },
       "CheckoutIntent": {
         "additionalProperties": false,
         "properties": {
@@ -72,6 +80,28 @@
         ],
         "type": "string"
       },
+      "Deliver": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "deliver",
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "expected_version"
+        ],
+        "title": "Deliver",
+        "type": "object"
+      },
       "DeliveryAddress": {
         "additionalProperties": false,
         "properties": {
@@ -138,6 +168,75 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "FulfillmentView": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_actions": {
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "title": "Allowed Actions",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending_reservation",
+              "awaiting_payment",
+              "expired",
+              "cancelled",
+              "payment_processing",
+              "payment_review",
+              "paid",
+              "refund_pending",
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/StaffTransition"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "tracking_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Reference"
+          },
+          "version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "version",
+          "tracking_reference",
+          "allowed_actions",
+          "timeline"
+        ],
+        "title": "FulfillmentView",
+        "type": "object"
+      },
       "HistoryEntry": {
         "additionalProperties": false,
         "properties": {
@@ -167,7 +266,10 @@
               "payment_review",
               "paid",
               "refund_pending",
-              "refunded"
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
             ],
             "title": "Status",
             "type": "string"
@@ -241,7 +343,10 @@
               "payment_review",
               "paid",
               "refund_pending",
-              "refunded"
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
             ],
             "title": "Status",
             "type": "string"
@@ -259,6 +364,17 @@
           },
           "totals": {
             "$ref": "#/components/schemas/Totals"
+          },
+          "tracking_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Reference"
           }
         },
         "required": [
@@ -364,7 +480,10 @@
               "payment_review",
               "paid",
               "refund_pending",
-              "refunded"
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
             ],
             "title": "Status",
             "type": "string"
@@ -386,6 +505,28 @@
           "failure_code"
         ],
         "title": "OrderStatus",
+        "type": "object"
+      },
+      "Prepare": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "prepare",
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "expected_version"
+        ],
+        "title": "Prepare",
         "type": "object"
       },
       "PreviewResponse": {
@@ -602,6 +743,91 @@
         "title": "ReviewLine",
         "type": "object"
       },
+      "Ship": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "ship",
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_version": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "tracking_reference": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._ -]{0,79}$",
+            "title": "Tracking Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "expected_version",
+          "tracking_reference"
+        ],
+        "title": "Ship",
+        "type": "object"
+      },
+      "StaffTransition": {
+        "additionalProperties": false,
+        "properties": {
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "staff_actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Actor Id"
+          },
+          "status": {
+            "enum": [
+              "pending_reservation",
+              "awaiting_payment",
+              "expired",
+              "cancelled",
+              "payment_processing",
+              "payment_review",
+              "paid",
+              "refund_pending",
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "status",
+          "occurred_at",
+          "reason",
+          "staff_actor_id"
+        ],
+        "title": "StaffTransition",
+        "type": "object"
+      },
       "StartPayment": {
         "additionalProperties": false,
         "properties": {
@@ -636,7 +862,10 @@
               "payment_review",
               "paid",
               "refund_pending",
-              "refunded"
+              "refunded",
+              "processing",
+              "shipped",
+              "delivered"
             ],
             "title": "Status",
             "type": "string"
@@ -719,6 +948,361 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/orders/history": {
+      "get": {
+        "operationId": "listStaffOrders",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending_reservation",
+                    "awaiting_payment",
+                    "expired",
+                    "cancelled",
+                    "payment_processing",
+                    "payment_review",
+                    "paid",
+                    "refund_pending",
+                    "refunded",
+                    "processing",
+                    "shipped",
+                    "delivered"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "History",
+        "tags": [
+          "staff orders"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/{order_id}/fulfillment": {
+      "get": {
+        "operationId": "readOrderFulfillment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FulfillmentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Read",
+        "tags": [
+          "staff orders"
+        ]
+      },
+      "post": {
+        "operationId": "changeOrderFulfillment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "deliver": "#/components/schemas/Deliver",
+                    "prepare": "#/components/schemas/Prepare",
+                    "ship": "#/components/schemas/Ship"
+                  },
+                  "propertyName": "action"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Prepare"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Ship"
+                  },
+                  {
+                    "$ref": "#/components/schemas/Deliver"
+                  }
+                ],
+                "title": "Command"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FulfillmentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Change",
+        "tags": [
+          "staff orders"
+        ]
+      }
+    },
     "/api/v1/orders/checkout/preview": {
       "post": {
         "operationId": "previewCheckout",

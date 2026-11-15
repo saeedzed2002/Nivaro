@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from nivaro_orders.api.checkout import router
+from nivaro_orders.api.fulfillment import router as fulfillment_router
 from nivaro_orders.api.limits import BoundedBody
 from nivaro_orders.application.checkout_flow import CheckoutFlow
 from nivaro_orders.domain.checkout import CheckoutError
@@ -20,7 +21,7 @@ from nivaro_orders.infrastructure.http_json import UpstreamUnavailable
 from nivaro_orders.infrastructure.reservations import CatalogReservations
 from nivaro_orders.settings import Settings
 
-SCHEMA = "0009_order_paid_outbox"
+SCHEMA = "0010_order_fulfillment"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -114,6 +115,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse({"service": "orders", "status": "unavailable"}, status_code=503)
 
     app.include_router(router)
+    app.include_router(fulfillment_router)
     return app
 
 
