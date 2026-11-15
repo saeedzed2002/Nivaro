@@ -69,6 +69,15 @@ jobs:
         working-directory: .
         shell: pwsh
         run: ./scripts/Verify-CartFoundation.ps1 -TestImage 'nivaro-cart:test'
+      - name: Build Orders foundation images
+        working-directory: .
+        run: |
+          docker build --target test -t nivaro-orders:test services/orders
+          docker build --target release -t nivaro-orders:release services/orders
+      - name: Orders snapshots totals and coupon quota
+        working-directory: .
+        shell: pwsh
+        run: ./scripts/Verify-OrdersFoundation.ps1
       - name: Build host preview against the local gateway
         env:
           CATALOG_URL: http://127.0.0.1:8080

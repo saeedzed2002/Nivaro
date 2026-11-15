@@ -1,0 +1,48 @@
+# Enable the Orders foundation on disposable stacks or explicitly start it for development.
+services:
+  orders-db-init:
+    image: ${POSTGRES_IMAGE:-postgres:18.6-bookworm@sha256:bbf83594798e144bff365a9c191c5d779f181fb3135902064ab8ff11918020fc}
+    environment:
+      PGHOST: postgres
+      POSTGRES_USER: postgres
+    secrets:
+      - postgres_admin_password
+      - orders_db_password
+    volumes:
+      - ./infra/postgres/40-orders.sh:/init-orders.sh:ro
+    command: [sh, /init-orders.sh]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+  orders-init:
+    image: ${NIVARO_ORDERS_IMAGE:-nivaro-orders:release}
+    build:
+      context: ./services/orders
+      target: release
+    secrets:
+      - orders_db_password
+    command: [alembic, upgrade, head]
+    depends_on:
+      orders-db-init:
+        condition: service_completed_successfully
+    restart: 'no'
+  orders:
+    image: ${NIVARO_ORDERS_IMAGE:-nivaro-orders:release}
+    secrets:
+      - orders_db_password
+    depends_on:
+      orders-init:
+        condition: service_completed_successfully
+    expose:
+      - '8000'
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+secrets:
+  orders_db_password:
+    file: ./work/secrets/orders_db_password.txt
