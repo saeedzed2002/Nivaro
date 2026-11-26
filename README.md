@@ -4,7 +4,7 @@ Bilingual Persian/English gaming hardware storefront, following [the canonical r
 
 ## Current delivery
 
-P09 is verified. The local Docker runtime includes private customer support and the staff inbox with live messages, history recovery, read receipts, typing and presence. The retention command defaults to a read-only preview. See the [support service guide](services/support/README.md) and [phase evidence](docs/progress.md#p09-verification-complete).
+P11 is verified. The local Docker runtime serves the storefront, simulator checkout, staff administration and private support. Checkout and support recovery, Catalog cache interruption, the browser journeys and development hot reload passed on the verified GitHub Actions revision. See the [phase evidence](docs/progress.md#p11-verification-complete) and [support service guide](services/support/README.md). P12 covers the clean release and restore drill.
 
 The configured Windows launcher below starts the current owner runtime with the support, order, payment and media overlays. For a media-only stack with already built images:
 
@@ -16,7 +16,7 @@ For a fresh setup initialize both local and media secrets, then build with the b
 
 P02 verified: home, product collection/details, same-category product comparison and temporary PC assembly selections use the catalog API. PostgreSQL owns products, physical variants and independent market offers. Pages follow the references in [the image-first register](docs/design/PAGE_DESIGNS.md).
 
-The seed contains 12 documented products and 13 variants; reference prices remain unavailable for sale and stock remains unverified. Missing prices and technical facts stay unknown. P03 adds real local account/session persistence: customer mock-code login, separate administrator credentials, profile and address management. Customer login is allowlisted local testing only; no real SMS is sent. Durable saved builds, checkout and payment remain later phases. See [identity setup](services/identity/README.md) and [progress and exact continuation](docs/progress.md).
+The seed contains 12 documented products and 13 variants. Reference prices are unavailable for sale and reference stock is unverified. Missing prices and technical facts stay unknown. Customer login uses allowlisted mock codes, and administrator login uses separate credentials. See [identity setup](services/identity/README.md) and [progress and exact continuation](docs/progress.md).
 
 ## Local development
 

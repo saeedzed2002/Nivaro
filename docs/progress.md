@@ -1,6 +1,6 @@
 # Implementation progress
 
-Current status, 2026-11-26: **P01–P10 verified, P11 in progress**. The owner's Docker preview reads current web and API source through the local Compose configuration. Historical incomplete statuses below describe their original checkpoints.
+Current status, 2026-11-26: **P01–P11 verified, P12 in progress**. The owner's Docker preview reads current web and API source through the local Compose configuration. Historical incomplete statuses below describe their original checkpoints.
 
 ## 2026-10-27 — P00/P01 in progress
 
@@ -790,3 +790,12 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 - In [run 45830362863](https://github.com/saeedzed2002/Nivaro/actions/runs/45830362863), the Support job passed the browser database-outage recovery and the image-processing job passed. The web job stopped in Catalog integration. Its reservation-expiry worker shared the database with the test and could consume the expired row before the test's explicit expiry call.
 - CI now uses `Verify-CatalogFresh.ps1` to create a separate `tmpfs` PostgreSQL database for the Catalog suite. The test worker is controlled by the suite, and the gateway stack retains its own normal expiry worker. The isolated path passed all 143 local Catalog tests, fresh migration, repeatable seed, lint, strict typing, migration drift and canonical OpenAPI checks. Phase-level CI must pass on the corrected revision.
 - [Run 45831447196](https://github.com/saeedzed2002/Nivaro/actions/runs/45831447196) reached the isolated probe and exposed a path mismatch. The helper had overridden the built test image's native working directory with `/app`, so `mypy` could not find `src`. The helper now uses the working directory declared by the test image and resolves `src` relative to it. All 143 tests passed locally with the canonical `/workspace/services/catalog` layout and the pinned dependency environment.
+
+### P11 verification complete
+
+- [GitHub Actions run 45832443785](https://github.com/saeedzed2002/Nivaro/actions/runs/45832443785) passed `web`, `support` and `image-processing` for exact implementation revision `3b2ba3dd41784da703a423f57e66cf9449f22a97`. It covered frozen builds, the isolated Catalog database, real-browser purchase and support recovery, worker and broker interruption, scaled Catalog reads with Redis unavailable, and local-development hot reload. P12 starts from that implementation revision.
+
+### P12 isolated release boot
+
+- Exported the verified revision with `git archive` into a clean directory, initialized disposable secrets there, and started the release overlays in a separate Docker Compose project bound to loopback port 8084. The test used the existing locally verified release images. Its services did not depend on secret files or data volumes from the owner's development project.
+- All six backend services and the web container reported healthy. The gateway served both storefront languages, the Catalog seed contained 12 products, and unauthenticated Orders administration and private Support requests returned HTTP 401. The disposable project and its volumes were removed after verification. A clean-cache image rebuild and the database and media restore drill remain open for P12.
