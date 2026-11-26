@@ -23,19 +23,29 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+      - name: Install the frozen web browser test dependencies
+        working-directory: apps/web
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
       - uses: docker/setup-compose-action@4eb059ff7f16592f9c84d5ca339c53cb7c5064e2 # v2.3.0
         with:
           version: 'v5.5.1'
           cache-binary: false
-      - name: Build frozen support and identity images
+      - name: Build frozen support, identity and web images
         run: |
           docker build --target release -t nivaro-support:release services/support
           docker build --target test -t nivaro-support:test services/support
           docker build --build-context image-processing=./packages/python/image_processing --target release -t nivaro-identity:release services/identity
-          docker compose -f compose.yaml -f compose.support.yaml pull postgres redis-state
-      - name: Verify private conversations across two support replicas
+          docker compose build web
+          docker compose -f compose.yaml -f compose.support.yaml pull postgres redis-state gateway
+      - name: Verify private conversations across replicas and through the browser gateway
         shell: pwsh
-        run: ./scripts/Verify-SupportFoundation.ps1
+        run: ./scripts/Verify-SupportFoundation.ps1 -Browser
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 25

@@ -1,7 +1,9 @@
 param(
     [string]$SupportImage = 'nivaro-support:release',
     [string]$TestImage = 'nivaro-support:test',
-    [string]$IdentityImage = 'nivaro-identity:release'
+    [string]$IdentityImage = 'nivaro-identity:release',
+    [string]$WebImage = 'nivaro-web:release',
+    [switch]$Browser
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -11,6 +13,11 @@ $previousSupport = $env:NIVARO_SUPPORT_IMAGE
 $previousIdentity = $env:NIVARO_CART_QA_IDENTITY_IMAGE
 $previousOrigins = $env:SUPPORT_ALLOWED_ORIGINS
 $previousRedisQA = $env:NIVARO_QA_SUPPORT_REDIS_PASSWORD
+$previousWebImage = $env:NIVARO_CART_QA_WEB_IMAGE
+$previousBrowserUrl = $env:TEST_BASE_URL
+$previousBrowserProject = $env:NIVARO_SUPPORT_QA_PROJECT
+$previousBrowserPassword = $env:NIVARO_SUPPORT_QA_PASSWORD
+$previousPhones = $env:NIVARO_QA_MOCK_PHONES
 $testPassword = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
 if ($project -notmatch '^nivaro-support-qa-[a-f0-9]{8}$') { throw 'Unsafe test project.' }
 
@@ -20,6 +27,7 @@ try {
     $env:NIVARO_CART_QA_IDENTITY_IMAGE = $IdentityImage
     $env:SUPPORT_ALLOWED_ORIGINS = '["http://127.0.0.1:8082"]'
     $env:NIVARO_QA_SUPPORT_REDIS_PASSWORD = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+    if ($Browser) { $env:NIVARO_QA_MOCK_PHONES = '["+12025550100","+12025550101","+12025550102"]' }
     docker compose @config up -d --no-build --pull never --wait --wait-timeout 85 support support-replica
     if ($LASTEXITCODE -ne 0) { throw 'Disposable support stack failed readiness.' }
 
@@ -64,8 +72,24 @@ asyncio.run(seed())
         $TestImage sh -ec 'alembic upgrade head && alembic check && ruff check . && ruff format --check . && mypy src && pytest -q && python -m nivaro_support.export_openapi /contracts/support.json --check && python -m nivaro_support.socket_contracts /contracts/websocket --check'
     if ($LASTEXITCODE -ne 0) { throw 'Support foundation checks failed.' }
     Write-Output 'Support migrations, private assignment, durable history, WebSocket and HTTP contract checks passed.'
+
+    if ($Browser) {
+        $env:NIVARO_CART_QA_WEB_IMAGE = $WebImage
+        docker compose @config up -d --no-deps --no-build --pull never --wait --wait-timeout 45 web gateway
+        if ($LASTEXITCODE -ne 0) { throw 'Disposable support browser gateway failed readiness.' }
+        $env:TEST_BASE_URL = 'http://127.0.0.1:8082'
+        $env:NIVARO_SUPPORT_QA_PROJECT = $project
+        $env:NIVARO_SUPPORT_QA_PASSWORD = $testPassword
+        Push-Location "$root/apps/web"
+        try {
+            node node_modules/@playwright/test/cli.js test tests/support-gateway.spec.ts
+            if ($LASTEXITCODE -ne 0) { throw 'Support gateway browser integration failed.' }
+        } finally { Pop-Location }
+    }
 } catch {
-    docker compose @config logs --no-color --tail 25 support support-replica redis-support identity
+    $services = @('support', 'support-replica', 'redis-support', 'identity')
+    if ($Browser) { $services += @('web', 'gateway') }
+    docker compose @config logs --no-color --tail 25 @services
     throw
 } finally {
     docker compose @config down --volumes
@@ -73,4 +97,9 @@ asyncio.run(seed())
     $env:NIVARO_CART_QA_IDENTITY_IMAGE = $previousIdentity
     $env:SUPPORT_ALLOWED_ORIGINS = $previousOrigins
     $env:NIVARO_QA_SUPPORT_REDIS_PASSWORD = $previousRedisQA
+    $env:NIVARO_CART_QA_WEB_IMAGE = $previousWebImage
+    $env:TEST_BASE_URL = $previousBrowserUrl
+    $env:NIVARO_SUPPORT_QA_PROJECT = $previousBrowserProject
+    $env:NIVARO_SUPPORT_QA_PASSWORD = $previousBrowserPassword
+    $env:NIVARO_QA_MOCK_PHONES = $previousPhones
 }
