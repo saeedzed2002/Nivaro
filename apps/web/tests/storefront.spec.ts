@@ -61,7 +61,18 @@ test('filters are in the URL, empty results recover, and product links work', as
 });
 
 test('language preserves market and route; explicit market changes prices',async({page})=>{
-  await page.goto('/en/products/amd-ryzen-7-9800x3d');
+  const hydration = Promise.withResolvers<void>();
+  await page.route(url => url.pathname.startsWith('/_next/static/') && url.pathname.endsWith('.js'), async route => {
+    await hydration.promise;
+    await route.continue();
+  });
+  try {
+    await page.goto('/en/products/amd-ryzen-7-9800x3d', { waitUntil: 'commit' });
+    await expect(page.getByRole('combobox',{name:'Sales market'})).toBeDisabled();
+    await expect(page.getByRole('combobox',{name:'Appearance'})).toBeDisabled();
+  } finally {
+    hydration.resolve();
+  }
   await page.getByRole('combobox',{name:'Sales market'}).selectOption('ir');
   await expect(page.locator('.detailed .price')).toContainText('113,390,000');
   await page.getByRole('link',{name:'Switch language to Persian'}).click();

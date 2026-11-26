@@ -3,9 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Search, Sun, Moon, Monitor, ShoppingBag, UserRound, ArrowUpRight, Cpu, SlidersHorizontal } from 'lucide-react';
+import { useSyncExternalStore } from 'react';
 import { usePreferences } from './preferences';
 import { useCart } from './cart-query';
 import { text, type Locale, type Market, type Theme } from '@/lib/content';
+
+const subscribeToHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 function CartLink({ locale, market }: { locale: Locale; market: Market }) {
   const { data } = useCart(market);
@@ -18,6 +23,7 @@ function CartLink({ locale, market }: { locale: Locale; market: Market }) {
 
 export function Header({ locale }: { locale: Locale }) {
   const { market, theme, setMarket, setTheme } = usePreferences();
+  const interactive = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
   const pathname = usePathname();
   const minimal = pathname.endsWith('/login') || pathname.includes('/admin/');
   const searchParams = useSearchParams();
@@ -39,8 +45,8 @@ export function Header({ locale }: { locale: Locale }) {
       </form>}
       <div className="header-actions">
         <a href={`${languagePath}${query ? `?${query}` : ''}`} hrefLang={nextLocale} className="language-control" onClick={() => setMarket(market)} aria-label={text(locale, 'تغییر زبان به انگلیسی', 'Switch language to Persian')}>{locale === 'fa' ? 'EN' : 'فارسی'}</a>
-        {!minimal && <label className="select-control"><span className="sr-only">{text(locale, 'بازار فروش', 'Sales market')}</span><select value={market} onChange={e => setMarket(e.target.value as Market)} aria-label={text(locale, 'بازار فروش', 'Sales market')}><option value="ir">{text(locale, 'ایران · تومان', 'Iran · toman')}</option><option value="international">{text(locale, 'بین‌المللی · دلار', 'International · USD')}</option></select></label>}
-        <label className="theme-control" title={text(locale, 'حالت نمایش', 'Appearance')}>{themeIcon}<span className="sr-only">{text(locale, 'حالت نمایش', 'Appearance')}</span><select value={theme} onChange={e => setTheme(e.target.value as Theme)} aria-label={text(locale, 'حالت نمایش', 'Appearance')}><option value="system">{text(locale, 'سیستم', 'System')}</option><option value="dark">{text(locale, 'تاریک', 'Dark')}</option><option value="light">{text(locale, 'روشن', 'Light')}</option></select></label>
+        {!minimal && <label className="select-control"><span className="sr-only">{text(locale, 'بازار فروش', 'Sales market')}</span><select value={market} disabled={!interactive} onChange={e => setMarket(e.target.value as Market)} aria-label={text(locale, 'بازار فروش', 'Sales market')}><option value="ir">{text(locale, 'ایران · تومان', 'Iran · toman')}</option><option value="international">{text(locale, 'بین‌المللی · دلار', 'International · USD')}</option></select></label>}
+        <label className="theme-control" title={text(locale, 'حالت نمایش', 'Appearance')}>{themeIcon}<span className="sr-only">{text(locale, 'حالت نمایش', 'Appearance')}</span><select value={theme} disabled={!interactive} onChange={e => setTheme(e.target.value as Theme)} aria-label={text(locale, 'حالت نمایش', 'Appearance')}><option value="system">{text(locale, 'سیستم', 'System')}</option><option value="dark">{text(locale, 'تاریک', 'Dark')}</option><option value="light">{text(locale, 'روشن', 'Light')}</option></select></label>
         {!minimal && <><Link href={`/${locale}/account`} className="icon-button account-action" aria-label={text(locale, 'حساب کاربری', 'Your account')}><UserRound size={22}/></Link>
         <CartLink locale={locale} market={market}/></>}
       </div>
