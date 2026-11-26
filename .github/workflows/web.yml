@@ -147,7 +147,7 @@ jobs:
           pnpm test:e2e
       - name: Verify container-served storefront
         run: pnpm test:e2e
-      - name: Prepare media candidates and real queue recovery check
+      - name: Verify media queue recovery, catalog cache and catalog load
         working-directory: .
         shell: pwsh
         run: |
@@ -155,7 +155,7 @@ jobs:
           docker tag nivaro-identity:release nivaro-identity:avatar-candidate
           docker tag nivaro-web:release nivaro-web:media-foundation
           ./scripts/Verify-CatalogMedia.ps1
-          ./scripts/Verify-CatalogCache.ps1
+          ./scripts/Verify-CatalogCache.ps1 -WithLoad
       - name: Identity and media browser journeys on a disposable stack
         working-directory: .
         shell: pwsh

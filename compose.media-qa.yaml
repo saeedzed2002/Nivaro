@@ -1,15 +1,15 @@
 # Candidate UI only, never applied to the owner's persistent stack.
 services:
   catalog-init:
-    image: nivaro-catalog:media-foundation
+    image: ${NIVARO_MEDIA_QA_CATALOG_IMAGE:-nivaro-catalog:media-foundation}
   catalog:
-    image: nivaro-catalog:media-foundation
+    image: ${NIVARO_MEDIA_QA_CATALOG_IMAGE:-nivaro-catalog:media-foundation}
   catalog-media-init:
-    image: nivaro-catalog:media-foundation
+    image: ${NIVARO_MEDIA_QA_CATALOG_IMAGE:-nivaro-catalog:media-foundation}
   catalog-media-worker:
-    image: nivaro-catalog:media-foundation
+    image: ${NIVARO_MEDIA_QA_CATALOG_IMAGE:-nivaro-catalog:media-foundation}
   catalog-media-dispatcher:
-    image: nivaro-catalog:media-foundation
+    image: ${NIVARO_MEDIA_QA_CATALOG_IMAGE:-nivaro-catalog:media-foundation}
   identity-init:
     image: nivaro-identity:avatar-candidate
   identity:
