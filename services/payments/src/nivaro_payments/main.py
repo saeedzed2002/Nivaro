@@ -20,10 +20,12 @@ from nivaro_payments.contracts import (
     CompensationIntent,
     Market,
     OperationKey,
-    OperationsAttempt,
+    OperationsDetail,
     OperationsPage,
     PaymentError,
     PaymentIntent,
+    ReconciliationCommand,
+    ReconciliationView,
     RefundIntent,
     RefundView,
 )
@@ -31,7 +33,7 @@ from nivaro_payments.limits import BoundedBody
 from nivaro_payments.provider import Provider, Simulator
 from nivaro_payments.settings import Database, Settings
 
-SCHEMA = "0004_payment_operations"
+SCHEMA = "0005_reconciliation_runs"
 router = APIRouter(prefix="/internal/v1/payments", tags=["payments"])
 
 
@@ -68,8 +70,22 @@ async def operations_list(
 @router.get(
     "/operations/attempts/{attempt_id}", dependencies=[Depends(require("payments.operations.read"))]
 )
-async def operations_detail(db: DB, attempt_id: UUID) -> OperationsAttempt:
-    return OperationsAttempt.model_validate(await attempts.read_attempt(db, attempt_id))
+async def operations_detail(db: DB, attempt_id: UUID) -> OperationsDetail:
+    return await operations.read_operation(db, attempt_id)
+
+
+@router.post(
+    "/operations/attempts/{attempt_id}/reconcile",
+    dependencies=[Depends(require("payments.operations.reconcile"))],
+)
+async def operations_reconcile(
+    db: DB,
+    adapter: Adapter,
+    attempt_id: UUID,
+    body: ReconciliationCommand,
+    operation_id: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> ReconciliationView:
+    return await operations.reconcile_attempt(db, adapter, attempt_id, operation_id, body.actor_id)
 
 
 @router.post(

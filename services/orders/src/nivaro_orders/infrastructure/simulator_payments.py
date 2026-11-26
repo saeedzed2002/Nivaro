@@ -56,6 +56,20 @@ class OperationsPage(Contract):
     next_before: UUID | None
 
 
+class ReconciliationView(Contract):
+    operation_id: UUID
+    attempt_id: UUID
+    actor_id: UUID
+    checked_at: AwareDatetime
+    status_before: AttemptStatus
+    status_after: AttemptStatus
+    result: Literal["observed", "already_final", "provider_unavailable", "evidence_mismatch"]
+
+
+class OperationsDetail(OperationsAttempt):
+    last_reconciliation: ReconciliationView | None = None
+
+
 class PaymentBlocked(Exception):
     """The recorded simulator request cannot produce a payable attempt."""
 
@@ -71,7 +85,8 @@ class SimulatorPayments:
         self.secret = secret
 
     async def headers(
-        self, operation: Literal["read", "start", "verify", "operations.read"]
+        self,
+        operation: Literal["read", "start", "verify", "operations.read", "operations.reconcile"],
     ) -> dict[str, str]:
         status, body = await request_json(
             self.http,
@@ -113,7 +128,7 @@ class SimulatorPayments:
             raise UpstreamUnavailable()
         return parse(OperationsPage, body)
 
-    async def read_operation(self, attempt_id: UUID) -> OperationsAttempt:
+    async def read_operation(self, attempt_id: UUID) -> OperationsDetail:
         status, body = await request_json(
             self.http,
             "GET",
@@ -124,10 +139,36 @@ class SimulatorPayments:
             raise SourceError("payment.not_found", 404)
         if status != 200:
             raise UpstreamUnavailable()
-        attempt = parse(OperationsAttempt, body)
+        attempt = parse(OperationsDetail, body)
         if attempt.id != attempt_id:
             raise UpstreamUnavailable()
         return attempt
+
+    async def reconcile_operation(
+        self, attempt_id: UUID, operation_id: UUID, actor_id: UUID
+    ) -> ReconciliationView:
+        headers = await self.headers("operations.reconcile")
+        headers["Idempotency-Key"] = str(operation_id)
+        status, body = await request_json(
+            self.http,
+            "POST",
+            f"{self.operations}/{attempt_id}/reconcile",
+            headers=headers,
+            json_body={"actor_id": str(actor_id)},
+        )
+        if status in {404, 409}:
+            code = parse(ErrorEnvelope, body).error.code
+            if (status, code) in {
+                (404, "payment.not_found"),
+                (409, "payment.idempotency_conflict"),
+            }:
+                raise SourceError(code, status)
+        if status != 200:
+            raise UpstreamUnavailable()
+        run = parse(ReconciliationView, body)
+        if (run.attempt_id, run.operation_id, run.actor_id) != (attempt_id, operation_id, actor_id):
+            raise UpstreamUnavailable()
+        return run
 
     async def request_attempt(
         self,

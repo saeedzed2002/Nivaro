@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Header, Query, Request
 from pydantic import AwareDatetime
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +21,7 @@ from nivaro_orders.infrastructure.simulator_payments import (
     AttemptStatus,
     OperationsAttempt,
     OperationsPage,
+    ReconciliationView,
     SimulatorPayments,
 )
 
@@ -53,6 +54,7 @@ class PaymentOrderView(MarketTerms):
 class OperationsDetails(Contract):
     attempt: OperationsAttempt
     order: PaymentOrderView | None
+    last_reconciliation: ReconciliationView | None
 
 
 async def order_context(db: AsyncSession, attempt: OperationsAttempt) -> PaymentOrderView | None:
@@ -128,4 +130,24 @@ async def read_attempt(request: Request, attempt_id: UUID) -> OperationsDetails:
     payments: SimulatorPayments = request.app.state.payment_attempts
     attempt = await payments.read_operation(attempt_id)
     async with flow.database.sessions() as db:
-        return OperationsDetails(attempt=attempt, order=await order_context(db, attempt))
+        return OperationsDetails(
+            attempt=attempt,
+            order=await order_context(db, attempt),
+            last_reconciliation=attempt.last_reconciliation,
+        )
+
+
+@router.post(
+    "/attempts/{attempt_id}/reconcile",
+    operation_id="reconcileStaffPaymentAttempt",
+    responses={409: {"model": ErrorResponse}},
+)
+async def reconcile_attempt(
+    request: Request,
+    attempt_id: UUID,
+    operation_id: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> ReconciliationView:
+    flow: CheckoutFlow = request.app.state.checkout
+    actor_id = await staff_actor(request, flow, mutating=True, area="payment_reconciliation")
+    payments: SimulatorPayments = request.app.state.payment_attempts
+    return await payments.reconcile_operation(attempt_id, operation_id, actor_id)

@@ -34,7 +34,7 @@ class StaffContext(Contract):
     actor_id: UUID
 
 
-type StaffArea = Literal["orders", "payments"]
+type StaffArea = Literal["orders", "payments", "payment_reconciliation"]
 
 
 class ErrorCode(BaseModel):

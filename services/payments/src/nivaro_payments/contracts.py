@@ -9,6 +9,9 @@ type Scenario = Literal[
     "success", "failure", "ambiguous", "duplicate", "delay", "overpayment", "unavailable"
 ]
 type AttemptState = Literal["pending", "ambiguous", "failed", "succeeded", "amount_mismatch"]
+type ReconciliationResult = Literal[
+    "observed", "already_final", "provider_unavailable", "evidence_mismatch"
+]
 Amount = Annotated[int, Field(strict=True, gt=0, le=9_000_000_000_000_000)]
 CapturedAmount = Annotated[int, Field(strict=True, gt=0, le=9_000_000_000_000_010)]
 OperationKey = Annotated[str, Field(pattern=r"^[A-Za-z0-9._-]{1,128}$")]
@@ -68,6 +71,24 @@ class OperationsAttempt(AttemptView):
 class OperationsPage(Contract):
     attempts: list[OperationsAttempt]
     next_before: UUID | None
+
+
+class ReconciliationCommand(Contract):
+    actor_id: UUID
+
+
+class ReconciliationView(Contract):
+    operation_id: UUID
+    attempt_id: UUID
+    actor_id: UUID
+    checked_at: AwareDatetime
+    status_before: AttemptState
+    status_after: AttemptState
+    result: ReconciliationResult
+
+
+class OperationsDetail(OperationsAttempt):
+    last_reconciliation: ReconciliationView | None
 
 
 class RefundIntent(Contract):

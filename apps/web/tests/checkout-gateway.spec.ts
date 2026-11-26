@@ -296,6 +296,35 @@ asyncio.run(manage('bootstrap-admin'))
       await expect(staff).toHaveURL(new RegExp(`/admin/payments\\?attempt=${completedRefund.attempt_id}$`));
       await expect(staff.getByRole('region', { name: 'Payment detail' }).getByText(completedRefund.attempt_id, { exact: true })).toBeVisible();
       await expect(staff.getByRole('region', { name: 'Order & refund' }).getByText(completedRefund.refund_id, { exact: true })).toBeVisible();
+      const pendingList = await staff.request.get(paymentAttemptsUrl, { params: { order_id: completedRefund.order_id, status: 'pending' } });
+      expect(pendingList.status()).toBe(200);
+      const [pendingAttempt] = (await pendingList.json()).attempts;
+      expect(pendingAttempt.status).toBe('pending');
+      const commandUrl = `${paymentAttemptsUrl}/${pendingAttempt.id}/reconcile`;
+      const rejected = await staff.request.post(commandUrl, {
+        headers: { Origin: origin, 'X-CSRF-Token': 'invalid', 'Idempotency-Key': randomBytes(16).toString('hex') },
+      });
+      expect(rejected.status()).toBe(403);
+      await staff.goto(`/en/admin/payments?attempt=${pendingAttempt.id}`);
+      const check = staff.getByRole('button', { name: 'Recheck payment status', exact: true });
+      let operationId = '';
+      await staff.route(`**${commandUrl}`, async route => {
+        operationId = route.request().headers()['idempotency-key'];
+        const accepted = await route.fetch();
+        expect(accepted.status()).toBe(200);
+        await route.abort('failed');
+      }, { times: 1 });
+      await check.click();
+      await staff.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+      await expect(staff.getByText('Could not load payment information.')).toBeVisible();
+      await check.click();
+      const replayed = staff.waitForResponse(response => response.url().endsWith(commandUrl) && response.request().method() === 'POST');
+      await staff.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+      const replayedRun = await replayed;
+      expect(replayedRun.request().headers()['idempotency-key']).toBe(operationId);
+      expect(await replayedRun.json()).toMatchObject({ result: 'observed', status_before: 'pending', status_after: 'failed' });
+      await expect(staff.getByText('Provider observation recorded.')).toBeVisible();
+      await expect(staff.getByRole('region', { name: 'Payment detail' }).getByText('Failed', { exact: true })).toBeVisible();
 
       const paymentsPreview = await staffContext.newPage();
       paymentsPreview.on('pageerror', error => exceptions.push(error.message));

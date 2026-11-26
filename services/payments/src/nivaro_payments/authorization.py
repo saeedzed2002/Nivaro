@@ -21,6 +21,7 @@ type Scope = Literal[
     "payments.verify",
     "payments.refund",
     "payments.operations.read",
+    "payments.operations.reconcile",
 ]
 bearer = HTTPBearer(auto_error=False)
 

@@ -125,6 +125,20 @@ async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allo
         path, json={**payment_area, "mutation": mutation}, auth=credential
     )
     assert payment_write.status_code == 403
+    reconciliation_area = {**access, "area": "payment_reconciliation"}
+    assert (await client.post(path, json=reconciliation_area, auth=credential)).status_code == 403
+    recheck = await client.post(
+        path, json={**reconciliation_area, "mutation": mutation}, auth=credential
+    )
+    assert recheck.status_code == (200 if financial else 403)
+    if financial:
+        assert recheck.json() == {"actor_id": str(user_id)}
+        invalid = await client.post(
+            path,
+            json={**reconciliation_area, "mutation": {**mutation, "csrf_token": "invalid"}},
+            auth=credential,
+        )
+        assert invalid.status_code == 403 and invalid.json()["error"]["code"] == "csrf.invalid"
     if allowed:
         assert read.json() == write.json() == {"actor_id": str(user_id)}
         bad = await client.post(

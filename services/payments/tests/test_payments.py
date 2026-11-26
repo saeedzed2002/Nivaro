@@ -158,7 +158,7 @@ async def test_operations_lists_discrepancies_with_stable_pagination(clients, da
     assert [row["id"] for row in page["attempts"]] == [str(ids[0])]
     assert page["next_before"] == str(ids[0])
     detail = expect(await payments.get(f"{OPERATIONS}/{ids[0]}", headers=read))
-    assert detail == page["attempts"][0]
+    assert detail == {**page["attempts"][0], "last_reconciliation": None}
     assert (detail["amount_minor"], detail["captured_minor"], detail["currency"]) == (
         1000,
         1001,
@@ -176,6 +176,59 @@ async def test_operations_lists_discrepancies_with_stable_pagination(clients, da
     assert empty == {"attempts": [], "next_before": None}
     async with httpx.AsyncClient(base_url="http://gateway:8080", timeout=10) as gateway:
         assert (await gateway.get(OPERATIONS, headers=read)).status_code == 404
+
+
+@integration
+async def test_staff_reconciliation_records_one_observation_and_replays_it(clients, database):
+    payments, _, _ = clients
+    body = intent("USD", scenario="overpayment")
+    start = await headers(clients, "payments.start", key=body["id"])
+    expect(await payments.post(ROOT, headers=start, json=body))
+    path = f"{OPERATIONS}/{body['id']}/reconcile"
+    actor = {"actor_id": str(uuid4())}
+    key = str(uuid4())
+    read = await headers(clients, "payments.operations.read", key=key)
+    expect(await payments.post(path, headers=read, json=actor), 403, code="service.forbidden")
+    write = await headers(clients, "payments.operations.reconcile", key=key)
+    responses = await asyncio.gather(
+        *(payments.post(path, headers=write, json=actor) for _ in range(4))
+    )
+    run = expect(responses[0])
+    assert all(expect(response) == run for response in responses)
+    assert (
+        run["actor_id"],
+        run["operation_id"],
+        run["status_before"],
+        run["status_after"],
+        run["result"],
+    ) == (actor["actor_id"], key, "pending", "amount_mismatch", "observed")
+    expect(
+        await payments.post(path, headers=write, json={"actor_id": str(uuid4())}),
+        409,
+        code="payment.idempotency_conflict",
+    )
+    detail = expect(await payments.get(f"{OPERATIONS}/{body['id']}", headers=read))
+    assert detail["last_reconciliation"] == run and detail["captured_minor"] == 1001
+    assert len(await events(database, body["id"])) == 1
+    final = expect(
+        await payments.post(path, headers={**write, "Idempotency-Key": str(uuid4())}, json=actor)
+    )
+    assert final["result"] == "already_final" and final["status_after"] == "amount_mismatch"
+    assert len(await events(database, body["id"])) == 1
+
+    unavailable = intent("USD", scenario="unavailable")
+    expect(
+        await payments.post(
+            ROOT, headers={**start, "Idempotency-Key": unavailable["id"]}, json=unavailable
+        )
+    )
+    result = expect(
+        await payments.post(
+            f"{OPERATIONS}/{unavailable['id']}/reconcile", headers=write, json=actor
+        )
+    )
+    assert result["result"] == "provider_unavailable" and result["status_after"] == "pending"
+    assert not await events(database, unavailable["id"])
 
 
 @integration

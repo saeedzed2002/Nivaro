@@ -13,6 +13,7 @@ export type FulfillmentCommand = components['schemas']['Prepare' | 'Ship' | 'Del
 export type StaffOrderFilters = Omit<NonNullable<paths['/api/v1/admin/orders/history']['get']['parameters']['query']>, 'before' | 'limit'>;
 export type PaymentAttempt = components['schemas']['OperationsAttempt'];
 export type PaymentDetails = components['schemas']['OperationsDetails'];
+export type ReconciliationRun = components['schemas']['ReconciliationView'];
 export type PaymentFilters = Omit<NonNullable<paths['/api/v1/admin/payments/attempts']['get']['parameters']['query']>, 'before' | 'limit'>;
 export type RefundQueueEntry = components['schemas']['RefundQueueEntry'];
 export type RefundFilters = Omit<NonNullable<paths['/api/v1/admin/payments/refunds']['get']['parameters']['query']>, 'before' | 'limit'>;
@@ -68,6 +69,12 @@ export const listStaffRefunds = (filters: RefundFilters, before?: string, signal
 
 export const readPaymentAttempt = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/payments/attempts/{attempt_id}', { params: { path: { attempt_id: id } }, signal })), 'admin');
+
+export const reconcilePaymentAttempt = (id: string, operationId: string) => authorized(async csrf =>
+  unwrap(await client.POST('/api/v1/admin/payments/attempts/{attempt_id}/reconcile', {
+    params: { path: { attempt_id: id }, header: { 'Idempotency-Key': operationId } },
+    headers: { 'X-CSRF-Token': csrf },
+  })), 'admin');
 
 export const readOrderFulfillment = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/orders/{order_id}/fulfillment', { params: { path: { order_id: id } }, signal })), 'admin');

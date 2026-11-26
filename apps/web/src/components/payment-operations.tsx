@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
-import { listPaymentAttempts, readPaymentAttempt, type PaymentAttempt, type PaymentDetails, type PaymentFilters } from '@/lib/checkout-client';
+import { listPaymentAttempts, readPaymentAttempt, reconcilePaymentAttempt, type PaymentAttempt, type PaymentDetails, type PaymentFilters, type ReconciliationRun } from '@/lib/checkout-client';
 import { checkoutTime } from '@/lib/checkout-copy';
 import { formatCommerceMoney, isUuid, text, type Locale } from '@/lib/content';
 import { accessLost, PaymentProblem, PaymentViews, refundLabels } from './payment-admin-shared';
 import { useAdminSession } from './admin-shared';
+import { ConfirmAction } from './identity-shared';
 import { OrderStateLabel } from './order-history';
 
 const attemptLabels = {
@@ -127,7 +128,10 @@ function PaymentWorkspace({ locale, actorId, initialAttempt }: { locale: Locale;
           {detail.isSuccess && <AttemptSummary attempt={detail.data.attempt} locale={locale}/>}
         </section>}
       </div>
-      {detail.isSuccess && <PaymentOutcome details={detail.data} locale={locale}/>}
+      {detail.isSuccess && <PaymentOutcome key={detail.data.attempt.id} details={detail.data} locale={locale} refresh={() => {
+        void detail.refetch();
+        void list.refetch();
+      }}/>}
     </>}
   </>;
 }
@@ -151,17 +155,51 @@ function AttemptSummary({ attempt, locale }: { attempt: PaymentAttempt; locale: 
   </dl>;
 }
 
-function PaymentOutcome({ details, locale }: { details: PaymentDetails; locale: Locale }) {
+const reconciliationCopy = {
+  observed: ['پاسخ درگاه ثبت شد.', 'Provider observation recorded.'],
+  already_final: ['نتیجهٔ پرداخت از قبل قطعی بود.', 'The payment outcome was already final.'],
+  provider_unavailable: ['درگاه در دسترس نبود. نتیجهٔ تازه‌ای ثبت نشد.', 'The provider was unavailable. No new outcome was recorded.'],
+  evidence_mismatch: ['شواهد درگاه با این پرداخت سازگار نبود.', 'The provider evidence did not match this payment.'],
+} as const satisfies Record<ReconciliationRun['result'], readonly [string, string]>;
+
+function ReconciliationPanel({ details, locale, refresh }: { details: PaymentDetails; locale: Locale; refresh: () => void }) {
+  const actor = useAdminSession();
+  const key = useRef<string | undefined>(undefined);
+  const { attempt, last_reconciliation: last } = details;
+  const request = useMutation({
+    mutationFn: (operationId: string) => reconcilePaymentAttempt(attempt.id, operationId),
+    onSuccess: () => { key.current = undefined; refresh(); },
+  });
+  const name = text(locale, 'بررسی دوبارهٔ وضعیت', 'Recheck payment status');
+  async function recheck() {
+    key.current ??= crypto.randomUUID();
+    try { await request.mutateAsync(key.current); } catch { /* Keep the same key if the response was lost. */ }
+  }
+  return <section className="admin-panel payment-panel" aria-labelledby="payment-reconciliation-heading">
+    <h2 id="payment-reconciliation-heading">{text(locale, 'تطبیق پرداخت', 'Reconciliation')}</h2>
+    <dl className="payment-values">
+      <div><dt>{text(locale, 'بررسی خودکار بعدی', 'Next automatic check')}</dt><dd><TimeValue locale={locale} value={attempt.reconcile_at} empty={text(locale, 'زمان‌بندی نشده', 'Not scheduled')}/></dd></div>
+      <div><dt>{text(locale, 'دفعات بررسی خودکار', 'Automatic checks')}</dt><dd>{new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US').format(attempt.reconciliation_attempts)}</dd></div>
+      {last && <>
+        <div><dt>{text(locale, 'آخرین بررسی مدیر', 'Last staff check')}</dt><dd><TimeValue value={last.checked_at} locale={locale}/> <bdi title={text(locale, 'شناسهٔ مدیر', 'Staff ID')}>{last.actor_id}</bdi></dd></div>
+        <div><dt>{text(locale, 'نتیجهٔ بررسی مدیر', 'Staff check result')}</dt><dd>{text(locale, reconciliationCopy[last.result][0], reconciliationCopy[last.result][1])} <AttemptStatus status={last.status_after} locale={locale}/></dd></div>
+      </>}
+    </dl>
+    {request.isSuccess && <p role="status">{text(locale, 'بررسی در سابقه ثبت شد.', 'The check was recorded.')}</p>}
+    {request.isError && <PaymentProblem locale={locale} error={request.error}/>}
+    {actor?.permissions.includes('payments.reconcile') && !accessLost(request.error) && (!attempt.verified_at || request.isError) && <div className="payment-problem">
+      <ConfirmAction locale={locale} label={name} title={name} appearance="primary" busy={request.isPending} onConfirm={recheck}>
+        {text(locale, 'نتیجه از شبیه‌ساز درگاه استعلام و با شناسهٔ مدیر ثبت می‌شود.', 'The simulator will be queried and the result recorded with your staff ID.')}
+      </ConfirmAction>
+    </div>}
+  </section>;
+}
+
+function PaymentOutcome({ details, locale, refresh }: { details: PaymentDetails; locale: Locale; refresh: () => void }) {
   const { attempt, order } = details;
   const refund = order?.compensation;
   return <div className="payment-outcome">
-    <section className="admin-panel payment-panel" aria-labelledby="payment-reconciliation-heading">
-      <h2 id="payment-reconciliation-heading">{text(locale, 'تطبیق پرداخت', 'Reconciliation')}</h2>
-      <dl className="payment-values">
-        <div><dt>{text(locale, 'بررسی بعدی', 'Next check')}</dt><dd><TimeValue locale={locale} value={attempt.reconcile_at} empty={text(locale, 'زمان‌بندی نشده', 'Not scheduled')}/></dd></div>
-        <div><dt>{text(locale, 'دفعات بررسی', 'Reconciliation attempts')}</dt><dd>{new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US').format(attempt.reconciliation_attempts)}</dd></div>
-      </dl>
-    </section>
+    <ReconciliationPanel details={details} locale={locale} refresh={refresh}/>
     <section className="admin-panel payment-panel" aria-labelledby="payment-order-heading">
       <h2 id="payment-order-heading">{text(locale, 'سفارش و بازپرداخت', 'Order & refund')}</h2>
       {order ? <>

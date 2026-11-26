@@ -1396,3 +1396,31 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
             db, state="open", market="ir", order_id=order.id, before=None, limit=20
         )
         assert not opened.refunds
+
+    # Leave one untouched simulator attempt for the staff reconciliation browser journey.
+    async with httpx.AsyncClient(timeout=8, trust_env=False) as http:
+        grant = await http.post(
+            "http://identity:8000/internal/v1/service-tokens",
+            auth=("orders", secret),
+            json={"audience": "nivaro-payments", "scope": "payments.start"},
+        )
+        assert grant.status_code == 200
+        pending_id = str(uuid4())
+        pending = await http.post(
+            "http://payments:8000/internal/v1/payments/attempts",
+            headers={
+                "Authorization": "Bearer " + grant.json()["access_token"],
+                "Idempotency-Key": pending_id,
+            },
+            json={
+                "id": pending_id,
+                "order_id": str(order.id),
+                "order_version": order.version,
+                "market": order.market,
+                "currency": order.currency,
+                "amount_minor": order.total_minor,
+                "reservation_expires_at": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+                "scenario": "failure",
+            },
+        )
+        assert pending.status_code == 200 and pending.json()["status"] == "pending"

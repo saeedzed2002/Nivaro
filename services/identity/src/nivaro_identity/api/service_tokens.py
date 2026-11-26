@@ -26,6 +26,7 @@ ORDERS_SERVICE_SCOPES = {
             "payments.verify",
             "payments.refund",
             "payments.operations.read",
+            "payments.operations.reconcile",
         }
     ),
 }
@@ -104,7 +105,7 @@ class OrdersStaffRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     staff_access: Annotated[SecretStr, Field(min_length=1, max_length=8192)]
     mutation: CheckoutMutation | None = None
-    area: Literal["orders", "payments"] = "orders"
+    area: Literal["orders", "payments", "payment_reconciliation"] = "orders"
 
 
 class OrdersStaffContext(BaseModel):
@@ -127,6 +128,10 @@ async def orders_staff_context(
             if body.mutation is not None:
                 raise IdentityError("permission.denied", 403)
             required = "payments.read"
+        elif body.area == "payment_reconciliation":
+            if body.mutation is None:
+                raise IdentityError("permission.denied", 403)
+            required = "payments.reconcile"
         else:
             required = "orders.fulfill" if body.mutation is not None else "orders.read"
         if required not in staff.permissions:

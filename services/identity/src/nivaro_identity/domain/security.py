@@ -27,6 +27,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "orders.read",
         "orders.fulfill",
         "payments.read",
+        "payments.reconcile",
         "payments.refund",
         "support.reply",
         "users.manage",

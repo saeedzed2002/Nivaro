@@ -562,6 +562,16 @@
           "attempt": {
             "$ref": "#/components/schemas/OperationsAttempt"
           },
+          "last_reconciliation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReconciliationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "order": {
             "anyOf": [
               {
@@ -575,7 +585,8 @@
         },
         "required": [
           "attempt",
-          "order"
+          "order",
+          "last_reconciliation"
         ],
         "title": "OperationsDetails",
         "type": "object"
@@ -1137,6 +1148,58 @@
           "unit_price_minor"
         ],
         "title": "PurchasedItem",
+        "type": "object"
+      },
+      "ReconciliationView": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_id": {
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "attempt_id": {
+            "format": "uuid",
+            "title": "Attempt Id",
+            "type": "string"
+          },
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "observed",
+              "already_final",
+              "provider_unavailable",
+              "evidence_mismatch"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "status_after": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "status_before": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          }
+        },
+        "required": [
+          "operation_id",
+          "attempt_id",
+          "actor_id",
+          "checked_at",
+          "status_before",
+          "status_after",
+          "result"
+        ],
+        "title": "ReconciliationView",
         "type": "object"
       },
       "RefundQueue": {
@@ -2197,6 +2260,109 @@
           }
         },
         "summary": "Read Attempt",
+        "tags": [
+          "staff payments"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/attempts/{attempt_id}/reconcile": {
+      "post": {
+        "operationId": "reconcileStaffPaymentAttempt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Reconcile Attempt",
         "tags": [
           "staff payments"
         ]

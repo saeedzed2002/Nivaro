@@ -16,7 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from nivaro_payments.contracts import AttemptState, Currency, Market, Scenario
+from nivaro_payments.contracts import AttemptState, Currency, Market, ReconciliationResult, Scenario
 
 
 class Base(DeclarativeBase):
@@ -72,6 +72,23 @@ class Attempt(Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reconcile_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reconciliation_attempts: Mapped[int] = mapped_column(server_default="0")
+
+
+class ReconciliationRun(Base):
+    __tablename__ = "reconciliation_runs"
+    __table_args__ = (
+        Index("ix_reconciliation_runs_attempt_time", "attempt_id", "checked_at", "operation_id"),
+    )
+
+    attempt_id: Mapped[UUID] = mapped_column(
+        ForeignKey("payment_attempts.id", ondelete="RESTRICT"), primary_key=True
+    )
+    operation_id: Mapped[UUID] = mapped_column(primary_key=True)
+    actor_id: Mapped[UUID]
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status_before: Mapped[AttemptState] = mapped_column(String(24))
+    status_after: Mapped[AttemptState] = mapped_column(String(24))
+    result: Mapped[ReconciliationResult] = mapped_column(String(24))
 
 
 class Refund(Base):

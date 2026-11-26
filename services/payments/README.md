@@ -15,6 +15,7 @@ has no published host port.
 | `POST /attempts` | `payments.start` | Bind an `Idempotency-Key` to the actual Orders intent. Requires at least 90 seconds left on a new attempt's reservation. |
 | `GET /attempts/{attempt_id}` | `payments.read` | Read the persisted status and captured amount, if any. |
 | `POST /attempts/{attempt_id}/verify` | `payments.verify` | Ask the simulator for evidence and apply a matching result once. An ambiguous attempt is queried on retry. |
+| `POST /operations/attempts/{attempt_id}/reconcile` | `payments.operations.reconcile` | Query the simulator after Orders checks staff permission and CSRF. Store the staff ID, operation UUID, timestamp and observed result. A repeat with the same attempt, operation and actor returns the stored result. |
 | `POST /attempts/{attempt_id}/refunds` | `payments.refund` | Complete a simulated refund using a separate key. Concurrent refunds share one capture limit. |
 | `POST /attempts/{attempt_id}/compensation` | `payments.refund` | Match the original order, currency and capture, then refund its remaining balance under the same payment lock. Repeating the operation with the same ID and key returns the original receipt. A fully refunded capture reports `refund.already_refunded` without adding another refund. |
 
@@ -29,6 +30,12 @@ locked claims to query the simulator with bounded backoff. It stops after eight
 automatic queries if the result remains unresolved. The route can still verify
 the attempt explicitly. Attempts created without a verification request remain
 outside the queue. The migration schedules existing ambiguous attempts.
+
+Staff checks use the same provider evidence rules as automatic reconciliation. A
+final attempt returns its current status without calling the provider. A provider
+failure or mismatched evidence is recorded in the staff check and preserves the
+attempt's financial state. The check and any resulting outbox event commit in one
+transaction. The detail view returns the latest staff check.
 
 The attempt or refund and its event commit together in PostgreSQL. Success
 requires matching captured and expected amounts. The publisher claims outbox

@@ -15,7 +15,8 @@ const permissionLabels: Record<string, [string, string]> = {
   'catalog.write': ['مدیریت کاتالوگ', 'Catalog management'], 'reviews.moderate': ['مدیریت دیدگاه‌ها', 'Review moderation'],
   'orders.read': ['مشاهدهٔ سفارش‌ها', 'Order access'], 'orders.manage': ['مدیریت سفارش‌ها', 'Order management'],
   'orders.fulfill': ['آماده‌سازی، ارسال و تحویل سفارش', 'Order fulfillment'],
-  'payments.read': ['مشاهدهٔ پرداخت‌ها', 'Payment access'], 'payments.refund': ['بازپرداخت', 'Refunds'], 'support.reply': ['پاسخ‌گویی پشتیبانی', 'Support replies'],
+  'payments.read': ['مشاهدهٔ پرداخت‌ها', 'Payment access'], 'payments.reconcile': ['تطبیق پرداخت‌ها', 'Payment reconciliation'],
+  'payments.refund': ['بازپرداخت', 'Refunds'], 'support.reply': ['پاسخ‌گویی پشتیبانی', 'Support replies'],
   'users.manage': ['مدیریت کاربران', 'User management'], 'roles.manage': ['مدیریت دسترسی‌ها', 'Access management'],
 };
 export function IdentityLogin({ locale, admin = false, initial, mock = false, destination = `/${locale}/account` }: { locale: Locale; admin?: boolean; initial: InitialIdentity; mock?: boolean; destination?: string }) {
