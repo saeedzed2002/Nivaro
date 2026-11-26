@@ -2,6 +2,19 @@
 services:
   web:
     image: nivaro-web:local-development
+    volumes:
+      - ./apps/web/src:/app/src:ro
+      - ./apps/web/public:/app/public:ro
+    develop:
+      watch: !override
+        - action: rebuild
+          path: ./apps/web/package.json
+        - action: rebuild
+          path: ./apps/web/pnpm-lock.yaml
+        - action: rebuild
+          path: ./apps/web/pnpm-workspace.yaml
+        - action: rebuild
+          path: ./apps/web/next.config.ts
   catalog:
     environment:
       PYTHONPATH: /workspace/src

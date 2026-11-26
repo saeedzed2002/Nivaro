@@ -52,12 +52,16 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Review moderation | P08 | [Moderation](pages/admin-review-moderation.png), generated and inspected before implementation |
 | Administrator orders | P07, P10 | [Staff orders](pages/admin-orders.png), generated and inspected before implementation |
 | Administrator order detail | P07 | Pending |
-| Payments / reconciliation | P07 | Pending |
+| Payments / reconciliation | P10 | [Payment operations](pages/admin-payments.png), generated and inspected before implementation |
 | Users / permissions | P10 | [Accounts and audit](pages/admin-accounts.png), generated and inspected before implementation |
 | Administrator profile / avatar | P04 | [Staff profile](pages/admin-profile.png), generated and inspected 2026-11-07 before implementation; own avatar/name, read-only staff email/role, dark desktop and light mobile |
 | Support inbox | P09 | [Inbox](pages/admin-support-inbox.png), generated and inspected before implementation |
 
 Record reference creation and inspection before starting each template. Carry empty, loading, error, keyboard, mobile and localized variations into implementation QA. Dialogs explaining inactive P01 features do not pretend to implement those pages.
+
+### P10 payment operations reference
+
+The payment workspace uses the existing administration shell, a compact filter strip, a selectable payment list and a detail panel. The reconciliation and order sections follow the selected attempt. The published fields come from the payment operations contract. Single selection uses buttons, and the list and inspector stack on narrow screens. The refund display uses the recorded compensation state and captured amount.
 
 ### P10 accounts and audit reference
 

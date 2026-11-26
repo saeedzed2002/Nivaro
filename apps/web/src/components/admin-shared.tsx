@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AlertCircle, Box, CheckCircle2, ExternalLink, FolderTree, MessageSquare, PackageCheck, UserRound, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Box, CheckCircle2, CreditCard, ExternalLink, FolderTree, MessageSquare, PackageCheck, UserRound, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import { IdentityError, logout, readSession, type IdentitySession } from '@/lib/identity-client';
 import { type InitialIdentity } from '@/lib/identity-server';
 import { text, type Locale } from '@/lib/content';
@@ -49,6 +49,7 @@ export const useAdminSession = () => useContext(AdminSession);
 const workspaces = {
   catalog: { title: ['مدیریت کاتالوگ', 'Catalog workspace'], access: ['دسترسی مدیریت محصولات', 'Product administration access'], denied: ['این حساب مجوز مدیریت کاتالوگ ندارد.', 'This account does not have catalog management permission.'] },
   orders: { title: ['مدیریت سفارش‌ها', 'Order workspace'], access: ['دسترسی مدیریت سفارش‌ها', 'Order administration access'], denied: ['این حساب مجوز مشاهدهٔ سفارش‌ها را ندارد.', 'This account does not have permission to view orders.'] },
+  payments: { title: ['مدیریت پرداخت‌ها', 'Payment operations'], access: ['دسترسی مدیریت پرداخت‌ها', 'Payment administration access'], denied: ['این حساب مجوز مشاهدهٔ پرداخت‌ها را ندارد.', 'This account does not have permission to view payments.'] },
   reviews: { title: ['مدیریت دیدگاه‌ها', 'Review workspace'], access: ['دسترسی بررسی دیدگاه‌ها', 'Review moderation access'], denied: ['این حساب مجوز بررسی دیدگاه‌ها را ندارد.', 'This account does not have permission to moderate reviews.'] },
   support: { title: ['صندوق پشتیبانی', 'Support inbox'], access: ['دسترسی صندوق پشتیبانی', 'Support inbox access'], denied: ['این حساب مجوز پاسخ‌گویی پشتیبانی ندارد.', 'This account does not have permission to reply to support conversations.'] },
   accounts: { title: ['حساب‌ها و ممیزی', 'Accounts & audit'], access: ['دسترسی مدیریت حساب‌ها', 'Account management access'], denied: ['این حساب مجوز مدیریت حساب‌ها و مشاهدهٔ ممیزی ندارد.', 'This account cannot manage accounts or view their audit history.'] },
@@ -71,10 +72,11 @@ export function AdminShell({ locale, initial, children, selfProfile = false, wor
   }, [attempt]);
   const catalogAllowed = identity?.permissions.includes('catalog.write');
   const ordersAllowed = identity?.permissions.includes('orders.read');
+  const paymentsAllowed = identity?.permissions.includes('payments.read');
   const reviewsAllowed = identity?.permissions.includes('reviews.moderate');
   const supportAllowed = identity?.permissions.includes('support.reply');
   const accountsAllowed = identity?.permissions.includes('users.manage');
-  const allowed = { catalog: catalogAllowed, orders: ordersAllowed, reviews: reviewsAllowed, support: supportAllowed, accounts: accountsAllowed }[workspace];
+  const allowed = { catalog: catalogAllowed, orders: ordersAllowed, payments: paymentsAllowed, reviews: reviewsAllowed, support: supportAllowed, accounts: accountsAllowed }[workspace];
   const { title, access, denied } = workspaces[workspace];
   async function signOut() {
     if (document.querySelector('[data-unsaved="true"]') && !window.confirm(text(locale, 'تغییرات ذخیره‌نشده کنار گذاشته شوند؟', 'Leave and discard unsaved changes?'))) return;
@@ -88,6 +90,7 @@ export function AdminShell({ locale, initial, children, selfProfile = false, wor
       <nav aria-label={text(locale, 'ناوبری مدیریت', 'Administration navigation')}>
         {catalogAllowed && <><Link href={`/${locale}/admin/products`} aria-current={pathname.includes('/admin/products') ? 'page' : undefined}><Box size={19}/>{text(locale, 'محصولات', 'Products')}</Link><Link href={`/${locale}/admin/categories`} aria-current={pathname.endsWith('/admin/categories') ? 'page' : undefined}><FolderTree size={19}/>{text(locale, 'دسته‌بندی‌ها', 'Categories')}</Link></>}
         {ordersAllowed && <Link href={`/${locale}/admin/orders`} aria-current={workspace === 'orders' ? 'page' : undefined}><PackageCheck size={19}/>{text(locale, 'سفارش‌ها', 'Orders')}</Link>}
+        {paymentsAllowed && <Link href={`/${locale}/admin/payments`} aria-current={workspace === 'payments' ? 'page' : undefined}><CreditCard size={19}/>{text(locale, 'پرداخت‌ها', 'Payments')}</Link>}
         {reviewsAllowed && <Link href={`/${locale}/admin/reviews`} aria-current={workspace === 'reviews' ? 'page' : undefined}><MessageSquare size={19}/>{text(locale, 'دیدگاه‌ها', 'Reviews')}</Link>}
         {supportAllowed && <Link href={`/${locale}/admin/support`} aria-current={workspace === 'support' ? 'page' : undefined}><MessageSquare size={19}/>{text(locale, 'پشتیبانی', 'Support inbox')}</Link>}
         {accountsAllowed && <Link href={`/${locale}/admin/users`} aria-current={workspace === 'accounts' ? 'page' : undefined}><UserRound size={19}/>{text(locale, 'حساب‌ها و ممیزی', 'Accounts & audit')}</Link>}

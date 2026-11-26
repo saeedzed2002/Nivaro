@@ -178,6 +178,9 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
     expect((await page.request.get('/api/v1/admin/orders/history')).status()).toBe(401);
     const paymentAttemptsUrl = '/api/v1/admin/payments/attempts';
     expect((await page.request.get(paymentAttemptsUrl)).status()).toBe(401);
+    await page.goto('/en/admin/payments');
+    await expect(page.getByRole('heading', { name: 'Payment administration access' })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Payment attempts' })).toHaveCount(0);
     const password = randomBytes(24).toString('base64url');
     if (!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project)) throw new Error('Disposable Orders stack required');
     const setup = spawnSync('docker', ['exec', '-i', `${project}-identity-1`, 'python', '-c', `
@@ -249,10 +252,49 @@ asyncio.run(manage('bootstrap-admin'))
       expect(attempts).toHaveLength(1);
       const paymentDetail = await staff.request.get(`${paymentAttemptsUrl}/${attempts[0].id}`);
       expect(paymentDetail.status()).toBe(200);
-      expect(await paymentDetail.json()).toMatchObject({
+      const paymentData = await paymentDetail.json();
+      expect(paymentData).toMatchObject({
         attempt: { order_id: submittedId, amount_minor: 46600, captured_minor: 46600, currency: 'USD' },
         order: { status: 'paid', recorded_outcome: 'payment.succeeded', disposition: 'selected', compensation: null },
       });
+      await staff.getByRole('link', { name: 'Payments', exact: true }).click();
+      await staff.setViewportSize({ width: 1440, height: 1050 });
+      await expect(staff).toHaveTitle(/Payments & reconciliation/);
+      await staff.getByLabel('Order reference', { exact: true }).fill(submittedId);
+      await staff.getByRole('combobox', { name: 'Market', exact: true }).selectOption('ir');
+      const applyPayments = staff.getByRole('button', { name: 'Apply filters' });
+      await applyPayments.press('Enter');
+      await expect(staff.getByText('No payment attempts match these filters.')).toBeVisible();
+      await staff.getByRole('combobox', { name: 'Market', exact: true }).selectOption('international');
+      await applyPayments.click();
+      const paymentRow = staff.getByRole('table', { name: 'Payment attempts' }).getByRole('button', { name: new RegExp(attempts[0].id) });
+      await paymentRow.press('Enter');
+      await expect(paymentRow).toHaveAttribute('aria-pressed', 'true');
+      await expect(staff.getByRole('region', { name: 'Payment detail' }).getByText('$466.00', { exact: true })).toHaveCount(2);
+      await expect(staff.getByText('No refund is recorded for this attempt.')).toBeVisible();
+
+      const paymentsPreview = await staffContext.newPage();
+      paymentsPreview.on('pageerror', error => exceptions.push(error.message));
+      const mismatch = { ...paymentData.attempt, captured_minor: 46601, status: 'amount_mismatch' };
+      const compensation = { refund_id: '63beddc3-f140-43ff-a04b-bf90158aefdd', captured_minor: 46601,
+        closes_order: false, reason: 'payment.amount_mismatch', state: 'awaiting_evidence', retry_at: null, last_error: null };
+      await paymentsPreview.route(`**${paymentAttemptsUrl}**`, async route => {
+        const pathname = new URL(route.request().url()).pathname;
+        await route.fulfill({ json: pathname === paymentAttemptsUrl ? { attempts: [mismatch], next_before: null }
+          : { attempt: mismatch, order: { ...paymentData.order, recorded_outcome: 'payment.amount_mismatch', disposition: 'payment.amount_mismatch', compensation } } });
+      });
+      await paymentsPreview.goto('/en/admin/payments');
+      await expect(paymentsPreview.getByRole('region', { name: 'Payment detail' }).getByText('+$0.01', { exact: true })).toBeVisible();
+      await expect(paymentsPreview.getByRole('region', { name: 'Order & refund' }).getByText('Awaiting evidence')).toBeVisible();
+      await paymentsPreview.screenshot({ path: test.info().outputPath('admin-payments-en-dark.png'), fullPage: true });
+      await paymentsPreview.setViewportSize({ width: 390, height: 844 });
+      await paymentsPreview.goto('/fa/admin/payments');
+      await paymentsPreview.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
+      await expect(paymentsPreview.getByRole('region', { name: 'سفارش و بازپرداخت' }).getByText('منتظر تأیید بازپرداخت')).toBeVisible();
+      expect(await paymentsPreview.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      await paymentsPreview.screenshot({ path: test.info().outputPath('admin-payments-fa-light.png'), fullPage: true });
+      await paymentsPreview.close();
+      await staff.goto('/en/admin/orders');
       await row.getByRole('link', { name: 'View order' }).click();
       await staff.setViewportSize({ width: 1487, height: 1058 });
       await expect(staff.getByText('22 Example Street', { exact: true })).toBeVisible();

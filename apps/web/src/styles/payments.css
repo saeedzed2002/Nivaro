@@ -1,0 +1,48 @@
+.payment-filters { display:grid; grid-template-columns:1fr 1fr minmax(0,1.5fr) auto; gap:12px; margin:0; padding:14px; }
+.payment-filters label { min-width:0; }
+.payment-filters input { width:100%; min-width:0; min-height:44px; background:var(--input); border:1px solid var(--line); color:var(--text); border-radius:7px; padding:9px; font:inherit; }
+.payment-filters [aria-invalid=true] { border-color:var(--danger,#b25766); }
+.payment-filters .admin-notice { grid-column:1/-1; margin:0; }
+.payment-filter-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.payment-simulator { margin-block:14px; padding:9px 12px; border:1px solid var(--line); background:var(--panel-soft); border-radius:8px; color:var(--muted); font-size:13px; }
+.payment-layout { display:grid; grid-template-columns:minmax(0,1.22fr) minmax(0,1fr); align-items:start; gap:14px; }
+.payment-panel { padding:0; }
+.payment-panel h2 { margin:0; padding:13px 16px; border-block-end:1px solid var(--line); }
+.payment-panel > p,.payment-problem { margin:12px 16px; }
+.payment-problem .admin-notice { margin-block:0 8px; }
+.payment-table { width:100%; border-collapse:collapse; font-size:13px; overflow-wrap:anywhere; }
+.payment-table th,.payment-table td { text-align:start; padding:11px 8px; border-block-end:1px solid var(--line); }
+.payment-table th { color:var(--muted); font-weight:500; }
+.payment-table th:first-child,.payment-table td:first-child { padding-inline-start:16px; }
+.payment-table th:last-child,.payment-table td:last-child { padding-inline-end:16px; }
+.payment-table tr[data-selected=true] { background:color-mix(in srgb,var(--blue) 14%,var(--panel-soft)); }
+.payment-select { display:block; width:100%; min-height:44px; text-align:start; cursor:pointer; border:0; border-radius:5px; padding:5px 0; background:transparent; color:var(--text); font:inherit; }
+.payment-select > bdi { color:var(--accent); font-weight:650; }
+.payment-select small { display:flex; flex-wrap:wrap; gap:4px 8px; margin-block-start:4px; color:var(--muted); }
+.payment-more { margin:12px 16px; }
+.payment-status { display:inline-block; max-width:100%; color:var(--text); background:var(--input); padding:3px 7px; border:1px solid var(--line); border-radius:6px; font-size:12px; }
+.payment-status[data-status=succeeded],.payment-status[data-status=completed] { color:var(--text); border-color:#3d8d72; background:color-mix(in srgb,#3d8d72 16%,var(--panel-soft)); }
+.payment-status[data-status=amount_mismatch],.payment-status[data-status=manual_review],.payment-status[data-status=awaiting_evidence],.payment-values [data-discrepancy=true] { border-color:#b38131; background:color-mix(in srgb,#b38131 18%,var(--panel-soft)); }
+.payment-values { margin:0; padding:4px 16px; font-size:13px; }
+.payment-values > div { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.6fr); align-items:baseline; gap:10px; padding-block:8px; border-block-end:1px solid var(--line); }
+.payment-values > div:last-child { border-block-end:0; }
+.payment-values dt { color:var(--muted); overflow-wrap:anywhere; }
+.payment-values dd { margin:0; overflow-wrap:anywhere; }
+.payment-values dd[data-discrepancy=true] { width:fit-content; max-width:100%; padding-inline:5px; border-radius:4px; }
+.payment-values .text-link { display:inline-block; margin-inline-start:5px; }
+.payment-outcome { display:grid; gap:14px; margin-block-start:14px; }
+.payment-refund { border-block-start:1px solid var(--line); }
+
+@media (max-width:1080px) {
+  .payment-layout { grid-template-columns:1fr; }
+  .payment-filters { grid-template-columns:1fr 1fr; }
+}
+@media (max-width:560px) {
+  .payment-order-filter,.payment-filter-actions { grid-column:1/-1; }
+  .payment-table { table-layout:fixed; font-size:11px; }
+  .payment-table th,.payment-table td { padding-inline:4px; }
+  .payment-table th:first-child,.payment-table td:first-child { padding-inline-start:9px; }
+  .payment-table th:last-child,.payment-table td:last-child { padding-inline-end:9px; }
+  .payment-status { padding:3px 4px; font-size:11px; }
+  .payment-values > div { grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); }
+}

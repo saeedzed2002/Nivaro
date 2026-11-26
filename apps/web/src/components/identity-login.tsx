@@ -15,7 +15,7 @@ const permissionLabels: Record<string, [string, string]> = {
   'catalog.write': ['مدیریت کاتالوگ', 'Catalog management'], 'reviews.moderate': ['مدیریت دیدگاه‌ها', 'Review moderation'],
   'orders.read': ['مشاهدهٔ سفارش‌ها', 'Order access'], 'orders.manage': ['مدیریت سفارش‌ها', 'Order management'],
   'orders.fulfill': ['آماده‌سازی، ارسال و تحویل سفارش', 'Order fulfillment'],
-  'payments.refund': ['بازپرداخت', 'Refunds'], 'support.reply': ['پاسخ‌گویی پشتیبانی', 'Support replies'],
+  'payments.read': ['مشاهدهٔ پرداخت‌ها', 'Payment access'], 'payments.refund': ['بازپرداخت', 'Refunds'], 'support.reply': ['پاسخ‌گویی پشتیبانی', 'Support replies'],
   'users.manage': ['مدیریت کاربران', 'User management'], 'roles.manage': ['مدیریت دسترسی‌ها', 'Access management'],
 };
 export function IdentityLogin({ locale, admin = false, initial, mock = false, destination = `/${locale}/account` }: { locale: Locale; admin?: boolean; initial: InitialIdentity; mock?: boolean; destination?: string }) {
@@ -77,6 +77,7 @@ export function IdentityLogin({ locale, admin = false, initial, mock = false, de
           <Link className="button secondary" href={`/${locale}/admin/profile`}>{text(locale, 'پروفایل من', 'My profile')}</Link>
           {session.permissions.includes('catalog.write') && <Link className="button primary" href={`/${locale}/admin/products`}>{text(locale, 'مدیریت محصولات', 'Manage products')}</Link>}
           {session.permissions.includes('orders.read') && <Link className="button primary" href={`/${locale}/admin/orders`}>{text(locale, 'مدیریت سفارش‌ها', 'Manage orders')}</Link>}
+          {session.permissions.includes('payments.read') && <Link className="button primary" href={`/${locale}/admin/payments`}>{text(locale, 'مدیریت پرداخت‌ها', 'Manage payments')}</Link>}
           {session.permissions.includes('reviews.moderate') && <Link className="button primary" href={`/${locale}/admin/reviews`}>{text(locale, 'بررسی دیدگاه‌ها', 'Moderate reviews')}</Link>}
           {session.permissions.includes('support.reply') && <Link className="button primary" href={`/${locale}/admin/support`}>{text(locale, 'صندوق پشتیبانی', 'Support inbox')}</Link>}
           {session.permissions.includes('users.manage') && <Link className="button primary" href={`/${locale}/admin/users`}>{text(locale, 'حساب‌ها و ممیزی', 'Accounts & audit')}</Link>}
