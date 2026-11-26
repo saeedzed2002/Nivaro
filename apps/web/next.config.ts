@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 const config: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  devIndicators: false,
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
   images: { formats: ['image/avif', 'image/webp'] },
   async rewrites() {
