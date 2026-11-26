@@ -76,6 +76,12 @@ export const reconcilePaymentAttempt = (id: string, operationId: string) => auth
     headers: { 'X-CSRF-Token': csrf },
   })), 'admin');
 
+export const retryPaymentRefund = (id: string, operationId: string, expectedAttempts: number) => authorized(async csrf =>
+  unwrap(await client.POST('/api/v1/admin/payments/refunds/{refund_id}/retry', {
+    params: { path: { refund_id: id }, header: { 'Idempotency-Key': operationId } },
+    body: { expected_attempts: expectedAttempts }, headers: { 'X-CSRF-Token': csrf },
+  })), 'admin');
+
 export const readOrderFulfillment = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/orders/{order_id}/fulfillment', { params: { path: { order_id: id } }, signal })), 'admin');
 

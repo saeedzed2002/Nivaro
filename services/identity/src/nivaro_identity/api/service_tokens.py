@@ -105,7 +105,7 @@ class OrdersStaffRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     staff_access: Annotated[SecretStr, Field(min_length=1, max_length=8192)]
     mutation: CheckoutMutation | None = None
-    area: Literal["orders", "payments", "payment_reconciliation"] = "orders"
+    area: Literal["orders", "payments", "payment_reconciliation", "payment_refund"] = "orders"
 
 
 class OrdersStaffContext(BaseModel):
@@ -128,10 +128,12 @@ async def orders_staff_context(
             if body.mutation is not None:
                 raise IdentityError("permission.denied", 403)
             required = "payments.read"
-        elif body.area == "payment_reconciliation":
+        elif body.area in {"payment_reconciliation", "payment_refund"}:
             if body.mutation is None:
                 raise IdentityError("permission.denied", 403)
-            required = "payments.reconcile"
+            required = (
+                "payments.reconcile" if body.area == "payment_reconciliation" else "payments.refund"
+            )
         else:
             required = "orders.fulfill" if body.mutation is not None else "orders.read"
         if required not in staff.permissions:

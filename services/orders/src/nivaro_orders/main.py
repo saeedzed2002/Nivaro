@@ -23,7 +23,7 @@ from nivaro_orders.infrastructure.reservations import CatalogReservations
 from nivaro_orders.infrastructure.simulator_payments import SimulatorPayments
 from nivaro_orders.settings import Settings
 
-SCHEMA = "0011_order_delivered"
+SCHEMA = "0012_refund_operator_retries"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -86,9 +86,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def checkout_error(request: Request, exc: CheckoutError) -> JSONResponse:
         if isinstance(exc, SourceError):
             return error(request, exc.status, exc.code)
-        status = {"checkout.not_found": 404, "checkout.invalid_idempotency_key": 422}.get(
-            exc.code, 409
-        )
+        status = {
+            "checkout.not_found": 404,
+            "refund.not_found": 404,
+            "checkout.invalid_idempotency_key": 422,
+        }.get(exc.code, 409)
         return error(request, status, exc.code)
 
     @app.exception_handler(RequestValidationError)

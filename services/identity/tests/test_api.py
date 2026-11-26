@@ -131,6 +131,10 @@ async def test_orders_staff_context_checks_role_session_and_csrf(api, role, allo
         path, json={**reconciliation_area, "mutation": mutation}, auth=credential
     )
     assert recheck.status_code == (200 if financial else 403)
+    refund_area = {**access, "area": "payment_refund"}
+    assert (await client.post(path, json=refund_area, auth=credential)).status_code == 403
+    refund = await client.post(path, json={**refund_area, "mutation": mutation}, auth=credential)
+    assert refund.status_code == (200 if financial else 403)
     if financial:
         assert recheck.json() == {"actor_id": str(user_id)}
         invalid = await client.post(

@@ -34,15 +34,20 @@ class RefundWork:
     number: int
 
 
-async def confirm_compensation(db: AsyncSession, order: Order, attempt_id: UUID) -> None:
-    compensation = await db.get(OrderPaymentCompensation, attempt_id)
-    if compensation is None or compensation.state == "completed":
-        return
-    refunded = await db.scalar(
+async def confirmed_refund_total(db: AsyncSession, attempt_id: UUID) -> int:
+    total = await db.scalar(
         select(func.sum(OrderPaymentRefund.amount_minor)).where(
             OrderPaymentRefund.payment_attempt_id == attempt_id
         )
     )
+    return int(total or 0)
+
+
+async def confirm_compensation(db: AsyncSession, order: Order, attempt_id: UUID) -> None:
+    compensation = await db.get(OrderPaymentCompensation, attempt_id)
+    if compensation is None or compensation.state == "completed":
+        return
+    refunded = await confirmed_refund_total(db, attempt_id)
     if refunded != compensation.captured_minor:
         return
     compensation.state = "completed"

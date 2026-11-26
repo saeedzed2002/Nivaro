@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
-import { listPaymentAttempts, readPaymentAttempt, reconcilePaymentAttempt, type PaymentAttempt, type PaymentDetails, type PaymentFilters, type ReconciliationRun } from '@/lib/checkout-client';
+import { listPaymentAttempts, readPaymentAttempt, reconcilePaymentAttempt, retryPaymentRefund, type PaymentAttempt, type PaymentDetails, type PaymentFilters, type ReconciliationRun } from '@/lib/checkout-client';
 import { checkoutTime } from '@/lib/checkout-copy';
 import { formatCommerceMoney, isUuid, text, type Locale } from '@/lib/content';
+import { IdentityError } from '@/lib/identity-client';
 import { accessLost, PaymentProblem, PaymentViews, refundLabels } from './payment-admin-shared';
 import { useAdminSession } from './admin-shared';
 import { ConfirmAction } from './identity-shared';
@@ -195,6 +196,52 @@ function ReconciliationPanel({ details, locale, refresh }: { details: PaymentDet
   </section>;
 }
 
+type OrderPaymentDetails = NonNullable<PaymentDetails['order']>;
+
+function RefundDetail({ refund, order, locale, refresh }: {
+  refund: NonNullable<OrderPaymentDetails['compensation']>; order: OrderPaymentDetails; locale: Locale; refresh: () => void;
+}) {
+  const actor = useAdminSession();
+  const request = useMutation({
+    mutationFn: ({ operationId, expectedAttempts }: { operationId: string; expectedAttempts: number }) => retryPaymentRefund(refund.refund_id, operationId, expectedAttempts),
+    onSuccess: refresh,
+    onError: error => {
+      if (error instanceof IdentityError && error.status === 409) refresh();
+    },
+  });
+  const last = order.last_refund_retry;
+  const errorStatus = request.error instanceof IdentityError ? request.error.status : undefined;
+  const replayable = request.isError && (!errorStatus || errorStatus >= 500);
+  const alreadyQueued = request.isSuccess && request.variables?.expectedAttempts === refund.attempts;
+  const canRetry = actor?.permissions.includes('payments.refund') && !accessLost(request.error) &&
+    ((refund.state === 'manual_review' && refund.attempts > 0 && !alreadyQueued) || replayable);
+  const label = text(locale, 'بازصف‌کردن بازپرداخت', 'Requeue refund');
+  async function requeue() {
+    const operation = replayable && request.variables ? request.variables : {
+      operationId: crypto.randomUUID(), expectedAttempts: refund.attempts,
+    };
+    try { await request.mutateAsync(operation); } catch { /* Replay the same operation if its response was lost. */ }
+  }
+  return <>
+    <dl className="payment-values payment-refund">
+      <div><dt>{text(locale, 'شناسهٔ بازپرداخت', 'Refund ID')}</dt><dd><bdi dir="ltr">{refund.refund_id}</bdi></dd></div>
+      <div><dt>{text(locale, 'وضعیت بازپرداخت', 'Refund state')}</dt><dd><span className="payment-status" data-status={refund.state}>{text(locale, refundLabels[refund.state][0], refundLabels[refund.state][1])}</span></dd></div>
+      <div><dt>{text(locale, 'مبلغ وصول‌شده برای جبران', 'Captured amount to compensate')}</dt><dd><bdi>{formatCommerceMoney(refund.captured_minor, order.currency, locale)}</bdi></dd></div>
+      <div><dt>{text(locale, 'دلیل بازپرداخت', 'Refund reason')}</dt><dd><bdi>{refund.reason}</bdi></dd></div>
+      {refund.retry_at && <div><dt>{text(locale, 'تلاش بعدی', 'Next retry')}</dt><dd><TimeValue value={refund.retry_at} locale={locale}/></dd></div>}
+      {refund.last_error && <div><dt>{text(locale, 'آخرین خطای بازپرداخت', 'Last refund error')}</dt><dd><bdi>{refund.last_error}</bdi></dd></div>}
+      {last && <div><dt>{text(locale, 'آخرین بازصف‌کردن توسط مدیر', 'Last staff requeue')}</dt><dd><TimeValue value={last.queued_at} locale={locale}/> <bdi title={text(locale, 'شناسهٔ مدیر', 'Staff ID')}>{last.actor_id}</bdi></dd></div>}
+    </dl>
+    {request.isSuccess && <p role="status">{text(locale, 'درخواست بازصف‌کردن ثبت شد.', 'The refund retry was recorded.')}</p>}
+    {request.isError && <PaymentProblem locale={locale} error={request.error}/>}
+    {canRetry && <div className="payment-problem">
+      <ConfirmAction locale={locale} label={label} title={label} appearance="primary" busy={request.isPending} onConfirm={requeue}>
+        {text(locale, 'همان بازپرداخت برای بررسی ماندهٔ قابل بازپرداخت در شبیه‌ساز دوباره به صف می‌رود.', 'The worker will check the remaining refundable amount for this refund in the simulator.')}
+      </ConfirmAction>
+    </div>}
+  </>;
+}
+
 function PaymentOutcome({ details, locale, refresh }: { details: PaymentDetails; locale: Locale; refresh: () => void }) {
   const { attempt, order } = details;
   const refund = order?.compensation;
@@ -210,14 +257,8 @@ function PaymentOutcome({ details, locale, refresh }: { details: PaymentDetails;
           {order.disposition && <div><dt>{text(locale, 'نحوهٔ رسیدگی', 'Payment disposition')}</dt><dd><bdi>{order.disposition}</bdi></dd></div>}
           {order.reservation_error && <div><dt>{text(locale, 'خطای ثبت‌شده', 'Recorded error')}</dt><dd><bdi>{order.reservation_error}</bdi></dd></div>}
         </dl>
-        {refund ? <dl className="payment-values payment-refund">
-          <div><dt>{text(locale, 'شناسهٔ بازپرداخت', 'Refund ID')}</dt><dd><bdi dir="ltr">{refund.refund_id}</bdi></dd></div>
-          <div><dt>{text(locale, 'وضعیت بازپرداخت', 'Refund state')}</dt><dd><span className="payment-status" data-status={refund.state}>{text(locale, refundLabels[refund.state][0], refundLabels[refund.state][1])}</span></dd></div>
-          <div><dt>{text(locale, 'مبلغ وصول‌شده برای جبران', 'Captured amount to compensate')}</dt><dd><bdi>{formatCommerceMoney(refund.captured_minor, order.currency, locale)}</bdi></dd></div>
-          <div><dt>{text(locale, 'دلیل بازپرداخت', 'Refund reason')}</dt><dd><bdi>{refund.reason}</bdi></dd></div>
-          {refund.retry_at && <div><dt>{text(locale, 'تلاش بعدی', 'Next retry')}</dt><dd><TimeValue value={refund.retry_at} locale={locale}/></dd></div>}
-          {refund.last_error && <div><dt>{text(locale, 'آخرین خطای بازپرداخت', 'Last refund error')}</dt><dd><bdi>{refund.last_error}</bdi></dd></div>}
-        </dl> : <p>{text(locale, 'برای این تلاش بازپرداختی ثبت نشده است.', 'No refund is recorded for this attempt.')}</p>}
+        {refund ? <RefundDetail key={refund.refund_id} refund={refund} order={order} locale={locale} refresh={refresh}/>
+          : <p>{text(locale, 'برای این تلاش بازپرداختی ثبت نشده است.', 'No refund is recorded for this attempt.')}</p>}
       </> : <p>{text(locale, 'اطلاعات سفارش برای این تلاش در دسترس نیست.', 'Order information is unavailable for this attempt.')}</p>}
     </section>
   </div>;

@@ -372,6 +372,23 @@ class OrderPaymentCompensation(Base):
     last_error: Mapped[str | None] = mapped_column(String(80))
 
 
+class OrderRefundRetry(Base):
+    __tablename__ = "order_refund_retries"
+    __table_args__ = (
+        CheckConstraint("expected_attempts > 0", name="order_refund_retry_attempts"),
+        Index("ix_order_refund_retry_latest", "refund_id", "queued_at", "operation_id"),
+    )
+
+    refund_id: Mapped[UUID] = mapped_column(
+        ForeignKey("order_payment_compensations.refund_id", ondelete="RESTRICT"), primary_key=True
+    )
+    operation_id: Mapped[UUID] = mapped_column(primary_key=True)
+    actor_id: Mapped[UUID]
+    expected_attempts: Mapped[int] = mapped_column(Integer)
+    previous_error: Mapped[str | None] = mapped_column(String(80))
+    queued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class OrderPaymentInitiation(Base):
     __tablename__ = "order_payment_initiations"
     __table_args__ = (

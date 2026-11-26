@@ -80,6 +80,10 @@
       "CompensationView": {
         "additionalProperties": false,
         "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
           "captured_minor": {
             "title": "Captured Minor",
             "type": "integer"
@@ -131,7 +135,8 @@
           "reason",
           "state",
           "retry_at",
-          "last_error"
+          "last_error",
+          "attempts"
         ],
         "title": "CompensationView",
         "type": "object"
@@ -936,6 +941,16 @@
             ],
             "title": "Disposition"
           },
+          "last_refund_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefundRetryView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "market": {
             "$ref": "#/components/schemas/Market"
           },
@@ -992,7 +1007,8 @@
           "reservation_error",
           "recorded_outcome",
           "disposition",
-          "compensation"
+          "compensation",
+          "last_refund_retry"
         ],
         "title": "PaymentOrderView",
         "type": "object"
@@ -1315,6 +1331,74 @@
           "last_error"
         ],
         "title": "RefundQueueEntry",
+        "type": "object"
+      },
+      "RefundRetryView": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_id": {
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "expected_attempts": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Attempts",
+            "type": "integer"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "previous_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Error"
+          },
+          "queued_at": {
+            "format": "date-time",
+            "title": "Queued At",
+            "type": "string"
+          },
+          "refund_id": {
+            "format": "uuid",
+            "title": "Refund Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refund_id",
+          "operation_id",
+          "actor_id",
+          "expected_attempts",
+          "previous_error",
+          "queued_at"
+        ],
+        "title": "RefundRetryView",
+        "type": "object"
+      },
+      "RetryRefundCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_attempts": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Expected Attempts",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_attempts"
+        ],
+        "title": "RetryRefundCommand",
         "type": "object"
       },
       "ReviewGroup": {
@@ -2516,6 +2600,119 @@
           }
         },
         "summary": "Refund Queue",
+        "tags": [
+          "staff payments"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/refunds/{refund_id}/retry": {
+      "post": {
+        "operationId": "retryStaffPaymentRefund",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "refund_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Refund Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryRefundCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundRetryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Retry Payment Refund",
         "tags": [
           "staff payments"
         ]

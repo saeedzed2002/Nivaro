@@ -15,8 +15,18 @@ from nivaro_orders.application.refund_history import (
     RefundQueue,
     list_refunds,
 )
+from nivaro_orders.application.refund_retries import (
+    RefundRetryView,
+    RetryRefundCommand,
+    retry_refund,
+)
 from nivaro_orders.domain.checkout import Contract, Market, MarketTerms, OrderState
-from nivaro_orders.infrastructure.models import Order, OrderPaymentAttempt, OrderPaymentCompensation
+from nivaro_orders.infrastructure.models import (
+    Order,
+    OrderPaymentAttempt,
+    OrderPaymentCompensation,
+    OrderRefundRetry,
+)
 from nivaro_orders.infrastructure.simulator_payments import (
     AttemptStatus,
     OperationsAttempt,
@@ -40,6 +50,7 @@ class CompensationView(Contract):
     state: CompensationState
     retry_at: AwareDatetime | None
     last_error: str | None
+    attempts: int
 
 
 class PaymentOrderView(MarketTerms):
@@ -49,6 +60,7 @@ class PaymentOrderView(MarketTerms):
     recorded_outcome: str | None
     disposition: str | None
     compensation: CompensationView | None
+    last_refund_retry: RefundRetryView | None
 
 
 class OperationsDetails(Contract):
@@ -58,8 +70,16 @@ class OperationsDetails(Contract):
 
 
 async def order_context(db: AsyncSession, attempt: OperationsAttempt) -> PaymentOrderView | None:
+    latest_retry = (
+        select(OrderRefundRetry.operation_id)
+        .where(OrderRefundRetry.refund_id == OrderPaymentCompensation.refund_id)
+        .order_by(OrderRefundRetry.queued_at.desc(), OrderRefundRetry.operation_id.desc())
+        .limit(1)
+        .correlate(OrderPaymentCompensation)
+        .scalar_subquery()
+    )
     result = await db.execute(
-        select(Order, OrderPaymentAttempt, OrderPaymentCompensation)
+        select(Order, OrderPaymentAttempt, OrderPaymentCompensation, OrderRefundRetry)
         .outerjoin(
             OrderPaymentAttempt,
             and_(OrderPaymentAttempt.id == attempt.id, OrderPaymentAttempt.order_id == Order.id),
@@ -67,12 +87,19 @@ async def order_context(db: AsyncSession, attempt: OperationsAttempt) -> Payment
         .outerjoin(
             OrderPaymentCompensation, OrderPaymentCompensation.attempt_id == OrderPaymentAttempt.id
         )
+        .outerjoin(
+            OrderRefundRetry,
+            and_(
+                OrderRefundRetry.refund_id == OrderPaymentCompensation.refund_id,
+                OrderRefundRetry.operation_id == latest_retry,
+            ),
+        )
         .where(Order.id == attempt.order_id)
     )
     row = result.one_or_none()
     if row is None:
         return None
-    order, recorded, compensation = row
+    order, recorded, compensation, retry = row
     return PaymentOrderView.model_validate(
         {
             "market": order.market,
@@ -87,6 +114,9 @@ async def order_context(db: AsyncSession, attempt: OperationsAttempt) -> Payment
                 if compensation is not None
                 else None
             ),
+            "last_refund_retry": RefundRetryView.model_validate(retry, from_attributes=True)
+            if retry is not None
+            else None,
         }
     )
 
@@ -151,3 +181,20 @@ async def reconcile_attempt(
     actor_id = await staff_actor(request, flow, mutating=True, area="payment_reconciliation")
     payments: SimulatorPayments = request.app.state.payment_attempts
     return await payments.reconcile_operation(attempt_id, operation_id, actor_id)
+
+
+@router.post(
+    "/refunds/{refund_id}/retry",
+    operation_id="retryStaffPaymentRefund",
+    responses={409: {"model": ErrorResponse}},
+)
+async def retry_payment_refund(
+    request: Request,
+    refund_id: UUID,
+    body: RetryRefundCommand,
+    operation_id: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> RefundRetryView:
+    flow: CheckoutFlow = request.app.state.checkout
+    actor_id = await staff_actor(request, flow, mutating=True, area="payment_refund")
+    async with flow.database.sessions() as db:
+        return await retry_refund(db, refund_id, operation_id, actor_id, body)

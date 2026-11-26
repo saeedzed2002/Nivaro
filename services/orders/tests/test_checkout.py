@@ -23,10 +23,16 @@ from nivaro_orders.application.checkout import (
 )
 from nivaro_orders.application.fulfillment import Deliver, Prepare, Ship, change_fulfillment
 from nivaro_orders.application.order_history import list_orders, read_details
-from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
+from nivaro_orders.application.payment_compensation import (
+    advance_refund,
+    claim_refund,
+    finish_refund,
+    schedule_compensation,
+)
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.payment_initiation import request_payment
 from nivaro_orders.application.refund_history import list_refunds
+from nivaro_orders.application.refund_retries import RetryRefundCommand, retry_refund
 from nivaro_orders.application.reservations import (
     advance_reservation,
     expire_unpaid,
@@ -1367,6 +1373,30 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
         assert open_rows[extra.attempt_id].confirmed_refund_minor == 0
         assert all(row.currency == "IRR" and row.state == "pending" for row in open_rows.values())
 
+    async with database.sessions() as db:
+        work = await claim_refund(db, order.id)
+        assert work is not None and work.refund_id == original.refund_id
+        await finish_refund(db, work, accepted=False, error="payment.not_found")
+    actor, operation_id = uuid4(), uuid4()
+    command = RetryRefundCommand(expected_attempts=work.number)
+
+    async def requeue(key=operation_id, staff=actor, request=command):
+        async with database.sessions() as db:
+            return await retry_refund(db, original.refund_id, key, staff, request)
+
+    with pytest.raises(CheckoutError, match="refund.retry_conflict"):
+        await requeue(request=RetryRefundCommand(expected_attempts=work.number + 1))
+    retries = await asyncio.gather(*(requeue() for _ in range(4)))
+    assert all(item == retries[0] for item in retries)
+    assert retries[0].actor_id == actor and retries[0].previous_error == "payment.not_found"
+    with pytest.raises(CheckoutError, match="refund.idempotency_conflict"):
+        await requeue(staff=uuid4())
+    with pytest.raises(CheckoutError, match="refund.retry_conflict"):
+        await requeue(key=uuid4())
+    async with database.sessions() as db:
+        transition_row = await db.get(OrderTransition, (order.id, order.version + 4))
+        assert (transition_row.status, transition_row.staff_actor_id) == ("refund_pending", actor)
+
     transport = LoseSuccessfulCompensationResponse()
     async with httpx.AsyncClient(timeout=8, trust_env=False, transport=transport) as http:
         client = PaymentCompensations(http, Settings(), secret)
@@ -1386,7 +1416,7 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
         assert primary_receipt.amount_minor == order.total_minor - 100
         assert additional_receipt.amount_minor == order.total_minor + 10
         current = await db.get(Order, order.id)
-        assert (current.status, current.version) == ("refunded", order.version + 3)
+        assert (current.status, current.version) == ("refunded", order.version + 5)
         completed = await list_refunds(
             db, state="completed", market="ir", order_id=order.id, before=None, limit=20
         )
@@ -1396,6 +1426,9 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
             db, state="open", market="ir", order_id=order.id, before=None, limit=20
         )
         assert not opened.refunds
+    assert await requeue() == retries[0]
+    with pytest.raises(CheckoutError, match="refund.retry_conflict"):
+        await requeue(key=uuid4())
 
     # Leave one untouched simulator attempt for the staff reconciliation browser journey.
     async with httpx.AsyncClient(timeout=8, trust_env=False) as http:
@@ -1406,8 +1439,9 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
         )
         assert grant.status_code == 200
         pending_id = str(uuid4())
+        root = "http://payments:8000/internal/v1/payments/attempts"
         pending = await http.post(
-            "http://payments:8000/internal/v1/payments/attempts",
+            root,
             headers={
                 "Authorization": "Bearer " + grant.json()["access_token"],
                 "Idempotency-Key": pending_id,
@@ -1424,3 +1458,44 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
             },
         )
         assert pending.status_code == 200 and pending.json()["status"] == "pending"
+        manual_id = uuid4()
+        opened = await http.post(
+            root,
+            headers={
+                "Authorization": "Bearer " + grant.json()["access_token"],
+                "Idempotency-Key": str(manual_id),
+            },
+            json={
+                "id": str(manual_id),
+                "order_id": str(order.id),
+                "order_version": order.version,
+                "market": order.market,
+                "currency": order.currency,
+                "amount_minor": order.total_minor,
+                "reservation_expires_at": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
+                "scenario": "overpayment",
+            },
+        )
+        assert opened.status_code == 200
+        verify = await http.post(
+            "http://identity:8000/internal/v1/service-tokens",
+            auth=("orders", secret),
+            json={"audience": "nivaro-payments", "scope": "payments.verify"},
+        )
+        assert verify.status_code == 200
+        verified = await http.post(
+            f"{root}/{manual_id}/verify",
+            headers={"Authorization": "Bearer " + verify.json()["access_token"]},
+        )
+        assert verified.status_code == 200 and verified.json()["status"] == "amount_mismatch"
+
+    for _ in range(50):
+        async with database.sessions() as db:
+            if await prepare_payment(db, order.id):
+                break
+        await asyncio.sleep(0.2)
+    async with database.sessions() as db:
+        assert await schedule_compensation(db, order.id)
+        manual_work = await claim_refund(db, order.id)
+        assert manual_work is not None and manual_work.attempt_id == manual_id
+        await finish_refund(db, manual_work, accepted=False, error="payment.not_found")

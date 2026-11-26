@@ -26,7 +26,10 @@ export function PaymentViews({ locale, current }: { locale: Locale; current: 'at
 export function PaymentProblem({ locale, error, retry }: { locale: Locale; error: unknown; retry?: () => void }) {
   const issue = error instanceof IdentityError ? error : null;
   const message = issue?.status === 401 ? text(locale, 'نشست مدیریت پایان یافته است.', 'Your staff session has ended.')
-    : issue?.status === 403 ? text(locale, 'این حساب مجوز مشاهدهٔ پرداخت‌ها را ندارد.', 'This account does not have permission to view payments.')
+    : issue?.status === 403 ? text(locale, 'این حساب برای این درخواست مجوز ندارد.', 'This account does not have permission for this request.')
+    : issue?.code === 'refund.retry_conflict' ? text(locale, 'وضعیت بازپرداخت تغییر کرده است. جزئیات تازه را بررسی کنید.', 'The refund changed. Review its latest details.')
+    : issue?.code === 'refund.idempotency_conflict' ? text(locale, 'این شناسهٔ درخواست قبلاً برای بازصف‌کردن دیگری ثبت شده است.', 'This request ID belongs to a different refund retry.')
+    : issue?.code === 'refund.not_found' ? text(locale, 'بازپرداخت پیدا نشد.', 'Refund not found.')
     : issue?.code === 'payments.cursor_not_found' || issue?.code === 'checkout.not_found' ? text(locale, 'نقطهٔ ادامهٔ فهرست پیدا نشد. فهرست را تازه کنید.', 'The list cursor is unavailable. Reload the list.')
     : issue?.status === 404 ? text(locale, 'تلاش پرداخت پیدا نشد.', 'Payment attempt not found.')
     : text(locale, 'دریافت اطلاعات پرداخت ممکن نشد.', 'Could not load payment information.');

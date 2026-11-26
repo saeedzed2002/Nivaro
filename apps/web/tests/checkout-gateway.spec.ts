@@ -284,6 +284,7 @@ asyncio.run(manage('bootstrap-admin'))
       await staff.getByRole('link', { name: 'Refund queue', exact: true }).click();
       await expect(staff.getByRole('heading', { name: 'Refund queue' })).toBeVisible();
       await staff.getByLabel('Order reference', { exact: true }).fill(completedRefund.order_id);
+      await staff.getByRole('combobox', { name: 'Market', exact: true }).selectOption('international');
       await staff.getByRole('button', { name: 'Apply filters' }).click();
       await expect(staff.getByText('No refunds match these filters.')).toBeVisible();
       await staff.getByRole('combobox', { name: 'State', exact: true }).selectOption('completed');
@@ -325,6 +326,36 @@ asyncio.run(manage('bootstrap-admin'))
       expect(await replayedRun.json()).toMatchObject({ result: 'observed', status_before: 'pending', status_after: 'failed' });
       await expect(staff.getByText('Provider observation recorded.')).toBeVisible();
       await expect(staff.getByRole('region', { name: 'Payment detail' }).getByText('Failed', { exact: true })).toBeVisible();
+
+      const manualQueue = await staff.request.get(refundQueueUrl, { params: { state: 'manual_review', order_id: completedRefund.order_id } });
+      expect(manualQueue.status()).toBe(200);
+      const [manualRefund] = (await manualQueue.json()).refunds;
+      expect(manualRefund).toMatchObject({ state: 'manual_review', confirmed_refund_minor: 0 });
+      await staff.goto(`/en/admin/payments?attempt=${manualRefund.attempt_id}`);
+      const requeue = staff.getByRole('button', { name: 'Requeue refund', exact: true });
+      const retryUrl = `${refundQueueUrl}/${manualRefund.refund_id}/retry`;
+      let retryId = '';
+      await staff.route(`**${retryUrl}`, async route => {
+        retryId = route.request().headers()['idempotency-key'];
+        const accepted = await route.fetch();
+        expect(accepted.status()).toBe(200);
+        await route.abort('failed');
+      }, { times: 1 });
+      await requeue.click();
+      await staff.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+      await expect(staff.getByText('Could not load payment information.')).toBeVisible();
+      await requeue.click();
+      const retryResponse = staff.waitForResponse(response => response.url().endsWith(retryUrl) && response.request().method() === 'POST');
+      await staff.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+      const retry = await retryResponse;
+      expect(retry.request().headers()['idempotency-key']).toBe(retryId);
+      expect(await retry.json()).toMatchObject({ refund_id: manualRefund.refund_id, operation_id: retryId });
+      await expect(staff.getByText('Last staff requeue')).toBeVisible();
+      await expect.poll(async () => {
+        const completedQueue = await staff.request.get(refundQueueUrl, { params: { state: 'completed', order_id: completedRefund.order_id } });
+        const { refunds: completedRows } = await completedQueue.json();
+        return completedRows.find((refund: { refund_id: string }) => refund.refund_id === manualRefund.refund_id)?.confirmed_refund_minor;
+      }, { timeout: 15_000 }).toBe(manualRefund.captured_minor);
 
       const paymentsPreview = await staffContext.newPage();
       paymentsPreview.on('pageerror', error => exceptions.push(error.message));
