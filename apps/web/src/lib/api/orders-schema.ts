@@ -69,6 +69,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payments/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Refund Queue */
+        get: operations["listStaffRefunds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/checkout/preview": {
         parameters: {
             query?: never;
@@ -195,6 +212,8 @@ export interface components {
             currency: components["schemas"]["Currency"];
             market: components["schemas"]["Market"];
         };
+        /** @enum {string} */
+        CompensationState: "pending" | "awaiting_evidence" | "completed" | "manual_review";
         /** CompensationView */
         CompensationView: {
             /** Captured Minor */
@@ -212,11 +231,7 @@ export interface components {
             refund_id: string;
             /** Retry At */
             retry_at: string | null;
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "pending" | "awaiting_evidence" | "completed" | "manual_review";
+            state: components["schemas"]["CompensationState"];
         };
         /** ConfirmPreview */
         ConfirmPreview: {
@@ -552,6 +567,49 @@ export interface components {
             source_line_id: string;
             /** Unit Price Minor */
             unit_price_minor: number;
+        };
+        /** RefundQueue */
+        RefundQueue: {
+            /** Next Before */
+            next_before: string | null;
+            /** Refunds */
+            refunds: components["schemas"]["RefundQueueEntry"][];
+        };
+        /** RefundQueueEntry */
+        RefundQueueEntry: {
+            /**
+             * Attempt Id
+             * Format: uuid
+             */
+            attempt_id: string;
+            /** Captured Minor */
+            captured_minor: number;
+            /** Confirmed Refund Minor */
+            confirmed_refund_minor: number;
+            currency: components["schemas"]["Currency"];
+            /** Last Error */
+            last_error: string | null;
+            market: components["schemas"]["Market"];
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Refund Id
+             * Format: uuid
+             */
+            refund_id: string;
+            /** Retry At */
+            retry_at: string | null;
+            state: components["schemas"]["CompensationState"];
+            /**
+             * Verified At
+             * Format: date-time
+             */
+            verified_at: string;
         };
         /** ReviewGroup */
         ReviewGroup: {
@@ -995,6 +1053,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OperationsDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listStaffRefunds: {
+        parameters: {
+            query?: {
+                state?: "open" | "all" | "pending" | "awaiting_evidence" | "completed" | "manual_review";
+                market?: components["schemas"]["Market"] | null;
+                order_id?: string | null;
+                before?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundQueue"];
                 };
             };
             /** @description Unauthorized */

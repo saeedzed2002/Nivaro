@@ -14,6 +14,8 @@ export type StaffOrderFilters = Omit<NonNullable<paths['/api/v1/admin/orders/his
 export type PaymentAttempt = components['schemas']['OperationsAttempt'];
 export type PaymentDetails = components['schemas']['OperationsDetails'];
 export type PaymentFilters = Omit<NonNullable<paths['/api/v1/admin/payments/attempts']['get']['parameters']['query']>, 'before' | 'limit'>;
+export type RefundQueueEntry = components['schemas']['RefundQueueEntry'];
+export type RefundFilters = Omit<NonNullable<paths['/api/v1/admin/payments/refunds']['get']['parameters']['query']>, 'before' | 'limit'>;
 
 const client = createClient<paths>({ credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
@@ -60,6 +62,9 @@ export const listStaffOrders = (filters: StaffOrderFilters, before?: string, sig
 
 export const listPaymentAttempts = (filters: PaymentFilters, before?: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/payments/attempts', { params: { query: { ...filters, before } }, signal })), 'admin');
+
+export const listStaffRefunds = (filters: RefundFilters, before?: string, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/payments/refunds', { params: { query: { ...filters, before } }, signal })), 'admin');
 
 export const readPaymentAttempt = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/payments/attempts/{attempt_id}', { params: { path: { attempt_id: id } }, signal })), 'admin');

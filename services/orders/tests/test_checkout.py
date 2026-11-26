@@ -26,6 +26,7 @@ from nivaro_orders.application.order_history import list_orders, read_details
 from nivaro_orders.application.payment_compensation import advance_refund, schedule_compensation
 from nivaro_orders.application.payment_finalization import advance_payment_stock, prepare_payment
 from nivaro_orders.application.payment_initiation import request_payment
+from nivaro_orders.application.refund_history import list_refunds
 from nivaro_orders.application.reservations import (
     advance_reservation,
     expire_unpaid,
@@ -1357,6 +1358,14 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
         original = await db.get(OrderPaymentCompensation, attempts["success"])
         extra = await db.get(OrderPaymentCompensation, attempts["overpayment"])
         assert original.closes_order and not extra.closes_order
+        options = {"state": "open", "market": "ir", "order_id": order.id}
+        head = await list_refunds(db, **options, before=None, limit=1)
+        tail = await list_refunds(db, **options, before=head.next_before, limit=1)
+        assert head.next_before and tail.next_before is None
+        open_rows = {row.attempt_id: row for row in [*head.refunds, *tail.refunds]}
+        assert open_rows[original.attempt_id].confirmed_refund_minor == 100
+        assert open_rows[extra.attempt_id].confirmed_refund_minor == 0
+        assert all(row.currency == "IRR" and row.state == "pending" for row in open_rows.values())
 
     transport = LoseSuccessfulCompensationResponse()
     async with httpx.AsyncClient(timeout=8, trust_env=False, transport=transport) as http:
@@ -1378,3 +1387,12 @@ async def test_simulated_payment_results_cross_the_broker_and_bind_to_payable_or
         assert additional_receipt.amount_minor == order.total_minor + 10
         current = await db.get(Order, order.id)
         assert (current.status, current.version) == ("refunded", order.version + 3)
+        completed = await list_refunds(
+            db, state="completed", market="ir", order_id=order.id, before=None, limit=20
+        )
+        assert len(completed.refunds) == 2
+        assert all(row.confirmed_refund_minor == row.captured_minor for row in completed.refunds)
+        opened = await list_refunds(
+            db, state="open", market="ir", order_id=order.id, before=None, limit=20
+        )
+        assert not opened.refunds

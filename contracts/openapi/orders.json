@@ -68,6 +68,15 @@
         "title": "CheckoutIntent",
         "type": "object"
       },
+      "CompensationState": {
+        "enum": [
+          "pending",
+          "awaiting_evidence",
+          "completed",
+          "manual_review"
+        ],
+        "type": "string"
+      },
       "CompensationView": {
         "additionalProperties": false,
         "properties": {
@@ -112,14 +121,7 @@
             "title": "Retry At"
           },
           "state": {
-            "enum": [
-              "pending",
-              "awaiting_evidence",
-              "completed",
-              "manual_review"
-            ],
-            "title": "State",
-            "type": "string"
+            "$ref": "#/components/schemas/CompensationState"
           }
         },
         "required": [
@@ -1137,6 +1139,121 @@
         "title": "PurchasedItem",
         "type": "object"
       },
+      "RefundQueue": {
+        "additionalProperties": false,
+        "properties": {
+          "next_before": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before"
+          },
+          "refunds": {
+            "items": {
+              "$ref": "#/components/schemas/RefundQueueEntry"
+            },
+            "title": "Refunds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "refunds",
+          "next_before"
+        ],
+        "title": "RefundQueue",
+        "type": "object"
+      },
+      "RefundQueueEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt_id": {
+            "format": "uuid",
+            "title": "Attempt Id",
+            "type": "string"
+          },
+          "captured_minor": {
+            "title": "Captured Minor",
+            "type": "integer"
+          },
+          "confirmed_refund_minor": {
+            "title": "Confirmed Refund Minor",
+            "type": "integer"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "refund_id": {
+            "format": "uuid",
+            "title": "Refund Id",
+            "type": "string"
+          },
+          "retry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry At"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CompensationState"
+          },
+          "verified_at": {
+            "format": "date-time",
+            "title": "Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "refund_id",
+          "attempt_id",
+          "order_id",
+          "state",
+          "reason",
+          "captured_minor",
+          "confirmed_refund_minor",
+          "verified_at",
+          "retry_at",
+          "last_error"
+        ],
+        "title": "RefundQueueEntry",
+        "type": "object"
+      },
       "ReviewGroup": {
         "additionalProperties": false,
         "properties": {
@@ -2080,6 +2197,159 @@
           }
         },
         "summary": "Read Attempt",
+        "tags": [
+          "staff payments"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/refunds": {
+      "get": {
+        "operationId": "listStaffRefunds",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "enum": [
+                "open",
+                "all",
+                "pending",
+                "awaiting_evidence",
+                "completed",
+                "manual_review"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "market",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Market"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Order Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundQueue"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Refund Queue",
         "tags": [
           "staff payments"
         ]

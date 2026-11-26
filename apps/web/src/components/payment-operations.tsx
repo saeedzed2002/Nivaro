@@ -6,7 +6,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { listPaymentAttempts, readPaymentAttempt, type PaymentAttempt, type PaymentDetails, type PaymentFilters } from '@/lib/checkout-client';
 import { checkoutTime } from '@/lib/checkout-copy';
 import { formatCommerceMoney, isUuid, text, type Locale } from '@/lib/content';
-import { IdentityError } from '@/lib/identity-client';
+import { accessLost, PaymentProblem, PaymentViews, refundLabels } from './payment-admin-shared';
 import { useAdminSession } from './admin-shared';
 import { OrderStateLabel } from './order-history';
 
@@ -18,30 +18,6 @@ const attemptLabels = {
   amount_mismatch: ['مغایرت مبلغ', 'Amount mismatch'],
 } as const satisfies Record<PaymentAttempt['status'], readonly [string, string]>;
 
-const refundLabels = {
-  pending: ['در صف', 'Pending'],
-  awaiting_evidence: ['منتظر تأیید بازپرداخت', 'Awaiting evidence'],
-  completed: ['تکمیل‌شده', 'Completed'],
-  manual_review: ['نیازمند بررسی دستی', 'Manual review'],
-} as const;
-
-function accessLost(error: unknown) {
-  return error instanceof IdentityError && (error.status === 401 || error.status === 403);
-}
-
-function PaymentProblem({ locale, error, retry }: { locale: Locale; error: unknown; retry?: () => void }) {
-  const issue = error instanceof IdentityError ? error : null;
-  const message = issue?.status === 401 ? text(locale, 'نشست مدیریت پایان یافته است.', 'Your staff session has ended.')
-    : issue?.status === 403 ? text(locale, 'این حساب مجوز مشاهدهٔ پرداخت‌ها را ندارد.', 'This account does not have permission to view payments.')
-    : issue?.code === 'payments.cursor_not_found' ? text(locale, 'نقطهٔ ادامهٔ فهرست پیدا نشد. فهرست را تازه کنید.', 'The list cursor is unavailable. Reload the list.')
-    : issue?.status === 404 ? text(locale, 'تلاش پرداخت پیدا نشد.', 'Payment attempt not found.')
-    : text(locale, 'دریافت اطلاعات پرداخت ممکن نشد.', 'Could not load payment information.');
-  return <div className="payment-problem"><p role="alert" className="admin-notice error">{message}</p>
-    {issue?.status === 401 && <Link className="text-link" href={`/${locale}/admin/login`}>{text(locale, 'ورود مدیران', 'Administrator sign-in')}</Link>}
-    {retry && !accessLost(error) && <button className="button secondary" type="button" onClick={retry}>{text(locale, 'بارگیری دوباره', 'Reload')}</button>}
-  </div>;
-}
-
 function AttemptStatus({ status, locale }: { status: PaymentAttempt['status']; locale: Locale }) {
   const [fa, en] = attemptLabels[status];
   return <span className="payment-status" data-status={status}>{text(locale, fa, en)}</span>;
@@ -51,14 +27,14 @@ function TimeValue({ value, locale, empty = '—' }: { value: string | null; loc
   return value ? <time dateTime={value}>{checkoutTime(value, locale)}</time> : empty;
 }
 
-export function PaymentOperations({ locale }: { locale: Locale }) {
+export function PaymentOperations({ locale, initialAttempt }: { locale: Locale; initialAttempt?: string }) {
   const actor = useAdminSession();
-  return actor ? <PaymentWorkspace key={actor.profile.id} locale={locale} actorId={actor.profile.id}/> : null;
+  return actor ? <PaymentWorkspace key={`${actor.profile.id}:${initialAttempt ?? ''}`} locale={locale} actorId={actor.profile.id} initialAttempt={initialAttempt}/> : null;
 }
 
-function PaymentWorkspace({ locale, actorId }: { locale: Locale; actorId: string }) {
+function PaymentWorkspace({ locale, actorId, initialAttempt }: { locale: Locale; actorId: string; initialAttempt?: string }) {
   const [filters, setFilters] = useState<PaymentFilters>({});
-  const [selected, setSelected] = useState<string>();
+  const [selected, setSelected] = useState(initialAttempt);
   const [invalid, setInvalid] = useState(false);
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const list = useInfiniteQuery({
@@ -69,7 +45,7 @@ function PaymentWorkspace({ locale, actorId }: { locale: Locale; actorId: string
     retry: false, gcTime: 0,
   });
   const rows = [...new Map(list.data?.pages.flatMap(page => page.attempts.map(attempt => [attempt.id, attempt] as const))).values()];
-  const id = rows.find(attempt => attempt.id === selected)?.id ?? rows[0]?.id;
+  const id = selected ?? rows[0]?.id;
   const detail = useQuery({
     queryKey: ['staff-payments', actorId, 'detail', id],
     queryFn: ({ signal }) => readPaymentAttempt(id!, signal),
@@ -103,6 +79,7 @@ function PaymentWorkspace({ locale, actorId }: { locale: Locale; actorId: string
 
   return <>
     <header className="admin-heading"><h1>{text(locale, 'پرداخت‌ها و تطبیق', 'Payments & reconciliation')}</h1></header>
+    <PaymentViews locale={locale} current="attempts"/>
     {accessError ? <PaymentProblem locale={locale} error={accessError}/> : <>
       <form className="admin-panel admin-filter-row payment-filters" onSubmit={applyFilters} onReset={() => { setInvalid(false); setSelected(undefined); setFilters({}); }}>
         <label><span id="payment-status-label">{statusLabel}</span><select aria-labelledby="payment-status-label" name="status">

@@ -63,6 +63,8 @@ Record reference creation and inspection before starting each template. Carry em
 
 The payment workspace uses the existing administration shell, a compact filter strip, a selectable payment list and a detail panel. The reconciliation and order sections follow the selected attempt. The published fields come from the payment operations contract. Single selection uses buttons, and the list and inspector stack on narrow screens. The refund display uses the recorded compensation state and captured amount.
 
+The refund queue is a second view of the same payment workspace. It retains the existing filter strip, table and state treatments. The queue lists the recorded refund and order references, captured and confirmed amounts, and retry schedule. The payment link opens the attempt detail in the original view. On narrow screens each queue row becomes a labeled card.
+
 ### P10 accounts and audit reference
 
 - The built-in image generator produced a light English desktop workspace. Inspected before implementation. Retain the two labeled filters, account table with a marked selected row, detail actions and account audit history. Use the existing administration shell and theme tokens, and stack panels on narrow screens. Reference people, labels and events are illustrative; the interface uses Identity's actual roles and audit fields.

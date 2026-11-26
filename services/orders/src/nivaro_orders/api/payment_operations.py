@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
@@ -9,6 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nivaro_orders.api.checkout import ErrorResponse
 from nivaro_orders.api.fulfillment import staff_actor
 from nivaro_orders.application.checkout_flow import CheckoutFlow
+from nivaro_orders.application.refund_history import (
+    CompensationState,
+    RefundFilter,
+    RefundQueue,
+    list_refunds,
+)
 from nivaro_orders.domain.checkout import Contract, Market, MarketTerms, OrderState
 from nivaro_orders.infrastructure.models import Order, OrderPaymentAttempt, OrderPaymentCompensation
 from nivaro_orders.infrastructure.simulator_payments import (
@@ -30,7 +36,7 @@ class CompensationView(Contract):
     captured_minor: int
     closes_order: bool
     reason: str
-    state: Literal["pending", "awaiting_evidence", "completed", "manual_review"]
+    state: CompensationState
     retry_at: AwareDatetime | None
     last_error: str | None
 
@@ -96,6 +102,23 @@ async def list_attempts(
     await staff_actor(request, flow, mutating=False, area="payments")
     payments: SimulatorPayments = request.app.state.payment_attempts
     return await payments.list_operations(status, market, order_id, before, limit)
+
+
+@router.get("/refunds", operation_id="listStaffRefunds")
+async def refund_queue(
+    request: Request,
+    state: RefundFilter = "open",
+    market: Market | None = None,
+    order_id: UUID | None = None,
+    before: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> RefundQueue:
+    flow: CheckoutFlow = request.app.state.checkout
+    await staff_actor(request, flow, mutating=False, area="payments")
+    async with flow.database.sessions() as db:
+        return await list_refunds(
+            db, state=state, market=market, order_id=order_id, before=before, limit=limit
+        )
 
 
 @router.get("/attempts/{attempt_id}", operation_id="readStaffPaymentAttempt")

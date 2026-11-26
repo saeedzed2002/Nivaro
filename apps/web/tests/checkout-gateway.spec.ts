@@ -177,7 +177,9 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
 
     expect((await page.request.get('/api/v1/admin/orders/history')).status()).toBe(401);
     const paymentAttemptsUrl = '/api/v1/admin/payments/attempts';
+    const refundQueueUrl = '/api/v1/admin/payments/refunds';
     expect((await page.request.get(paymentAttemptsUrl)).status()).toBe(401);
+    expect((await page.request.get(refundQueueUrl)).status()).toBe(401);
     await page.goto('/en/admin/payments');
     await expect(page.getByRole('heading', { name: 'Payment administration access' })).toBeVisible();
     await expect(page.getByRole('table', { name: 'Payment attempts' })).toHaveCount(0);
@@ -273,6 +275,28 @@ asyncio.run(manage('bootstrap-admin'))
       await expect(staff.getByRole('region', { name: 'Payment detail' }).getByText('$466.00', { exact: true })).toHaveCount(2);
       await expect(staff.getByText('No refund is recorded for this attempt.')).toBeVisible();
 
+      const refundQueue = await staff.request.get(refundQueueUrl, { params: { state: 'completed', market: 'ir' } });
+      expect(refundQueue.status()).toBe(200);
+      const { refunds } = await refundQueue.json();
+      const completedRefund = refunds.find((refund: { reason: string }) => refund.reason === 'payment.amount_mismatch');
+      expect(completedRefund).toMatchObject({ currency: 'IRR', state: 'completed' });
+      expect(completedRefund.confirmed_refund_minor).toBe(completedRefund.captured_minor);
+      await staff.getByRole('link', { name: 'Refund queue', exact: true }).click();
+      await expect(staff.getByRole('heading', { name: 'Refund queue' })).toBeVisible();
+      await staff.getByLabel('Order reference', { exact: true }).fill(completedRefund.order_id);
+      await staff.getByRole('button', { name: 'Apply filters' }).click();
+      await expect(staff.getByText('No refunds match these filters.')).toBeVisible();
+      await staff.getByRole('combobox', { name: 'State', exact: true }).selectOption('completed');
+      await staff.getByRole('combobox', { name: 'Market', exact: true }).selectOption('ir');
+      await staff.getByRole('button', { name: 'Apply filters' }).click();
+      const refundRow = staff.getByRole('row').filter({ hasText: completedRefund.refund_id });
+      await expect(refundRow.getByText('Completed', { exact: true })).toBeVisible();
+      await staff.screenshot({ path: test.info().outputPath('admin-refunds-en-dark.png'), fullPage: true });
+      await refundRow.getByRole('link', { name: 'View payment' }).click();
+      await expect(staff).toHaveURL(new RegExp(`/admin/payments\\?attempt=${completedRefund.attempt_id}$`));
+      await expect(staff.getByRole('region', { name: 'Payment detail' }).getByText(completedRefund.attempt_id, { exact: true })).toBeVisible();
+      await expect(staff.getByRole('region', { name: 'Order & refund' }).getByText(completedRefund.refund_id, { exact: true })).toBeVisible();
+
       const paymentsPreview = await staffContext.newPage();
       paymentsPreview.on('pageerror', error => exceptions.push(error.message));
       const mismatch = { ...paymentData.attempt, captured_minor: 46601, status: 'amount_mismatch' };
@@ -293,6 +317,13 @@ asyncio.run(manage('bootstrap-admin'))
       await expect(paymentsPreview.getByRole('region', { name: 'سفارش و بازپرداخت' }).getByText('منتظر تأیید بازپرداخت')).toBeVisible();
       expect(await paymentsPreview.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
       await paymentsPreview.screenshot({ path: test.info().outputPath('admin-payments-fa-light.png'), fullPage: true });
+      await paymentsPreview.getByRole('link', { name: 'صف بازپرداخت', exact: true }).click();
+      await paymentsPreview.getByRole('combobox', { name: 'وضعیت', exact: true }).selectOption('completed');
+      await paymentsPreview.getByLabel('شناسهٔ سفارش', { exact: true }).fill(completedRefund.order_id);
+      await paymentsPreview.getByRole('button', { name: 'اعمال فیلترها', exact: true }).click();
+      await expect(paymentsPreview.getByRole('row').filter({ hasText: completedRefund.refund_id })).toBeVisible();
+      expect(await paymentsPreview.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      await paymentsPreview.screenshot({ path: test.info().outputPath('admin-refunds-fa-light.png'), fullPage: true });
       await paymentsPreview.close();
       await staff.goto('/en/admin/orders');
       await row.getByRole('link', { name: 'View order' }).click();

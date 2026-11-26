@@ -32,6 +32,15 @@
 .payment-values .text-link { display:inline-block; margin-inline-start:5px; }
 .payment-outcome { display:grid; gap:14px; margin-block-start:14px; }
 .payment-refund { border-block-start:1px solid var(--line); }
+.payment-views { display:flex; flex-wrap:wrap; gap:22px; margin-block:-10px 16px; border-block-end:1px solid var(--line); }
+.payment-views a { padding:7px 2px; color:var(--muted); border-block-end:2px solid transparent; }
+.payment-views a[aria-current] { color:var(--accent); border-color:var(--blue); font-weight:650; }
+.refund-results { margin-block-start:16px; }
+.refund-table th { white-space:normal; }
+.refund-table td { overflow-wrap:anywhere; }
+.refund-table small { display:block; margin-block-start:5px; color:var(--muted); }
+.refund-reference { min-width:0; }
+.refund-table .text-link { display:inline-block; }
 
 @media (max-width:1080px) {
   .payment-layout { grid-template-columns:1fr; }
@@ -45,4 +54,8 @@
   .payment-table th:last-child,.payment-table td:last-child { padding-inline-end:9px; }
   .payment-status { padding:3px 4px; font-size:11px; }
   .payment-values > div { grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); }
+}
+@media (max-width:600px) {
+  .refund-table td[data-label],.refund-table .refund-reference { display:block; min-width:0; }
+  .refund-table td[data-label]::before { display:block; margin-block-end:4px; }
 }
