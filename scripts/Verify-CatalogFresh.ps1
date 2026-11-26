@@ -27,10 +27,10 @@ try {
       $CatalogImage sh -c 'alembic upgrade head && python -m nivaro_catalog.infrastructure.seed && python -m nivaro_catalog.infrastructure.seed && alembic check'
     if ($LASTEXITCODE -ne 0) { throw 'Fresh migrations or repeatable seed failed.' }
     $testRuntime = if ($TestImage) { $TestImage } else { $pythonImage }
-    $testMount = if ($TestImage) { @() } else { @('-v', "${projectRoot}/services/catalog:/app") }
+    $testMount = if ($TestImage) { @() } else { @('-v', "${projectRoot}/services/catalog:/app", '-w', '/app') }
     docker run --rm --pull never --network nivaro_default -e "CATALOG_DB_HOST=$probeName" -e CATALOG_DISPOSABLE_TESTS=1 `
-      @testMount -w /app -v "${projectRoot}/contracts:/contracts:ro" `
-      -v "${projectRoot}/services/cart/src:/cart/src:ro" -e PYTHONPATH=/app/src:/cart/src `
+      @testMount -v "${projectRoot}/contracts:/contracts:ro" `
+      -v "${projectRoot}/services/cart/src:/cart/src:ro" -e PYTHONPATH=src:/cart/src `
       -v "${projectRoot}/work/secrets/catalog_db_password.txt:/run/secrets/catalog_db_password:ro" `
       $testRuntime sh -ec '/app/.venv/bin/ruff check . && /app/.venv/bin/ruff format --check . && /app/.venv/bin/mypy src && /app/.venv/bin/pytest -q && /app/.venv/bin/python -m nivaro_catalog.export_openapi /contracts/openapi/catalog.json --check'
     if ($LASTEXITCODE -ne 0) { throw 'Fresh database tests failed.' }
