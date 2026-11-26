@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import type { components as ordersContract } from '../src/lib/api/orders-schema';
+import { withDatabaseUnavailable } from './disposable-database';
 
 const project = process.env.NIVARO_CHECKOUT_QA_PROJECT ?? '';
 test.skip(!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project), 'Requires the disposable Orders stack and its synthetic delivery policy');
@@ -113,16 +114,36 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
   await page.screenshot({ path: test.info().outputPath('checkout-en-light-mobile.png'), fullPage: true });
 
+  const failedConfirmation = await withDatabaseUnavailable(project, 'orders', async () => {
+    const response = page.waitForResponse(result => new URL(result.url()).pathname.endsWith('/confirm'));
+    await page.getByRole('button', { name: 'Confirm order' }).click();
+    const unavailable = await response;
+    expect(unavailable.status()).toBe(503);
+    expect(await unavailable.json()).toMatchObject({ error: { code: 'checkout.unavailable' } });
+    return unavailable;
+  });
+  const attemptedId = new URL(failedConfirmation.url()).pathname.split('/').at(-2)!;
+  expect(attemptedId).toMatch(/^[0-9a-f-]{36}$/);
+  const orderResponse = await page.request.get(`/api/v1/orders/${attemptedId}`);
+  expect(orderResponse.status()).toBe(404);
+  expect(await orderResponse.json()).toMatchObject({ error: { code: 'checkout.not_found' } });
+  await expect(page).toHaveURL(new RegExp(`/en/checkout/result\\?order=${attemptedId}$`));
+  const refreshStatus = page.getByRole('button', { name: 'Refresh status' });
+  await refreshStatus.click();
+
   let submittedId = '';
   await page.route('**/api/v1/orders/checkout/*/confirm', async route => {
+    expect(route.request().url()).toBe(failedConfirmation.url());
+    expect(route.request().postDataJSON()).toEqual(failedConfirmation.request().postDataJSON());
     const response = await route.fetch();
     expect(response.status()).toBe(200);
     submittedId = (await response.json()).id;
     await route.abort('failed');
-  });
-  await page.getByRole('button', { name: 'Confirm order' }).click();
+  }, { times: 1 });
+  await page.getByRole('button', { name: 'Retry order submission' }).click();
+  await expect.poll(() => submittedId).toBe(attemptedId);
+  await refreshStatus.click();
   await expect(page.getByRole('heading', { name: 'Order awaiting payment' })).toBeVisible();
-  expect(submittedId).toMatch(/^[0-9a-f-]{36}$/);
   expect(new URL(page.url()).searchParams.get('order')).toBe(submittedId);
   await expect(page.getByText('$466.00', { exact: true })).toBeVisible();
   await page.reload();

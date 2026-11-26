@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { withDatabaseUnavailable } from './disposable-database';
 
 const project = process.env.NIVARO_SUPPORT_QA_PROJECT ?? '';
 const password = process.env.NIVARO_SUPPORT_QA_PASSWORD;
@@ -32,7 +33,9 @@ test('a customer and a restricted support agent resolve an unanswered conversati
     const customerLog = customer.getByRole('log', { name: 'Conversation messages' });
     const question = 'Can I change my delivery window?';
     await customer.getByRole('textbox', { name: 'Message', exact: true }).fill(question);
-    await customer.getByRole('button', { name: 'Send', exact: true }).press('Enter');
+    const sendQuestion = customer.getByRole('button', { name: 'Send', exact: true });
+    await expect(sendQuestion).toBeEnabled();
+    await sendQuestion.press('Enter');
     await expect(customerLog.getByText(question, { exact: true })).toHaveCount(1);
     expect(await customer.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
@@ -57,9 +60,22 @@ test('a customer and a restricted support agent resolve an unanswered conversati
     expect(await staff.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const answer = 'Your current delivery window is still available.';
     await staff.getByRole('textbox', { name: 'Reply', exact: true }).fill(answer);
-    await staff.getByRole('button', { name: 'Send', exact: true }).press('Enter');
+    const sendReply = staff.getByRole('button', { name: 'Send', exact: true });
+    await expect(sendReply).toBeEnabled();
+    const retrySend = staff.getByRole('button', { name: 'Retry send' });
+    await withDatabaseUnavailable(project, 'support', async () => {
+      await sendReply.press('Enter');
+      await expect(retrySend).toBeVisible();
+      const pendingReply = staff.getByRole('status').filter({ has: retrySend });
+      await expect(pendingReply.getByRole('alert')).toHaveText('Support is unavailable. Try again.');
+      await expect(customerLog.getByText(question, { exact: true })).toHaveCount(1);
+      await expect(customerLog.getByText(answer, { exact: true })).toHaveCount(0);
+    });
+    await expect(retrySend).toBeEnabled();
+    await retrySend.press('Enter');
     await expect(customerLog.getByText(answer, { exact: true })).toHaveCount(1);
     await customer.reload();
+    await expect(customerLog.getByText(question, { exact: true })).toHaveCount(1);
     await expect(customerLog.getByText(answer, { exact: true })).toHaveCount(1);
 
     await staff.getByRole('button', { name: 'Refresh', exact: true }).press('Enter');
