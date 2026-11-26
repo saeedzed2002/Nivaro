@@ -1,0 +1,38 @@
+# Apply last to run the versioned GitHub Container Registry images.
+services:
+  web:
+    image: ghcr.io/saeedzed2002/nivaro-web:${NIVARO_PACKAGE_VERSION:?Set NIVARO_PACKAGE_VERSION}
+  catalog-init: &catalog
+    image: ghcr.io/saeedzed2002/nivaro-catalog:${NIVARO_PACKAGE_VERSION:?Set NIVARO_PACKAGE_VERSION}
+  catalog: *catalog
+  catalog-media-init: *catalog
+  catalog-media-worker: *catalog
+  catalog-media-dispatcher: *catalog
+  catalog-event-publisher: *catalog
+  catalog-delivery-consumer: *catalog
+  catalog-reservation-expiry: *catalog
+  identity-init: &identity
+    image: ghcr.io/saeedzed2002/nivaro-identity:${NIVARO_PACKAGE_VERSION:?Set NIVARO_PACKAGE_VERSION}
+  identity: *identity
+  identity-media-init: *identity
+  identity-media-worker: *identity
+  identity-media-dispatcher: *identity
+  cart-init: &cart
+    image: ghcr.io/saeedzed2002/nivaro-cart:${NIVARO_PACKAGE_VERSION:?Set NIVARO_PACKAGE_VERSION}
+  cart: *cart
+  cart-paid-consumer: *cart
+  orders-init: &orders
+    image: ghcr.io/saeedzed2002/nivaro-orders:${NIVARO_PACKAGE_VERSION:?Set NIVARO_PACKAGE_VERSION}
+  orders: *orders
+  orders-event-publisher: *orders
+  orders-expiry-consumer: *orders
+  orders-payment-consumer: *orders
+  orders-reservation-worker: *orders
+  payments-init: &payments
+    image: ghcr.io/saeedzed2002/nivaro-payments:${NIVARO_PACKAGE_VERSION:?Set NIVARO_PACKAGE_VERSION}
+  payments: *payments
+  payments-event-publisher: *payments
+  payments-reconciler: *payments
+  support-init: &support
+    image: ghcr.io/saeedzed2002/nivaro-support:${NIVARO_PACKAGE_VERSION:?Set NIVARO_PACKAGE_VERSION}
+  support: *support

@@ -23,6 +23,23 @@ docker compose -p $project @files ps --all
 
 Open `http://localhost:8080/fa` and `http://localhost:8080/en`. Check that the web container and all six application services are healthy. Initialization jobs can exit with code 0 because they perform a finite task. The initial Catalog seed is research data. Payment checkout and OTP are local simulation paths. Staff sign-in requires an explicit administrator bootstrap through the [Identity operator guide](../../services/identity/README.md). Use only synthetic data for this release exercise.
 
+## Run published container packages
+
+The versioned application images are private GitHub Container Registry packages. Authenticate to `ghcr.io` with a GitHub account that can read the packages and a classic token with `read:packages` access. Run the commands from the matching source release checkout. The source checkout supplies the Compose configuration, initialization scripts and gateway configuration.
+
+```powershell
+$env:NIVARO_PACKAGE_VERSION = 'v1.0.0'
+$files = @('-f', 'compose.yaml', '-f', 'compose.media.yaml', '-f', 'compose.orders.yaml',
+    '-f', 'compose.events.yaml', '-f', 'compose.payments.yaml', '-f', 'compose.payment-events.yaml',
+    '-f', 'compose.support.yaml', '-f', 'compose.packages.yaml')
+./scripts/Initialize-LocalSecrets.ps1
+./scripts/Initialize-MediaSecrets.ps1
+docker compose -p nivaro-release @files pull
+docker compose -p nivaro-release @files up -d --no-build --wait --wait-timeout 120
+```
+
+The package build targets Linux `amd64`. Product reference prices are initialized automatically; actual providers and inventory require separate setup.
+
 ## Stop, restart and diagnose
 
 ```powershell

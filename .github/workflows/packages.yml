@@ -1,0 +1,59 @@
+name: Publish container packages
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, for example v1.0.0
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: apps/web
+          - name: catalog
+            context: services/catalog
+          - name: identity
+            context: services/identity
+          - name: cart
+            context: services/cart
+          - name: orders
+            context: services/orders
+          - name: payments
+            context: services/payments
+          - name: support
+            context: services/support
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate version and repository
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$GITHUB_REPOSITORY" == 'saeedzed2002/Nivaro' ]]
+      - name: Sign in to the private container registry
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build and publish
+        env:
+          VERSION: ${{ inputs.version }}
+          COMPONENT: ${{ matrix.name }}
+          BUILD_CONTEXT: ${{ matrix.context }}
+        run: |
+          image="ghcr.io/saeedzed2002/nivaro-$COMPONENT:$VERSION"
+          docker build --target release \
+            --build-context image-processing=./packages/python/image_processing \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --tag "$image" "$BUILD_CONTEXT"
+          docker push "$image"
