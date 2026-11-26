@@ -16,16 +16,19 @@ export function AddToCart({ variants, locale }: { variants: Variant[]; locale: L
   const { market } = usePreferences();
   const variantLabel = useId();
   const cache = useQueryClient();
-  const [variantId, setVariant] = useState(variants[0]?.id ?? '');
-  const variant = variants.find(item => item.id === variantId);
+  const [selectedId, setVariant] = useState('');
+  const marketVariants = variants.filter(item => item.offers?.some(offer => offer.market === market));
+  const choices = marketVariants.length ? marketVariants : variants;
+  const variant = choices.find(item => item.id === selectedId) ?? choices[0];
+  const variantId = variant?.id ?? '';
   const offer = variant?.offers?.find(item => item.market === market);
   const available = Boolean(offer?.available_for_sale && !offer.reference_only && variant?.stock_verified && (variant.on_hand ?? 0) > (variant.reserved ?? 0));
   const add = useMutation({ mutationFn: () => addCartItem(variantId, market),
     onSettled: () => cache.invalidateQueries({ queryKey: cartKey(market) }) });
   return <div className="cart-product-action">
-    {variants.length > 1 && <label className="field"><span id={variantLabel}>{text(locale, 'گونهٔ محصول', 'Variant')}</span>
+    {choices.length > 1 && <label className="field"><span id={variantLabel}>{text(locale, 'گونهٔ محصول', 'Variant')}</span>
       <select aria-labelledby={variantLabel} value={variantId} onChange={event => { setVariant(event.target.value); add.reset(); }} disabled={add.isPending}>
-        {variants.map(item => <option key={item.id} value={item.id}>{item.packaging[locale]} · {item.sku}</option>)}
+        {choices.map(item => <option key={item.id} value={item.id}>{item.packaging[locale]} · {item.sku}</option>)}
       </select>
     </label>}
     <button type="button" className="button primary" disabled={!available || add.isPending} onClick={() => add.mutate()}>

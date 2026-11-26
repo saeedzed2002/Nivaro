@@ -2,6 +2,8 @@ export type Locale = 'fa' | 'en';
 export type Market = 'ir' | 'international';
 export type Theme = 'system' | 'dark' | 'light';
 export const isLocale = (value: string): value is Locale => value === 'fa' || value === 'en';
+export const marketForLocale = (stored: string | undefined, locale: Locale): Market =>
+  stored === 'ir' || stored === 'international' ? stored : locale === 'fa' ? 'ir' : 'international';
 export const text = (locale: Locale, fa: string, en: string) => locale === 'fa' ? fa : en;
 export const isUuid = (value: string) => /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
 

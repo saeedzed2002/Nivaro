@@ -16,7 +16,7 @@ For a fresh setup initialize both local and media secrets, then build with the b
 
 P02 verified: home, product collection/details, same-category product comparison and temporary PC assembly selections use the catalog API. PostgreSQL owns products, physical variants and independent market offers. Pages follow the references in [the image-first register](docs/design/PAGE_DESIGNS.md).
 
-The seed contains 12 documented products and 13 variants. Reference prices are unavailable for sale and reference stock is unverified. Missing prices and technical facts stay unknown. Customer login uses allowlisted mock codes, and administrator login uses separate credentials. See [identity setup](services/identity/README.md) and [progress and exact continuation](docs/progress.md).
+The seed contains 14 documented products, with 12 priced listings in each market. Shared parts have independent Iranian and USD price references, and each market has its own ready-built systems. The development overlay initializes simulator inventory so selected parts can be added to the local cart. Product detail pages show price sources and observation dates. Customer login uses allowlisted mock codes, and administrator login uses separate credentials. See [the catalog price data](services/catalog/src/nivaro_catalog/data/retail-offers.json) and [identity setup](services/identity/README.md).
 
 ## Local development
 

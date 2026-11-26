@@ -1,0 +1,57 @@
+{
+  "checkedOn": "2026-11-26",
+  "offers": {
+    "amd-ryzen-7-9700x": {
+      "ir": [610000000,"GSI","https://gsiran.com/products/cpu-amd-ryzen-7-9700x-tray","Tray; listed price before delivery."],
+      "international": [26900,"Best Buy","https://www.bestbuy.com/product/amd-ryzen-7-9700x-8-core-16-thread-3-8-ghz-5-5-ghz-max-boost-socket-am5-pci-express-5-0-unlocked-desktop-processor-silver/6589136","Retail box, 100-100001404WOF; listed deal price before tax and delivery."]
+    },
+    "amd-ryzen-7-9800x3d": {
+      "ir": [1187900000,"BPR","https://www.bprshop.com/product/13105-AMD-Ryzen-7-9800X3D","Tray; ordinary listed price before the cash-payment discount and delivery."],
+      "international": [46399,"Best Buy","https://www.bestbuy.com/product/amd-ryzen-7-9800x3d-8-core-16-thread-4-7-ghz-5-2-ghz-max-boost-socket-am5-pci-express-5-0-unlocked-desktop-processor-silver/12122512","Retail box, 100-100001084WOF; listed price before tax and delivery."]
+    },
+    "gigabyte-rtx-5070-eagle": {
+      "ir": [2800000000,"GSI","https://gsiran.com/products/graphics-card-gigabyte-rtx-5070-eagle-oc-sff-12g","EAGLE OC SFF 12G; listed price before delivery."],
+      "international": [106999,"Walmart Business","https://business.walmart.com/ip/Gigabyte-GeForce-RTX-5070-EAGLE-OC-SFF-12G-Graphics-card-GeForce-RTX-5070-12-GB-GDDR7-PCI-Express-5-0-3-x-DisplayPort-HDMI/16378969839","Exact EAGLE OC SFF 12G; indexed marketplace price before tax and delivery."]
+    },
+    "razer-blackwidow-v4-75-black": {
+      "ir": [490318720,"Kiyan Daria","https://kiyandaria.com/cat/keyboard?page=2&sort=mixed","Black wired 75%, Orange tactile switches; indexed retailer listing before delivery."],
+      "international": [18999,"Razer","https://www.razer.com/gaming-keyboards/Razer-BlackWidow-V4-%2075/RZ03-05000200-R3U1","Black US layout with Orange tactile switches; listed price before tax and delivery."]
+    },
+    "msi-mag-b650-tomahawk-wifi": {
+      "ir": [330000000,"Moqayese","https://moqayese.com/tech/msi-mag-b650-tomahawk-wifi","Exact board; indexed retailer comparison starting price before delivery."],
+      "international": [17599,"Best Buy","https://www.bestbuy.com/site/msi-mag-b650-tomahawk-wifi-socket-am5-amd-b650-atx-ddr5-wi-fi-6e-motherboard-black/6528249.p","Exact board; listed price before tax and delivery."]
+    },
+    "corsair-vengeance-cmk32gx5m2b6000c30": {
+      "ir": [431250000,"5CC","https://5cc.ir/products/corsair-cmk32gx5m2b6000c30","Exact CMK32GX5M2B6000C30 kit; listed price before delivery."],
+      "international": [53999,"Newegg","https://www.newegg.com/corsair-vengeance-32gb-ddr5-6000-cas-latency-30-desktop-memory-black/p/N82E16820982007?item=20-982-007","Exact CMK32GX5M2B6000C30 kit; listed sale price before tax and delivery."]
+    },
+    "samsung-990-pro-1tb-mz-v9p1t0bw": {
+      "ir": [550000000,"Diba IT","https://dibait.com/product/اس-اس-دی-اینترنال-سامسونگ-مدل-990-PRO-ظرفیت-1-ترابایت","990 PRO 1 TB without heatsink; listed price before delivery."],
+      "international": [26999,"Best Buy","https://www.bestbuy.com/product/samsung-990-pro-1tb-internal-ssd-pcle-gen-4x4-nvme/J3ZYG28J3X","1 TB without heatsink, US retail suffix /AM; listed price before tax and delivery."]
+    },
+    "lian-li-lancool-216rx-black": {
+      "ir": [399000000,"Teccaf","https://teccaf.com/product/کیس-گیمینگ-لیان-لی-lian-li-lancool-216-رنگ-مشکی/","Black 216 with 160 mm ARGB fans; listed price before delivery."],
+      "international": [10799,"Best Buy","https://www.bestbuy.com/product/lian-li-lancool-216rx-black-steel-tempered-glass-atx-mid-tower-with-2x-16cm-argb-fans-black/J39TC2KZJ9","216RX black with ARGB fans; listed marketplace price before tax and delivery."]
+    },
+    "msi-mag-a850gl-pcie5-black": {
+      "ir": [360000000,"Spotibyte","https://spotibyte.com/p/52de381a-89da-43a8-b1ac-a1da2395eb23/msi-mag-a850gl-pcie5-power-supply","MAG A850GL PCIE5 black, 850 W; listed price before delivery."],
+      "international": [9999,"Best Buy","https://www.bestbuy.com/product/msi-mag-a850gl-pcie5-850w-full-modular-atx-3-1-ready-80-plus-gold-power-supply-black/6562432","MAG A850GL PCIE5 black, 850 W; listed price before tax and delivery."]
+    },
+    "cooler-master-hyper-212-halo-black": {
+      "ir": [74900000,"MM7 Kala","https://mm7kala.ir/p/176708/خنک-کننده-پردازنده-کولر-مستر-مدل-hyper-212-halo-black-argb","Hyper 212 Halo Black ARGB; listed price before delivery."],
+      "international": [2999,"Cooler Master","https://sfcc.coolermaster.com/en-us/products/RR-S4KK-20PA-R1.html","Black RR-S4KK-20PA-R1; listed sale price before tax and delivery."]
+    },
+    "gsiran-leon": {
+      "ir": [3900000000,"GSI","https://gsiran.com/products/gsiran-red-gaming-set-ryzen-5-9600-rx-9070-16gb-480gb","LEON fixed prebuilt; use the current page specifications, not the historical wording in the URL. Assembly included. Before delivery."]
+    },
+    "gsiran-matrix": {
+      "ir": [5900000000,"GSI","https://gsiran.com/products/gsiran-mastertech-gaming-pc-ryzen-9-7950x-rx-6900-xt-32gb-1tb","MATRIX fixed prebuilt; use the current page specifications. Listed package includes assembly; before delivery."]
+    },
+    "cyberpowerpc-gml-99707": {
+      "international": [191900,"CyberPowerPC","https://www.cyberpowerpc.com/system/Prebuilt-PC-GML-99707","GML 99707 fixed prebuilt as listed; price before sales tax."]
+    },
+    "cyberpowerpc-gml-99673": {
+      "international": [288900,"CyberPowerPC","https://www.cyberpowerpc.com/system/Prebuilt-PC-GML-99673","GML 99673 fixed prebuilt as listed; price before sales tax."]
+    }
+  }
+}

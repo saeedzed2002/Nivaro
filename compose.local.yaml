@@ -1,5 +1,11 @@
 # Use last with the media, development, orders, events, payments and support overlays.
 services:
+  catalog-init:
+    environment:
+      PYTHONPATH: /workspace/src
+    volumes:
+      - ./services/catalog/src:/workspace/src:ro
+    command: [sh, -c, 'alembic upgrade head && python -m nivaro_catalog.infrastructure.seed --demo-stock']
   web:
     image: nivaro-web:local-development
     volumes:

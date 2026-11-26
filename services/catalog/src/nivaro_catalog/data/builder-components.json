@@ -7,38 +7,38 @@
     "evidence": [{"url": "https://www.msi.com/Motherboard/MAG-B650-TOMAHAWK-WIFI/Specification", "checked_on": "2026-10-27", "note": "Manufacturer specification. M.2 resources depend on CPU and slot sharing; BIOS support is deliberately unverified."}]
   },
   {
-    "slug": "kingston-fury-beast-rgb-kf560c36bbeak2-32", "name": "Kingston FURY Beast RGB KF560C36BBEAK2-32", "category": "memory", "brand": "Kingston", "image": "memory",
-    "description": {"fa": "کیت حافظهٔ ۳۲ گیگابایتی شامل دو ماژول؛ سرعت اورکلاک تضمین سازگاری نیست.", "en": "32 GB kit with two modules. An overclocking profile is not a compatibility guarantee."},
-    "highlights": ["DDR5", "2 × 16 GB", "RGB"], "offers": {},
+    "slug": "corsair-vengeance-cmk32gx5m2b6000c30", "name": "Corsair Vengeance CMK32GX5M2B6000C30", "category": "memory", "brand": "Corsair", "image": "memory",
+    "description": {"fa": "کیت حافظهٔ مشکی با دو ماژول ۱۶ گیگابایتی و پروفایل XMP.", "en": "Black desktop memory kit with two 16 GB modules and an XMP profile."},
+    "highlights": ["DDR5-6000", "2 × 16 GB", "CL30"],
     "specifications": {"kind": "memory", "generation": "DDR5", "modules": 2, "capacity_gb": 32},
-    "evidence": [{"url": "https://www.kingston.com/datasheets/KF560C36BBEAK2-32.pdf", "checked_on": "2026-10-27", "note": "Manufacturer datasheet. Module height is 42.23 mm; left unknown in the integer-mm contract rather than rounded down for clearance."}]
+    "evidence": [{"url": "https://www.corsair.com/us/en/p/memory/cmk32gx5m2b6000c30/vengeance-32gb-2x16gb-ddr5-dram-6000mt-s-c30-memory-kit-black-cmk32gx5m2b6000c30", "checked_on": "2026-11-26", "note": "Manufacturer product page for the exact C30 kit."}]
   },
   {
     "slug": "samsung-990-pro-1tb-mz-v9p1t0bw", "name": "Samsung 990 PRO 1TB MZ-V9P1T0BW", "category": "storage", "brand": "Samsung", "image": "schematic-storage",
-    "description": {"fa": "درایو NVMe یک ترابایتی، مدل بدون هیت‌سینک؛ قیمت این بازار ثبت نشده است.", "en": "1 TB NVMe drive, model without heatsink. No market price is recorded."},
+    "description": {"fa": "درایو NVMe یک ترابایتی، مدل بدون هیت‌سینک.", "en": "1 TB NVMe drive without a heatsink."},
     "highlights": ["1 TB", "NVMe", "M.2 2280"], "offers": {},
     "specifications": {"kind": "storage", "interface": "NVMe", "form_factor": "M.2-2280", "capacity_gb": 1000},
     "evidence": [{"url": "https://download.semiconductor.samsung.com/resources/brochure/990_PRO_Series_Brouchure_Web_Version_4.0_250523.pdf", "checked_on": "2026-10-27", "note": "Indexed manufacturer brochure excerpt (full PDF fetch exceeded size limit), 1 TB non-heatsink model; decimal capacity, not usable formatted capacity."}]
   },
   {
-    "slug": "corsair-4000d-airflow-cc-9011200-ww", "name": "Corsair 4000D AIRFLOW CC-9011200-WW", "category": "case", "brand": "Corsair", "image": "schematic-case",
-    "description": {"fa": "کیس مشکی؛ فضای قطعات به چیدمان فن و رادیاتور وابسته است.", "en": "Black case. Component clearance depends on fan and radiator placement."},
-    "highlights": ["ATX", "Airflow", "Black"], "offers": {},
-    "specifications": {"kind": "case", "motherboard_forms": ["ATX", "Micro-ATX", "Mini-ITX"], "psu_forms": ["ATX"], "max_cooler_height_mm": 170, "expansion_slots": 7},
-    "evidence": [{"url": "https://www.corsair.com/ww/en/p/pc-cases/cc-9011200-ww/40", "checked_on": "2026-10-27", "note": "Manufacturer specifications. GPU/PSU clearance and drive mounting depend on internal layout, left unverified."}, {"url": "https://forum.corsair.com/blog/cases/4000-5000-series-case-comparison/", "checked_on": "2026-10-27", "note": "Manufacturer case comparison confirms motherboard forms; conditional E-ATX omitted."}]
+    "slug": "lian-li-lancool-216rx-black", "name": "Lian Li LANCOOL 216RX Black", "category": "case", "brand": "Lian Li", "image": "schematic-case",
+    "description": {"fa": "کیس مشکی با پنل مشبک و دو فن جلوی ۱۶۰ میلی‌متری ARGB.", "en": "Black airflow case with two front 160 mm ARGB fans."},
+    "highlights": ["ATX", "160 mm ARGB", "Black"],
+    "specifications": {"kind": "case", "motherboard_forms": ["ATX", "Micro-ATX", "Mini-ITX"], "psu_forms": ["ATX"], "expansion_slots": 7},
+    "evidence": [{"url": "https://lian-li.com/product/lancool-216/", "checked_on": "2026-11-26", "note": "Manufacturer specifications for the black RGB version."}]
   },
   {
-    "slug": "seasonic-focus-gx-850-atx-31", "name": "Seasonic FOCUS GX-850 ATX 3.1", "category": "psu", "brand": "Seasonic", "image": "schematic-psu",
-    "description": {"fa": "پاور ۸۵۰ واتی از سری ATX 3.1؛ کابل‌های نسخهٔ قابل فروش هنوز بررسی نشده‌اند.", "en": "850 W ATX 3.1 series power supply. Cables of a saleable unit are not yet verified."},
-    "highlights": ["850 W", "ATX 3.1", "140 mm"], "offers": {},
+    "slug": "msi-mag-a850gl-pcie5-black", "name": "MSI MAG A850GL PCIE5 Black", "category": "psu", "brand": "MSI", "image": "schematic-psu",
+    "description": {"fa": "پاور ماژولار مشکی با توان نامی ۸۵۰ وات.", "en": "Black fully modular power supply rated at 850 W."},
+    "highlights": ["850 W", "80 PLUS Gold", "140 mm"],
     "specifications": {"kind": "psu", "wattage_w": 850, "form_factor": "ATX", "length_mm": 140},
-    "evidence": [{"url": "https://seasonic.com/focus-gx-atx-3/", "checked_on": "2026-10-27", "note": "Manufacturer FOCUS GX ATX 3.1 page, 850 W model. Connector inventory not inferred from another revision."}]
+    "evidence": [{"url": "https://www.msi.com/Power-Supply/MAG-A850GL-PCIE5/Specification", "checked_on": "2026-11-26", "note": "Manufacturer MAG A850GL PCIE5 specifications."}]
   },
   {
-    "slug": "noctua-nh-u12s", "name": "Noctua NH-U12S", "category": "cooler", "brand": "Noctua", "image": "schematic-cooler",
-    "description": {"fa": "خنک‌کنندهٔ بادی تک‌برج؛ توان دفع حرارت و کیت نصب نسخهٔ موجود نیازمند تأیید است.", "en": "Single-tower air cooler. CPU thermal suitability and the stocked mounting kit need verification."},
-    "highlights": ["Air cooling", "158 mm", "AM5"], "offers": {},
-    "specifications": {"kind": "cooler", "cooling_type": "air", "sockets": ["AM5", "AM4"], "height_mm": 158},
-    "evidence": [{"url": "https://www.noctua.at/en/products/nh-u12s/specifications", "checked_on": "2026-10-27", "note": "Current manufacturer specification. Socket fit does not establish CPU thermal suitability or legacy-box kit contents."}]
+    "slug": "cooler-master-hyper-212-halo-black", "name": "Cooler Master Hyper 212 Halo Black", "category": "cooler", "brand": "Cooler Master", "image": "schematic-cooler",
+    "description": {"fa": "خنک‌کنندهٔ بادی تک‌برج مشکی با فن ۱۲۰ میلی‌متری ARGB.", "en": "Black single-tower air cooler with a 120 mm ARGB fan."},
+    "highlights": ["Air cooling", "154 mm", "ARGB"],
+    "specifications": {"kind": "cooler", "cooling_type": "air", "sockets": ["AM5", "AM4"], "height_mm": 154},
+    "evidence": [{"url": "https://sfcc.coolermaster.com/en-us/products/RR-S4KK-20PA-R1.html", "checked_on": "2026-11-26", "note": "Manufacturer specification for RR-S4KK-20PA-R1."}]
   }
 ]

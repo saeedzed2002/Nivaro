@@ -7,7 +7,7 @@ import { Search, ArrowRight, SlidersHorizontal } from 'lucide-react';
 import { ProductCard } from '@/components/product-card';
 import { CatalogUnavailableState } from '@/components/catalog-unavailable';
 import { listCatalog, listCategories, productView, type CatalogQuery } from '@/lib/catalog-server';
-import { isLocale, text } from '@/lib/content';
+import { isLocale, marketForLocale, text } from '@/lib/content';
 
 type Props = { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> { const { locale } = await params; return { title: locale === 'fa' ? 'محصولات و قطعات گیمینگ' : 'Gaming hardware collection' }; }
@@ -20,7 +20,7 @@ export default async function Products({ params, searchParams }: Props) {
   const sorts = ['featured','name','newest','price_asc','price_desc','rating'] as const;
   const sort = sorts.find(s => s === query.sort) ?? 'featured';
   const page = Math.floor(Math.max(1, Math.min(10000, Number(query.page) || 1)));
-  const market = cookieStore.get('nivaro-market')?.value === 'international' ? 'international' : 'ir';
+  const market = marketForLocale(cookieStore.get('nivaro-market')?.value, locale);
   const minor = (value: unknown) => {
     if (value === undefined || value === '') return undefined;
     const pattern = market === 'ir' ? /^\d{1,12}$/ : /^\d{1,10}(\.\d{1,2})?$/;
@@ -34,7 +34,7 @@ export default async function Products({ params, searchParams }: Props) {
   const filterError = invalidPrice
     ? text(locale,'قیمت معتبر و غیرمنفی وارد کن؛ تومان باید عدد صحیح باشد.','Enter a valid non-negative price; toman amounts must be whole numbers.')
     : invalidRange ? text(locale,'حداقل قیمت نباید از حداکثر بیشتر باشد.','Minimum price must not exceed maximum price.') : null;
-  const filters: CatalogQuery = { q, category, brand, sort, page, page_size: 24, market, min_price: minimum ?? undefined, max_price: maximum ?? undefined, in_stock: query.stock === '1' };
+  const filters: CatalogQuery = { q, category, brand, sort, page, page_size: 24, market, min_price: minimum ?? 0, max_price: maximum ?? undefined, in_stock: query.stock === '1' };
   const [catalog, categoryData] = await Promise.all([filterError ? Promise.resolve(null) : listCatalog(filters).catch(() => null), listCategories().catch(() => null)]);
   const categories = categoryData ?? [];
   const result = catalog?.items.map(productView) ?? [];
@@ -43,7 +43,7 @@ export default async function Products({ params, searchParams }: Props) {
     <div className="collection-banner"><Image src="/images/showroom.webp" alt="" fill sizes="100vw"/><div><p className="eyebrow">{text(locale,'از انتخاب تا تجربه','FROM PARTS TO POSSIBILITIES')}</p><h2>{text(locale,'سیستمی بساز که مال تو باشد.','Build something that’s yours.')}</h2><Link href={`/${locale}/build`} className="text-link">{text(locale,'رفتن به میز اسمبل','Open the build workspace')}<ArrowRight size={18}/></Link></div></div>
     <div className="breadcrumb"><Link href={`/${locale}`}>{text(locale,'خانه','Home')}</Link><span>/</span><span>{text(locale,'محصولات','Collection')}</span></div>
     <div className="section-heading"><div><p className="eyebrow">{text(locale,'دنیای قطعات و تجهیزات','THE HARDWARE COLLECTION')}</p><h1>{text(locale,'ارتقای بعدی تو، اینجاست.','Find your next upgrade.')}</h1></div>{catalog && <span className="result-count">{new Intl.NumberFormat(locale).format(catalog.total)} {text(locale,'محصول مرجع','reference products')}</span>}</div>
-    <p className="section-caption">{text(locale,'قیمت‌های مرجع مربوط به پژوهش‌اند؛ موجودی و فروش فعال نیست. تصاویر، نمونهٔ مفهومی دستهٔ محصول‌اند.','Retail prices are research references, not active offers or stock. Images are conceptual category illustrations.')}</p>
+    <p className="section-caption">{text(locale,'قیمت‌ها از فروشگاه‌های بازار انتخاب‌شده ثبت شده‌اند. منبع و تاریخ را در صفحهٔ هر محصول ببین.','Prices come from retailers in the selected market. Each product page has the source and date.')}</p>
     <div className="catalog-layout">
       <aside className="filter-panel"><form key={`${market}:${JSON.stringify(query)}`} action={`/${locale}/products`}><h2><SlidersHorizontal size={18}/>{text(locale,'فیلتر محصولات','Refine your search')}</h2>
         <label className="field"><span>{text(locale,'جست‌وجو','Search')}</span><input name="q" defaultValue={q} placeholder={text(locale,'نام یا مدل','Name or model')} maxLength={100}/></label>

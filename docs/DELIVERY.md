@@ -59,10 +59,10 @@ sequenceDiagram
 ## Three-minute demonstration
 
 1. Open `/fa` and switch to `/en`, then toggle the theme. Browse a product and compare items in the same category. Switch markets and show the independent offer data and any missing information explicitly displayed by Catalog.
-2. Open the PC builder and compare a compatible selection with one that needs review. Explain the difference between configuration revision, quote and stock hold. In the disposable browser fixture, confirm checkout, retry after a dropped response and open the same order. Select **Pay with simulator** and show the recorded result in customer history and the staff order view.
+2. Open the PC builder, pick one piece, and add it to the cart. Add a set of parts and show the selected total and the matching cart lines. In the disposable browser fixture, confirm checkout, retry after a dropped response and open the same order. Select **Pay with simulator** and show the recorded result in customer history and the staff order view.
 3. Open separate synthetic customer and staff sessions to show private Support. Send a message, reconnect and show that history recovers. Finish by showing the isolated restore report and the protected avatar check.
 
-The checkout and Support demonstrations use the synthetic policies, users and fixtures in `Verify-OrdersFoundation.ps1 -WithPaymentResults -Browser` and `Verify-SupportFoundation.ps1 -Browser`. Run with their documented images and the frozen browser test dependencies. The plain release seed supplies product research records and leaves sales policy setup explicit.
+The checkout and Support demonstrations use the synthetic policies, users and fixtures in `Verify-OrdersFoundation.ps1 -WithPaymentResults -Browser` and `Verify-SupportFoundation.ps1 -Browser`. Run with their documented images and the frozen browser test dependencies. The plain release seed supplies documented retail references. The Windows Docker development overlay loads the simulator inventory used in the parts-picker demonstration.
 
 | Browser evidence | Capture |
 | --- | --- |

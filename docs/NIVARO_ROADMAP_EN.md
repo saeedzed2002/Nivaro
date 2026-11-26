@@ -12,6 +12,13 @@ Audience: the project developer and implementation agent, especially `GPT-6 Astr
 
 Canonical project directory: `D:\Project\Nivaro`.
 
+### Owner acceptance update — 2026-11-26
+
+- The storefront build workspace is a parts picker. One priced selection is sufficient. Display the sum of the selected quantities continuously and offer one action to add the selection to the active market cart. A failed batch leaves the cart intact. Saving a named selection remains optional.
+- The build workspace presents prices and availability. Compatibility evaluation remains available to system comparison and the existing version-bound contracts for legacy complete-build groups. New named drafts use `parts_only`.
+- Choose seed products from retailer listings with documented model and price. Show only products with current-market prices in the storefront collection. Both markets have their own prebuilt lineup, and shared components have independent price references. Keep other-market details labeled when opening a direct product link. Local preview inventory is synthetic and uses the existing simulator workflow.
+- The wide homepage and narrow layouts keep the case visible in the conceptual artwork in both themes.
+
 > This document specifies the product, architectural decisions, and implementation plan. A feature described here is not evidence that it exists or has been tested. The explicit start instruction has now been received. Review this English specification and actual repository state, then continue within the authorized phase; do not ask again for ordinary implementation permission.
 
 ## Contents

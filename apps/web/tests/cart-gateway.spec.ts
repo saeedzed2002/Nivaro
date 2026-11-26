@@ -7,25 +7,21 @@ test('browser edits a transferred group, then merges the guest cart into an isol
   test.setTimeout(90_000);
   const exceptions: string[] = [];
   page.on('pageerror', error => exceptions.push(error.message));
-  await page.goto('/en/products/amd-ryzen-7-9800x3d');
+  await page.goto('/en/build');
   const add = page.getByRole('button', { name: 'Add to cart', exact: true });
+  const cpu = page.getByLabel('Processor', { exact: true });
+  await cpu.selectOption({ label: 'AMD Ryzen 7 9800X3D · boxed' });
   await expect(add).toBeEnabled();
   await add.click();
-  await expect(page.getByText('Added to your cart.')).toBeVisible();
+  await expect(page.getByText('Parts added to your cart.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Shopping cart (1)' })).toBeVisible();
 
-  await page.goto('/en/build');
-  const cpu = page.getByLabel('Processor', { exact: true });
-  await expect(cpu.locator('option').filter({ hasText: '9800X3D' }).first()).toBeAttached();
-  const variant = await cpu.locator('option').filter({ hasText: '9800X3D' }).first().getAttribute('value');
-  await cpu.selectOption(variant!);
-  await page.getByLabel('Evaluation mode').selectOption('parts_only');
   await page.getByLabel('Build name').fill('Gateway build');
   await page.getByRole('button', { name: 'Save build' }).click();
   await expect(page).toHaveURL(/\/en\/build\?draft=/);
   const draftUrl = page.url();
-  await page.getByRole('button', { name: 'Confirm and add system to cart' }).click();
-  await page.getByRole('link', { name: 'System added. View cart' }).click();
+  await add.click();
+  await page.getByRole('link', { name: 'View cart' }).click();
   await expect(page.getByRole('heading', { name: 'Gateway build' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Shopping cart (2)' })).toBeVisible();
 

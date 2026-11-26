@@ -1,5 +1,6 @@
 """Versioned commerce mutations. Catalog reads never reserve or decrement stock."""
 
+from collections import Counter
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -16,6 +17,7 @@ from nivaro_cart.domain.mutations import (
     CartNotFound,
     Market,
     add_standalone,
+    add_standalone_batch,
     change_line,
     delete_group,
 )
@@ -34,6 +36,19 @@ class AddItem(BaseModel):
     expected_version: Positive
     variant_id: UUID
     quantity: Positive
+
+
+class BatchLine(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    variant_id: UUID
+    quantity: Positive
+
+
+class AddItems(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    market: Market
+    expected_version: Positive
+    items: list[BatchLine] = Field(min_length=1, max_length=32)
 
 
 class EditItem(BaseModel):
@@ -126,6 +141,47 @@ async def add_item(body: AddItem, request: Request) -> MutationResult:
         )
         observe(line, summary)
         result = MutationResult(cart_id=cart.id, version=cart.version, line_id=line.id)
+    return result
+
+
+@router.post("/items/batch", status_code=201)
+async def add_items(body: AddItems, request: Request) -> MutationResult:
+    actor = await request_actor(request, mutating=True)
+    await preflight(request, actor, body.market, body.expected_version)
+    quantities: Counter[UUID] = Counter()
+    for item in body.items:
+        quantities[item.variant_id] += item.quantity
+    catalog: Catalog = request.app.state.catalog
+    try:
+        summaries = await catalog.summaries(list(quantities), body.market)
+    except CatalogUnavailable as exc:
+        raise CommerceError("catalog.unavailable", 503) from exc
+
+    database: Database = request.app.state.database
+    async with database.sessions.begin() as db:
+        owner = await resolve_owner(db, actor, mutating=True)
+        cart = await owned_cart(db, owner, body.market)
+        if cart.version != body.expected_version:
+            raise CartConflict("cart.version_conflict", cart.version)
+        allowed: dict[UUID, Summary] = {}
+        for variant, quantity in quantities.items():
+            summary = summaries.get(variant)
+            status = sale_status(summary, quantity)
+            if summary is None or status != "available":
+                raise CommerceError(f"cart.{status}")
+            await stock_check(db, cart.id, summary, quantity)
+            allowed[variant] = summary
+        added = await add_standalone_batch(
+            db,
+            owner_id=owner.id,
+            market=body.market,
+            expected_version=body.expected_version,
+            quantities=dict(quantities),
+            limits=request.app.state.settings.limits(),
+        )
+        for variant, line in added.items():
+            observe(line, allowed[variant])
+        result = MutationResult(cart_id=cart.id, version=cart.version)
     return result
 
 

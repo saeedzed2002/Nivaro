@@ -190,7 +190,7 @@ export async function saveGroup(cart: Cart, groupId: string, body: GroupEdit, di
   }));
 }
 
-export async function addCartItem(variantId: string, market: Market) {
+export async function ensureCart(market: Market) {
   let cart = await readCart(market);
   if (!cart.id) {
     const open = async () => {
@@ -201,6 +201,18 @@ export async function addCartItem(variantId: string, market: Market) {
     };
     cart = navigator.locks ? await navigator.locks.request('nivaro-guest-cart', open) : await open();
   }
+  return cart;
+}
+
+export async function addCartItems(cart: Cart, items: components['schemas']['BatchLine'][]) {
+  return unwrap(await client.POST('/api/v1/cart/items/batch', {
+    body: { market: cart.market, expected_version: cart.version, items },
+    headers: { 'X-CSRF-Token': await cartCsrf(cart.owner_scope) },
+  }));
+}
+
+export async function addCartItem(variantId: string, market: Market) {
+  const cart = await ensureCart(market);
   const csrf = await cartCsrf(cart.owner_scope);
   return unwrap(await client.POST('/api/v1/cart/items', {
     body: { market, expected_version: cart.version, variant_id: variantId, quantity: 1 },

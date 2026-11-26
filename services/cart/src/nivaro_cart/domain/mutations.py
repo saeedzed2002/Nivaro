@@ -67,30 +67,55 @@ async def add_standalone(
     limits: Limits = DEFAULT_LIMITS,
 ) -> CartLine:
     """Add a positive increment to a loose line, never to a matching group line."""
-    validate_quantities([(variant_id, quantity)], limits)
+    added = await add_standalone_batch(
+        db,
+        owner_id=owner_id,
+        market=market,
+        expected_version=expected_version,
+        quantities={variant_id: quantity},
+        limits=limits,
+    )
+    return added[variant_id]
+
+
+async def add_standalone_batch(
+    db: AsyncSession,
+    *,
+    owner_id: UUID,
+    market: Market,
+    expected_version: int,
+    quantities: dict[UUID, int],
+    limits: Limits = DEFAULT_LIMITS,
+) -> dict[UUID, CartLine]:
+    """Apply a complete set of increments under one cart version and lock."""
+    validate_quantities(quantities.items(), limits)
     cart = await _lock_cart(db, owner_id, market, expected_version)
     lines = await _lines(db, cart)
-    existing = next(
-        (line for line in lines if line.group_id is None and line.variant_id == variant_id), None
+    loose = {line.variant_id: line for line in lines if line.group_id is None}
+    proposed = [
+        (
+            line.variant_id,
+            line.quantity + (quantities.get(line.variant_id, 0) if line.group_id is None else 0),
+        )
+        for line in lines
+    ]
+    proposed.extend(
+        (variant, quantity) for variant, quantity in quantities.items() if variant not in loose
     )
-    proposed = [(line.variant_id, line.quantity) for line in lines]
-    if existing is None:
-        proposed.append((variant_id, quantity))
-    else:
-        proposed = [
-            (line.variant_id, line.quantity + quantity if line.id == existing.id else line.quantity)
-            for line in lines
-        ]
     validate_quantities(proposed, limits)
-    if existing is None:
-        existing = CartLine(cart_id=cart.id, variant_id=variant_id, quantity=quantity)
-        db.add(existing)
-    else:
-        existing.quantity += quantity
-        existing.version += 1
+    added = {}
+    for variant, quantity in quantities.items():
+        line = loose.get(variant)
+        if line is None:
+            line = CartLine(cart_id=cart.id, variant_id=variant, quantity=quantity)
+            db.add(line)
+        else:
+            line.quantity += quantity
+            line.version += 1
+        added[variant] = line
     cart.version += 1
     await db.flush()
-    return existing
+    return added
 
 
 async def _group(

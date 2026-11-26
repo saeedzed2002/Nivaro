@@ -1,11 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-const first = { id: 'draft-a', name: 'Studio Tower', market: 'international', currency: 'USD', mode: 'parts_only', version: 1,
-  requires_dedicated_gpu: false, selections: [{ slot_key: 'storage:1', variant_id: 'fixture-ssd', quantity: 1 }] };
-const second = { ...first, id: 'draft-b', name: 'Quiet Build' };
 const evaluation = { status: 'incomplete', findings: [], estimated_power_w: null };
 
 test('saved builds copy and compare on mobile, preserve transfer retry, and save a new revision', async ({ page }) => {
+  const response = await page.request.get('/api/v1/catalog/products/samsung-990-pro-1tb-mz-v9p1t0bw');
+  expect(response.ok()).toBe(true);
+  const ssd = await response.json();
+  const first = { id: 'draft-a', name: 'Studio Tower', market: 'international', currency: 'USD', mode: 'parts_only', version: 1,
+    requires_dedicated_gpu: false, selections: [{ slot_key: 'storage:1', variant_id: ssd.variants[0].id, quantity: 1 }] };
+  const second = { ...first, id: 'draft-b', name: 'Quiet Build' };
   let drafts = [first];
   const transferKeys: string[] = [];
   let reviewCount = 0;
@@ -76,11 +79,13 @@ test('saved builds copy and compare on mobile, preserve transfer retry, and save
   await page.getByRole('link', { name: 'تغییر زبان به انگلیسی' }).click();
   await page.getByRole('link', { name: 'Quiet Build', exact: true }).click();
   await expect(page.getByLabel('Build name')).toHaveValue('Quiet Build');
-  await expect(page.getByRole('heading', { name: 'Incomplete selection' })).toBeVisible();
-  expect(reviewCount).toBeGreaterThan(0);
-  await page.getByRole('button', { name: 'Confirm and add system to cart' }).click();
-  await page.getByRole('button', { name: 'Retry the previous transfer' }).click();
-  await expect(page.getByRole('link', { name: 'System added. View cart' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Incomplete selection' })).toHaveCount(0);
+  const add = page.getByRole('button', { name: 'Add to cart', exact: true });
+  await add.click();
+  await expect(page.getByRole('link', { name: 'Check cart' })).toBeVisible();
+  await add.click();
+  await expect(page.getByRole('link', { name: 'View cart' })).toBeVisible();
+  expect(reviewCount).toBe(1);
   expect(transferKeys).toHaveLength(2);
   expect(transferKeys[0]).toBeTruthy();
   expect(transferKeys[0]).toBe(transferKeys[1]);

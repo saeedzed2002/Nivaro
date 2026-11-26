@@ -152,6 +152,24 @@ async def test_outage_preserves_lines_and_allows_decrease_delete(shop):
     assert empty["lines"] == [] and empty["estimated_total_minor"] == "0"
 
 
+async def test_batch_add_is_atomic_and_same_version_cannot_add_twice(shop):
+    client, _, _, sku, initial = shop
+    items = [{"variant_id": str(sku), "quantity": 1}, {"variant_id": str(uuid4()), "quantity": 2}]
+    batch = {"market": "ir", "expected_version": initial["version"], "items": items}
+    rejected = await client.post("/api/v1/cart/items/batch", json=batch)
+    assert rejected.status_code == 409
+    unchanged = (await client.get("/api/v1/cart")).json()
+    assert unchanged["version"] == initial["version"] and unchanged["lines"] == []
+
+    items[1]["variant_id"] = str(sku)
+    added = await client.post("/api/v1/cart/items/batch", json=batch)
+    assert added.status_code == 201 and added.json()["version"] == initial["version"] + 1
+    assert (await client.post("/api/v1/cart/items/batch", json=batch)).status_code == 409
+    cart = (await client.get("/api/v1/cart")).json()
+    assert cart["estimated_total_minor"] == "37020"
+    assert len(cart["lines"]) == 1 and cart["lines"][0]["quantity"] == 3
+
+
 @pytest.mark.parametrize(
     "changes,status",
     [

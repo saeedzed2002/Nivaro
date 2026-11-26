@@ -74,19 +74,22 @@ test('language preserves market and route; explicit market changes prices',async
     hydration.resolve();
   }
   await page.getByRole('combobox',{name:'Sales market'}).selectOption('ir');
-  await expect(page.locator('.detailed .price')).toContainText('113,390,000');
+  await expect(page.locator('.detailed .price')).toContainText('118,790,000');
   await page.getByRole('link',{name:'Switch language to Persian'}).click();
   await expect(page).toHaveURL('/fa/products/amd-ryzen-7-9800x3d');
   await expect(page.getByRole('combobox',{name:'بازار فروش'})).toHaveValue('ir');
   await page.getByRole('combobox',{name:'بازار فروش'}).selectOption('international');
-  await expect(page.locator('.detailed .price')).toContainText('۴۶۹');
+  await expect(page.locator('.detailed .price')).toContainText('۴۶۳٫۹۹');
   await page.reload();
   await expect(page.getByRole('combobox',{name:'بازار فروش'})).toHaveValue('international');
 });
 
 test('header opens the localized cart page',async({page})=>{
   await page.goto('/en');
-  await page.getByRole('link',{name:'Shopping cart',exact:true}).click();
+  await expect(page.getByRole('combobox',{name:'Sales market'})).toBeEnabled();
+  const cart = page.getByRole('link',{name:'Shopping cart',exact:true});
+  await expect(cart).toHaveAttribute('href', '/en/cart');
+  await cart.click();
   await expect(page).toHaveURL('/en/cart');
   await expect(page.getByRole('heading',{name:'Shopping cart',exact:true})).toBeVisible();
 });

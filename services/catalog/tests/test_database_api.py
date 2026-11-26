@@ -59,8 +59,8 @@ async def test_readiness_and_seed_repeatability(api):
     before = await session.scalar(select(func.count()).select_from(ProductRow))
     await session.run_sync(seed)
     await session.run_sync(seed)
-    assert await session.scalar(select(func.count()).select_from(ProductRow)) == before == 12
-    assert await session.scalar(select(func.count()).select_from(VariantRow)) == 13
+    assert await session.scalar(select(func.count()).select_from(ProductRow)) == before == 14
+    assert await session.scalar(select(func.count()).select_from(VariantRow)) == 16
 
 
 async def test_restricted_database_role(api):
@@ -144,20 +144,29 @@ async def test_missing_and_validation_errors_are_structured(api):
         assert response.json()["error"]["request_id"]
 
 
-async def test_packaging_prices_and_missing_prices_remain_independent(api):
+async def test_packaging_prices_remain_independent_and_market_lineups_are_priced(api):
     client, _ = api
     response = await client.get("/api/v1/catalog/products/amd-ryzen-7-9800x3d")
     variants = response.json()["variants"]
     assert len(variants) == 2
     offers = {v["packaging"]["en"]: v["offers"] for v in variants}
     assert (
-        offers["tray"][0]["currency"] == "IRR" and offers["tray"][0]["amount_minor"] == 1133900000
+        offers["tray"][0]["currency"] == "IRR" and offers["tray"][0]["amount_minor"] == 1187900000
     )
-    assert offers["boxed"][0]["currency"] == "USD" and offers["boxed"][0]["amount_minor"] == 46900
+    assert offers["boxed"][0]["currency"] == "USD" and offers["boxed"][0]["amount_minor"] == 46399
     assert all(not o["available_for_sale"] for v in variants for o in v["offers"])
-    missing = (await client.get("/api/v1/catalog/products/amd-ryzen-7-9700x")).json()
-    assert missing["variants"][0]["offers"] == []
-    assert missing["variants"][0]["specifications"]["max_package_power_w"] is None
+    for market in ("ir", "international"):
+        response = await client.get(f"/api/v1/catalog/products?market={market}&min_price=0")
+        products = response.json()
+        assert products["total"] == 12
+        assert all(
+            any(
+                offer["market"] == market and offer["source"]["url"]
+                for variant in item["variants"]
+                for offer in variant["offers"]
+            )
+            for item in products["items"]
+        )
 
 
 async def test_database_change_is_visible_and_drafts_are_hidden(api):
@@ -174,7 +183,7 @@ async def test_database_change_is_visible_and_drafts_are_hidden(api):
         update(ProductRow).where(ProductRow.slug == "amd-ryzen-7-9700x").values(status="draft")
     )
     assert (await client.get("/api/v1/catalog/products/amd-ryzen-7-9700x")).status_code == 404
-    assert (await client.get("/api/v1/catalog/products")).json()["total"] == 11
+    assert (await client.get("/api/v1/catalog/products")).json()["total"] == 13
 
 
 async def test_documented_core_build_is_selectable_but_not_falsely_certified(api):
@@ -183,7 +192,9 @@ async def test_documented_core_build_is_selectable_but_not_falsely_certified(api
     selections = []
     for role in ("cpu", "motherboard", "memory", "storage", "case", "psu", "cooler"):
         product = next(item for item in products if item["category"] == role)
-        variant = product["variants"][0]
+        variant = next(
+            v for v in product["variants"] if any(o["market"] == "ir" for o in v["offers"])
+        )
         assert variant["evidence"]
         selections.append({"slot_key": role, "role": role, "variant_id": variant["id"]})
     response = await client.post(
@@ -196,7 +207,7 @@ async def test_documented_core_build_is_selectable_but_not_falsely_certified(api
     )
     assert response.status_code == 200
     assert response.json()["status"] == "needs_review"
-    assert len(response.json()["unpriced_slots"]) >= 6
+    assert response.json()["unpriced_slots"] == []
 
 
 async def test_product_comparison_and_same_category_guard(api):
@@ -237,7 +248,7 @@ async def test_evaluation_from_real_catalog_is_incomplete_not_fake_green(api):
     response = await client.post("/api/v1/catalog/build-evaluations", json=body)
     assert response.status_code == 200, response.text
     result = response.json()
-    assert result["status"] == "incomplete" and result["component_subtotal_minor"] == 1133900000
+    assert result["status"] == "incomplete" and result["component_subtotal_minor"] == 1187900000
     assert result["estimated_power_w"] is None and result["reserves_stock"] is False
     body["previous"] = {
         key: result[key] for key in ("selection_hash", "spec_versions", "ruleset_version")
@@ -351,7 +362,7 @@ async def test_market_price_filter_and_persian_multiple_tokens(api):
     international = (
         await client.get("/api/v1/catalog/products?market=international&max_price=50000")
     ).json()
-    assert iran["total"] == 1 and international["total"] == 2
+    assert iran["total"] == 9 and international["total"] == 8
     graphics = (
         await client.get("/api/v1/catalog/products", params={"q": "كارت\u200cگرافيك"})
     ).json()

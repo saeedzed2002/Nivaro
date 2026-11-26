@@ -23,24 +23,25 @@ test('comparison retries a failed request without discarding selections', async 
   await expect(page.getByLabel('First product', { exact: true })).toHaveValue(selection);
 });
 
-test('documented full build stays under review and unknown prices never become zero', async ({ page }) => {
+test('the builder totals only selected priced parts', async ({ page }) => {
   await page.goto('/en/build');
+  const total = page.locator('.partial-total dd');
+  const add = page.getByRole('button', { name: 'Add to cart', exact: true });
+  await expect(total).toHaveText('—');
+  await expect(add).toBeDisabled();
   await page.getByLabel('Processor', { exact: true }).selectOption({ label: 'AMD Ryzen 7 9700X · boxed' });
-  await expect(page.locator('.partial-total dd')).toHaveText('—');
-  const parts = [
-    ['Motherboard', 'MSI MAG B650 TOMAHAWK WIFI'],
-    ['Memory', 'Kingston FURY Beast RGB KF560C36BBEAK2-32'],
-    ['Storage', 'Samsung 990 PRO 1TB MZ-V9P1T0BW'],
-    ['Case', 'Corsair 4000D AIRFLOW CC-9011200-WW'],
-    ['Power supply', 'Seasonic FOCUS GX-850 ATX 3.1'],
-    ['Cooling', 'Noctua NH-U12S'],
-  ];
-  for (const [role, name] of parts) await page.getByLabel(role, { exact: true }).selectOption({ label: `${name} · standard` });
-  await page.getByRole('button', { name: 'Check compatibility' }).click();
-  await expect(page.locator('.evaluation-status')).toHaveText('Needs further review');
-  await expect(page.locator('.partial-total dd')).toHaveText('—');
-  await expect(page.locator('.build-warning')).toContainText('7 selections have no price');
-  await page.screenshot({ path: test.info().outputPath('complete-build-needs-review.png'), fullPage: true });
+  await expect(total).toHaveText('$269.00');
+  await expect(add).toBeEnabled();
+  await page.getByLabel('Motherboard', { exact: true }).selectOption({ label: 'MSI MAG B650 TOMAHAWK WIFI · standard' });
+  await expect(total).toHaveText('$444.99');
+  await expect(page.locator('.build-warning')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Check compatibility' })).toHaveCount(0);
+  await page.getByLabel('Processor', { exact: true }).selectOption('');
+  await expect(total).toHaveText('$175.99');
+  await page.getByRole('combobox', { name: 'Sales market' }).selectOption('ir');
+  await expect(total).toHaveText('—');
+  await page.getByLabel('Processor', { exact: true }).selectOption({ label: 'AMD Ryzen 7 9700X · tray' });
+  await expect(total).toHaveText('61,000,000 toman');
 });
 
 test('comparison shows differences and independent missing prices',async({page})=>{
@@ -55,33 +56,4 @@ test('comparison shows differences and independent missing prices',async({page})
   await page.getByLabel('Comparison category').selectOption('keyboard');
   await expect(page.locator('.comparison-table')).toHaveCount(0);
   await expect(page.getByRole('main')).toContainText('Select two different variants');
-});
-
-test('builder evaluates real selections and invalidates stale results on changes',async({page})=>{
-  await page.goto('/en/build');
-  await page.getByRole('combobox',{name:'Sales market'}).selectOption('ir');
-  await page.getByLabel('Processor',{exact:true}).selectOption({label:'AMD Ryzen 7 9800X3D · tray'});
-  await expect(page.locator('.partial-total')).toContainText('113,390,000');
-  await page.getByRole('button',{name:'Check compatibility'}).click();
-  await expect(page.locator('.evaluation-status')).toHaveText('Incomplete selection');
-  await page.getByLabel('Processor',{exact:true}).selectOption({label:'AMD Ryzen 7 9700X · boxed'});
-  await expect(page.locator('.evaluation-status')).toHaveCount(0);
-  await expect(page.locator('.build-warning')).toContainText('no price');
-  await page.getByRole('button',{name:'Check compatibility'}).click();
-  await expect(page.locator('.evaluation-status')).toHaveText('Incomplete selection');
-  await expect(page.locator('.evaluation-result')).toContainText('Previous evidence was stale');
-  await page.getByRole('combobox',{name:'Sales market'}).selectOption('international');
-  await expect(page.locator('.evaluation-status')).toHaveCount(0);
-});
-
-test('failed evaluation preserves selections and offers retry',async({page})=>{
-  await page.goto('/en/build');
-  await page.getByLabel('Processor',{exact:true}).selectOption({label:'AMD Ryzen 7 9700X · boxed'});
-  await page.route('**/api/v1/catalog/build-evaluations',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{code:'catalog.unavailable',message:'Unavailable',details:[],request_id:'test'}})}));
-  await page.getByRole('button',{name:'Check compatibility'}).click();
-  await expect(page.getByRole('main').getByRole('alert')).toContainText('selections are preserved');
-  await expect(page.getByLabel('Processor',{exact:true})).not.toHaveValue('');
-  await page.unroute('**/api/v1/catalog/build-evaluations');
-  await page.getByRole('button',{name:'Check compatibility'}).click();
-  await expect(page.locator('.evaluation-status')).toHaveText('Incomplete selection');
 });
