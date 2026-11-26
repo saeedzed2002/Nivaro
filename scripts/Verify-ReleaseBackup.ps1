@@ -149,6 +149,12 @@ try {
     }
 
     Invoke-DrillCompose 'target' @('up', '-d', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '120')
+    foreach ($locale in @(@('fa', 'fa-IR', 'rtl'), @('en', 'en', 'ltr'))) {
+        $page = Invoke-WebRequest "$origin/$($locale[0])"
+        if ($page.StatusCode -ne 200 -or $page.Content -notmatch "<html[^>]+lang=`"$($locale[1])`"[^>]+dir=`"$($locale[2])`"") {
+            throw "The restored gateway did not serve the expected $($locale[0]) storefront."
+        }
+    }
     $headers = @{ Origin = $origin }
     $phone = '+12025550100'
     $challenge = Invoke-RestMethod "$origin/api/v1/auth/otp/request" -Method Post -Headers $headers -ContentType 'application/json' -Body (@{ phone = $phone } | ConvertTo-Json)
@@ -173,7 +179,7 @@ try {
     if ((Get-FileHash $catalogDownload).Hash -ne $catalogHash -or (Get-FileHash $avatarDownload).Hash -ne $avatarHash) {
         throw 'Media served after restore differs from the backed-up output.'
     }
-    Write-Output 'Restore drill passed: six databases, both media volumes, corruption and overwrite refusal, authenticated order and support reads, public image and private avatar.'
+    Write-Output 'Restore drill passed: six databases, both media volumes, corruption and overwrite refusal, both storefront locales, authenticated order and support reads, public image and private avatar.'
 } finally {
     $cleanupFailed = $false
     foreach ($side in $startedSides) {

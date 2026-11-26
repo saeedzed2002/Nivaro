@@ -162,6 +162,14 @@ jobs:
         env:
           NIVARO_DEMO_RUNTIME_CHECK: '1'
         run: node scripts/verify-catalog-runtime.mjs
+      - name: Restore all service databases and media in an isolated release
+        working-directory: .
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          docker compose -f compose.yaml -f compose.support.yaml build support-init
+          docker pull python:3.13.18-slim-bookworm@sha256:93498f36dc7e24ef233bfdf6cc17d4b8bd32d94ee737143e906460d5f5a914c5
+          ./scripts/Verify-ReleaseBackup.ps1 -Port 8089
       - name: Verify development file sync and hot reload
         working-directory: .
         run: |

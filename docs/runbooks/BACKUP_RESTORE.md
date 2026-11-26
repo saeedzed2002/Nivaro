@@ -45,6 +45,18 @@ services:
   gateway:
     ports: !override
       - '127.0.0.1:8084:8080'
+  identity:
+    environment:
+      IDENTITY_ALLOWED_ORIGINS: '["http://127.0.0.1:8084"]'
+  catalog:
+    environment:
+      CATALOG_ALLOWED_ORIGINS: '["http://127.0.0.1:8084"]'
+  cart:
+    environment:
+      CART_ALLOWED_ORIGINS: '["http://127.0.0.1:8084"]'
+  support:
+    environment:
+      SUPPORT_ALLOWED_ORIGINS: '["http://127.0.0.1:8084"]'
 '@ | Set-Content -LiteralPath work/restore-port.yaml -Encoding utf8NoBOM
 $files += @('-f', 'work/restore-port.yaml')
 $target = 'nivaro-restore'
@@ -61,7 +73,7 @@ docker compose -p $target @files up -d --no-build --pull never --wait
 
 The operation rejects a bundle from the selected project, invalid checksums and populated destinations. A database restore commits in one transaction per database. If any later component fails, retain the source bundle, inspect the failure and restart against a fresh empty target. Use a fresh login when verifying a destination initialized with new signing secrets. Coordinate administrator access and secret rotation with the release operator.
 
-Check all six service health endpoints through their Compose containers and both storefront locales through the gateway. Compare known product and order records, the payment amount and currency, support message history, and downloaded media hashes with the source evidence. Verify direct access to private media and conversations returns HTTP 401 without a session. For a repeatable synthetic exercise, run `./scripts/Verify-ReleaseBackup.ps1` with the intended local release images. The drill provisions its own two projects and uses loopback port 8084 by default.
+Check all six service health endpoints through their Compose containers and both storefront locales through the gateway at `http://127.0.0.1:8084`. Compare known product and order records, the payment amount and currency, support message history, and downloaded media hashes with the source evidence. Verify direct access to private media and conversations returns HTTP 401 without a session. For a repeatable synthetic exercise, run `./scripts/Verify-ReleaseBackup.ps1` with the intended local release images. The drill provisions its own two projects and uses loopback port 8084 by default.
 
 ## Roll back a release
 

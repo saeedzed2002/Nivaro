@@ -6,7 +6,7 @@ Bilingual Persian/English gaming hardware storefront, following [the canonical r
 
 P11 is verified. The local Docker runtime serves the storefront, simulator checkout, staff administration and private support. Checkout and support recovery, Catalog cache interruption, the browser journeys and development hot reload passed on the verified GitHub Actions revision. See the [phase evidence](docs/progress.md#p11-verification-complete) and [support service guide](services/support/README.md). The P12 database and media restore drill passed. Follow the [release backup, restore and rollback guide](docs/runbooks/BACKUP_RESTORE.md).
 
-The configured Windows launcher below starts the current owner runtime with the support, order, payment and media overlays. For a media-only stack with already built images:
+Use the [clean release guide](docs/runbooks/LOCAL_RELEASE.md) to build and run the full stack from a clean checkout. The [delivery guide](docs/DELIVERY.md) includes architecture diagrams, browser evidence and demonstration steps. The configured Windows launcher below starts the current owner runtime with the support, order, payment and media overlays. For a media-only stack with already built images:
 
 ```powershell
 docker compose -f compose.yaml -f compose.media.yaml up -d --no-build --pull never --wait
