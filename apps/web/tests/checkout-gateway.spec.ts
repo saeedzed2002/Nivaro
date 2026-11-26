@@ -90,9 +90,21 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
     data: { ...work, street: '22 Example Street', version: address.version }, headers,
   });
   expect(updated.status()).toBe(200);
-  await page.getByRole('button', { name: 'Confirm order' }).click();
-  await expect(alert).toContainText('The address changed.');
-  await expect(page.getByRole('radio', { name: /22 Example Street/ })).toBeChecked();
+  const cartRefresh = Promise.withResolvers<void>();
+  await page.route('**/api/v1/cart?market=international', async route => {
+    const response = await route.fetch();
+    await cartRefresh.promise;
+    await route.fulfill({ response });
+  }, { times: 1 });
+  try {
+    await page.getByRole('button', { name: 'Confirm order' }).click();
+    await expect(alert).toContainText('The address changed.');
+    await expect(page.getByRole('radio', { name: /22 Example Street/ })).toBeChecked();
+    await expect(review).toBeDisabled();
+  } finally {
+    cartRefresh.resolve();
+  }
+  await expect(review).toBeEnabled();
   await review.click();
   await expect(summary).toContainText('$466.00');
 

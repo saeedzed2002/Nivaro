@@ -46,6 +46,7 @@ function CheckoutForm({ locale, cart, addresses, reload }: { locale: Locale; car
   const [coupon, setCoupon] = useState('');
   const [review, setReview] = useState<{ intent: string; receipt: CheckoutPreview } | null>(null);
   const [expiredId, setExpiredId] = useState('');
+  const [busy, setBusy] = useState(false);
   const previewKey = useRef<{ intent: string; key: string } | null>(null);
   const inFlight = useRef(false);
   const pending = useCheckoutAttempt();
@@ -65,13 +66,13 @@ function CheckoutForm({ locale, cart, addresses, reload }: { locale: Locale; car
 
   const preview = useMutation({ mutationFn: ({ body, key }: { body: CheckoutIntent; key: string }) => previewCheckout(body, key) });
   const confirmation = useMutation({ mutationFn: ({ operation_id, confirmation }: CheckoutPreview) => confirmCheckout(operation_id, confirmation) });
-  const busy = preview.isPending || confirmation.isPending;
   const error = confirmation.error ?? preview.error;
 
   async function reviewTotal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!intent || inFlight.current || pending?.cartId === cart.id) return;
     inFlight.current = true;
+    setBusy(true);
     if (previewKey.current?.intent !== signature || expired) previewKey.current = { intent: signature, key: crypto.randomUUID() };
     confirmation.reset();
     setReview(null);
@@ -80,12 +81,16 @@ function CheckoutForm({ locale, cart, addresses, reload }: { locale: Locale; car
       setReview({ intent: signature, receipt });
     } catch (err) {
       if (err instanceof IdentityError && ['checkout.address_changed', 'checkout.cart_changed'].includes(err.code)) await reload();
-    } finally { inFlight.current = false; }
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
   }
 
   async function submitOrder() {
     if (!receipt || expired || inFlight.current || pending?.cartId === cart.id) return;
     inFlight.current = true;
+    setBusy(true);
     const id = receipt.operation_id;
     const destination = `/${locale}/checkout/result?order=${id}`;
     rememberCheckoutAttempt({ cartId: cart.id, orderId: id, confirmation: receipt.confirmation });
@@ -100,7 +105,10 @@ function CheckoutForm({ locale, cart, addresses, reload }: { locale: Locale; car
         previewKey.current = null;
         if (['checkout.address_changed', 'checkout.cart_changed'].includes(err.code)) await reload();
       } else router.replace(destination);
-    } finally { inFlight.current = false; }
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
   }
 
   if (pending?.cartId === cart.id && !busy) return <div className="checkout-panel checkout-state">
