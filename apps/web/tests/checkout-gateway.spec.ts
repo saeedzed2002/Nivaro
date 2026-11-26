@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import type { components as ordersContract } from '../src/lib/api/orders-schema';
 
 const project = process.env.NIVARO_CHECKOUT_QA_PROJECT ?? '';
 test.skip(!/^nivaro-orders-qa-[a-f0-9]{8}$/.test(project), 'Requires the disposable Orders stack and its synthetic delivery policy');
@@ -128,53 +129,6 @@ test('checkout reviews the owned cart, rejects a stale address and recovers an i
   await expect(page.getByRole('button', { name: 'تأیید و ثبت سفارش' })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('checkout-fa-dark-desktop.png'), fullPage: true });
   if (process.env.NIVARO_CHECKOUT_QA_PAYMENTS === '1') {
-    const orderUrl = `/api/v1/orders/${submittedId}`;
-    await page.goto(`/fa/checkout/result?order=${submittedId}&status=paid&result=success`);
-    await expect(page.getByRole('heading', { name: 'سفارش در انتظار پرداخت' })).toBeVisible();
-    const before = await (await page.request.get(orderUrl)).json();
-    expect(before.payment_state).toBeNull();
-    let submittedPayment = false;
-    await page.route(`**${orderUrl}/payment`, async route => {
-      const response = await route.fetch();
-      expect(response.status()).toBe(202);
-      submittedPayment = true;
-      await route.abort('failed');
-    });
-    await page.getByRole('button', { name: 'پرداخت آزمایشی' }).click();
-    await expect.poll(() => submittedPayment).toBe(true);
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'پرداخت و موجودی سفارش تأیید شد' })).toBeVisible({ timeout: 20_000 });
-    const replay = await page.request.post(`${orderUrl}/payment`, {
-      headers: { ...headers, 'Idempotency-Key': submittedId }, data: { order_version: before.version },
-    });
-    expect(replay.status()).toBe(202);
-    expect((await replay.json()).status).toBe('paid');
-    await expect.poll(async () => {
-      const cart = await page.request.get('/api/v1/cart?market=international');
-      expect(cart.status()).toBe(200);
-      return (await cart.json()).lines;
-    }, { timeout: 12_000 }).toEqual([]);
-    await page.goto('/fa/account/orders');
-    await expect(page.getByRole('heading', { name: 'سفارش‌های من' })).toBeVisible();
-    const orders = page.getByRole('listitem').filter({ hasText: submittedId });
-    await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
-    const details = orders.getByRole('link', { name: 'مشاهدهٔ جزئیات' });
-    await expect(details).toHaveAttribute('href', `/fa/account/orders/${submittedId}`);
-    await page.screenshot({ path: test.info().outputPath('orders-fa-dark-desktop.png'), fullPage: true });
-    await details.click();
-    await expect(page.getByRole('heading', { name: 'جزئیات سفارش', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'اقلام خریداری‌شده', exact: true })).toBeVisible();
-    await expect(page.getByText('22 Example Street', { exact: true })).toBeVisible();
-    await expect(page.getByRole('list', { name: 'تاریخچهٔ وضعیت' })).toContainText('پرداخت‌شده');
-    await page.screenshot({ path: test.info().outputPath('order-detail-fa-dark-desktop.png'), fullPage: true });
-    await page.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    await page.setViewportSize({ width: 360, height: 800 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
-    await page.screenshot({ path: test.info().outputPath('order-detail-fa-light-mobile.png'), fullPage: true });
-    await page.getByRole('link', { name: 'بازگشت به سفارش‌ها' }).click();
-    await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
-
     expect((await page.request.get('/api/v1/admin/orders/history')).status()).toBe(401);
     const paymentAttemptsUrl = '/api/v1/admin/payments/attempts';
     const refundQueueUrl = '/api/v1/admin/payments/refunds';
@@ -206,6 +160,65 @@ asyncio.run(manage('bootstrap-admin'))
       await staff.getByLabel('Email').fill('fulfillment@example.com');
       await staff.getByLabel('Password', { exact: true }).fill(password);
       await staff.getByRole('button', { name: 'Sign in as administrator', exact: true }).click();
+      await expect(staff.getByRole('link', { name: 'Manage orders' })).toBeVisible();
+      const periodOptions = ['7', '30'] as const;
+      const salesBaseline = await Promise.all(periodOptions.map(async days => {
+        const response = await staff.request.get('/api/v1/admin/orders/overview', { params: { days } });
+        expect(response.status()).toBe(200);
+        const summary: ordersContract['schemas']['OrderOverview'] = await response.json();
+        const usd = summary.sales.find(row => row.currency === 'USD');
+        expect(usd).toBeDefined();
+        return usd!;
+      }));
+
+      const orderUrl = `/api/v1/orders/${submittedId}`;
+      await page.goto(`/fa/checkout/result?order=${submittedId}&status=paid&result=success`);
+      await expect(page.getByRole('heading', { name: 'سفارش در انتظار پرداخت' })).toBeVisible();
+      const before = await (await page.request.get(orderUrl)).json();
+      expect(before.payment_state).toBeNull();
+      let submittedPayment = false;
+      await page.route(`**${orderUrl}/payment`, async route => {
+        const response = await route.fetch();
+        expect(response.status()).toBe(202);
+        submittedPayment = true;
+        await route.abort('failed');
+      });
+      await page.getByRole('button', { name: 'پرداخت آزمایشی' }).click();
+      await expect.poll(() => submittedPayment).toBe(true);
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'پرداخت و موجودی سفارش تأیید شد' })).toBeVisible({ timeout: 20_000 });
+      const replay = await page.request.post(`${orderUrl}/payment`, {
+        headers: { ...headers, 'Idempotency-Key': submittedId }, data: { order_version: before.version },
+      });
+      expect(replay.status()).toBe(202);
+      expect((await replay.json()).status).toBe('paid');
+      await expect.poll(async () => {
+        const cart = await page.request.get('/api/v1/cart?market=international');
+        expect(cart.status()).toBe(200);
+        return (await cart.json()).lines;
+      }, { timeout: 12_000 }).toEqual([]);
+      await page.goto('/fa/account/orders');
+      await expect(page.getByRole('heading', { name: 'سفارش‌های من' })).toBeVisible();
+      const orders = page.getByRole('listitem').filter({ hasText: submittedId });
+      await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
+      const customerDetails = orders.getByRole('link', { name: 'مشاهدهٔ جزئیات' });
+      await expect(customerDetails).toHaveAttribute('href', `/fa/account/orders/${submittedId}`);
+      await page.screenshot({ path: test.info().outputPath('orders-fa-dark-desktop.png'), fullPage: true });
+      await customerDetails.click();
+      await expect(page.getByRole('heading', { name: 'جزئیات سفارش', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'اقلام خریداری‌شده', exact: true })).toBeVisible();
+      await expect(page.getByText('22 Example Street', { exact: true })).toBeVisible();
+      await expect(page.getByRole('list', { name: 'تاریخچهٔ وضعیت' })).toContainText('پرداخت‌شده');
+      await page.screenshot({ path: test.info().outputPath('order-detail-fa-dark-desktop.png'), fullPage: true });
+      await page.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      await page.setViewportSize({ width: 360, height: 800 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+      await page.screenshot({ path: test.info().outputPath('order-detail-fa-light-mobile.png'), fullPage: true });
+      await page.getByRole('link', { name: 'بازگشت به سفارش‌ها' }).click();
+      await expect(orders.getByText('پرداخت‌شده', { exact: true })).toBeVisible();
+
+
       await staff.getByRole('link', { name: 'Manage orders' }).click();
       await staff.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
       await staff.getByLabel('Status', { exact: true }).selectOption('paid');
@@ -274,6 +287,33 @@ asyncio.run(manage('bootstrap-admin'))
       await expect(paymentRow).toHaveAttribute('aria-pressed', 'true');
       await expect(staff.getByRole('region', { name: 'Payment detail' }).getByText('$466.00', { exact: true })).toHaveCount(2);
       await expect(staff.getByText('No refund is recorded for this attempt.')).toBeVisible();
+      await staff.getByRole('link', { name: 'Overview', exact: true }).click();
+      await expect(staff.getByRole('heading', { name: 'Staff overview', exact: true })).toBeVisible();
+      const sales = staff.getByRole('table', { name: 'Sales summary' });
+      const usd = sales.getByRole('row').filter({ hasText: 'International' });
+        const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+        const reportingPeriod = staff.getByRole('combobox', { name: 'Reporting period' });
+        for (const [index, days] of periodOptions.entries()) {
+          const baseline = salesBaseline[index];
+          if (index > 0) await reportingPeriod.selectOption(days);
+          await expect(usd.getByRole('cell')).toHaveText([
+            'International', String(baseline.paid_orders + 1),
+            dollars.format(Number(baseline.gross_minor) / 100 + 466),
+            dollars.format(Number(baseline.confirmed_refund_minor) / 100),
+            dollars.format(Number(baseline.net_minor) / 100 + 466),
+          ]);
+        }
+      const overviewEvidence = test.info().outputPath('staff-overview-en-dark.png');
+      await staff.screenshot({ path: overviewEvidence, fullPage: true });
+      await staff.goto('/fa/admin');
+      await staff.setViewportSize({ width: 390, height: 844 });
+        await staff.getByRole('combobox', { name: 'حالت نمایش' }).selectOption('light');
+        await expect(staff.locator('html')).toHaveAttribute('data-theme', 'light');
+      await expect(staff.getByRole('table', { name: 'خلاصهٔ فروش' })).toBeVisible();
+      expect(await staff.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      await staff.screenshot({ path: test.info().outputPath('staff-overview-fa-mobile.png'), fullPage: true });
+      await staff.setViewportSize({ width: 1440, height: 1050 });
+      await staff.goto('/en/admin/payments');
 
       const refundQueue = await staff.request.get(refundQueueUrl, { params: { state: 'completed', market: 'ir' } });
       expect(refundQueue.status()).toBe(200);

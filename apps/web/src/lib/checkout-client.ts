@@ -17,6 +17,7 @@ export type ReconciliationRun = components['schemas']['ReconciliationView'];
 export type PaymentFilters = Omit<NonNullable<paths['/api/v1/admin/payments/attempts']['get']['parameters']['query']>, 'before' | 'limit'>;
 export type RefundQueueEntry = components['schemas']['RefundQueueEntry'];
 export type RefundFilters = Omit<NonNullable<paths['/api/v1/admin/payments/refunds']['get']['parameters']['query']>, 'before' | 'limit'>;
+export type OverviewDays = NonNullable<NonNullable<paths['/api/v1/admin/orders/overview']['get']['parameters']['query']>['days']>;
 
 const client = createClient<paths>({ credentials: 'same-origin', cache: 'no-store',
   fetch: async request => {
@@ -66,6 +67,12 @@ export const listPaymentAttempts = (filters: PaymentFilters, before?: string, si
 
 export const listStaffRefunds = (filters: RefundFilters, before?: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/payments/refunds', { params: { query: { ...filters, before } }, signal })), 'admin');
+
+export const readOrderOverview = (days: OverviewDays, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/orders/overview', { params: { query: { days } }, signal })), 'admin');
+
+export const readRefundOverview = (signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/payments/refund-overview', { signal })), 'admin');
 
 export const readPaymentAttempt = (id: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/payments/attempts/{attempt_id}', { params: { path: { attempt_id: id } }, signal })), 'admin');

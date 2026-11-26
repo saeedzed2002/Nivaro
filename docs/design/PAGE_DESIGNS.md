@@ -45,7 +45,7 @@ Owner instruction, 2026-10-27: create an image for every page before implementin
 | Order detail / timeline | P07 | Pending |
 | Customer support | P09 | [Conversation workspace](pages/customer-support.png), generated and inspected before implementation |
 | Administrator login | P03 | [Admin login](pages/admin-login.png), generated/inspected 2026-10-28; implemented and locally verified |
-| Administrator dashboard | P10 | Pending |
+| Administrator dashboard | P10 | [Staff overview](pages/admin-overview.png), generated and inspected before implementation |
 | Administrator products | P04 | [Products](pages/admin-products.png), generated/inspected 2026-10-28; list/search/filter/pagination implementation added 2026-10-29, verification below |
 | Administrator categories | P04 | [Categories](pages/admin-categories.png), generated/inspected 2026-10-29 before implementation; two-level hierarchy, bilingual form, parent constraints and responsive list |
 | Product editor / images | P04 | [Editor](pages/admin-product-editor.png), generated/inspected 2026-10-28; basic content/status/stock/history implementation added 2026-10-29; gallery, variant and price forms remain pending |
@@ -189,3 +189,9 @@ Reinspected `pages/product-details.png` for the existing storefront review panel
 Generated and inspected `pages/admin-review-moderation.png` before implementing the staff page. Keep the status filter, selected list item, two-column queue and detail panels, read-only review, required decision reason, and distinct approve and reject actions. Reuse the existing staff navigation, brand, colors and typography. Show actual product references and recorded dates, without the reference image's sample identities, product graphics, counts or unrelated controls. The decision reason limit is 400 characters. Stack the panels on narrow screens.
 
 Compared the English dark review interfaces at the desktop reference widths and inspected the Persian light layouts at 360 pixels. Verified the heading and status filter, selected queue item, paired panels, original body and rating, verified-purchase treatment, and the distinct decisions. The storefront kept the bordered review panel and restrained empty state, with an explicit editor for signed-in authors. The in-app browser verified the guest entry, and Playwright exercised the signed-in journey with real services on disposable Docker. Captures are in `nivaro-p08-reviews/` in the visualization root.
+
+### P10 staff overview
+
+Generated and inspected `pages/admin-overview.png` before implementation. The page follows its reporting-period control, separate market totals and queue links within the existing staff shell. The actual report uses recognized captures and confirmed refunds, and the queues display data only for the signed-in staff member's permissions. The image queue links each job to the product editor. The narrow layout stacks the market figures and queue actions while retaining labels in both languages.
+
+Inspected the English dark desktop and Persian light mobile captures in `p10-overview/`. The 390-pixel view retained the market labels, financial values and queue actions without horizontal overflow. The browser exercised the sales report with fresh payment evidence. Unanswered-conversation counts were checked in the independent Support stack.

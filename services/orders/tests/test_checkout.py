@@ -22,6 +22,7 @@ from nivaro_orders.application.checkout import (
     stage_order,
 )
 from nivaro_orders.application.fulfillment import Deliver, Prepare, Ship, change_fulfillment
+from nivaro_orders.application.operations_overview import order_overview
 from nivaro_orders.application.order_history import list_orders, read_details
 from nivaro_orders.application.payment_compensation import (
     advance_refund,
@@ -829,6 +830,44 @@ async def test_lost_reservation_and_paid_stock_responses_recover_by_operation_id
             assert (await db.get(Order, operation)).status == "paid"
         assert not await advance_payment_stock(database.sessions, client, operation)
         assert transport.payment_writes == 2
+
+        async with database.sessions() as db, db.begin():
+            transition_row = await db.get(OrderTransition, (operation, 4))
+            report_order = await db.get(Order, operation)
+            assert transition_row is not None and report_order is not None
+            at = transition_row.occurred_at
+            for attempt_id, amount in (
+                (accepted.aggregate_id, 10),
+                (accepted.aggregate_id, 20),
+                (extra.aggregate_id, 40),
+            ):
+                db.add(
+                    OrderPaymentRefund(
+                        id=uuid4(),
+                        payment_attempt_id=attempt_id,
+                        amount_minor=amount,
+                        completed_at=at,
+                    )
+                )
+            await db.flush()
+            report = await order_overview(db, at, at + timedelta(microseconds=1))
+            iran, international = report.sales
+            assert (
+                international.currency,
+                international.paid_orders,
+                international.gross_minor,
+                international.confirmed_refund_minor,
+                international.net_minor,
+            ) == (
+                "USD",
+                1,
+                str(report_order.total_minor),
+                "30",
+                str(report_order.total_minor - 30),
+            )
+            assert (iran.currency, iran.paid_orders, iran.net_minor) == ("IRR", 0, "0")
+            previous = await order_overview(db, at - timedelta(microseconds=1), at)
+            assert previous.sales[1].paid_orders == 0
 
         background_order = await checkout.request(customer, "background-reservation")
         await stage_for(background_order)

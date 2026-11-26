@@ -29,6 +29,7 @@ from nivaro_support.contracts import (
     SendMessage,
     StateChange,
     SupportError,
+    UnansweredPage,
 )
 from nivaro_support.conversations import (
     assign,
@@ -171,6 +172,15 @@ async def listing(
     db: DB, actor: Principal, before: UUID | None = None, limit: PageSize = 20
 ) -> ConversationPage:
     return await list_conversations(db, actor, before, limit)
+
+
+@staff.get("/unanswered", operation_id="listUnansweredSupportConversations")
+async def unanswered_listing(
+    db: DB, actor: Principal, before: UUID | None = None, limit: PageSize = 20
+) -> UnansweredPage:
+    page = await list_conversations(db, actor, before, limit, unanswered=True)
+    assert isinstance(page, UnansweredPage)
+    return page
 
 
 @customer.get("/{conversation_id}/messages", operation_id="readOwnedSupportHistory")

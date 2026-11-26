@@ -753,6 +753,55 @@
         "title": "OrderHistory",
         "type": "object"
       },
+      "OrderOverview": {
+        "additionalProperties": false,
+        "properties": {
+          "paid": {
+            "title": "Paid",
+            "type": "integer"
+          },
+          "paid_before": {
+            "format": "date-time",
+            "title": "Paid Before",
+            "type": "string"
+          },
+          "paid_from": {
+            "format": "date-time",
+            "title": "Paid From",
+            "type": "string"
+          },
+          "payment_review": {
+            "title": "Payment Review",
+            "type": "integer"
+          },
+          "processing": {
+            "title": "Processing",
+            "type": "integer"
+          },
+          "sales": {
+            "items": {
+              "$ref": "#/components/schemas/SalesTotals"
+            },
+            "title": "Sales",
+            "type": "array"
+          },
+          "shipped": {
+            "title": "Shipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "paid_from",
+          "paid_before",
+          "sales",
+          "paid",
+          "processing",
+          "shipped",
+          "payment_review"
+        ],
+        "title": "OrderOverview",
+        "type": "object"
+      },
       "OrderSnapshot": {
         "additionalProperties": false,
         "properties": {
@@ -1248,6 +1297,20 @@
         "title": "RefundQueue",
         "type": "object"
       },
+      "RefundQueueCount": {
+        "additionalProperties": false,
+        "properties": {
+          "manual_review": {
+            "title": "Manual Review",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "manual_review"
+        ],
+        "title": "RefundQueueCount",
+        "type": "object"
+      },
       "RefundQueueEntry": {
         "additionalProperties": false,
         "properties": {
@@ -1482,6 +1545,43 @@
           "unit_price_minor"
         ],
         "title": "ReviewLine",
+        "type": "object"
+      },
+      "SalesTotals": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_refund_minor": {
+            "title": "Confirmed Refund Minor",
+            "type": "string"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "gross_minor": {
+            "title": "Gross Minor",
+            "type": "string"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "net_minor": {
+            "title": "Net Minor",
+            "type": "string"
+          },
+          "paid_orders": {
+            "title": "Paid Orders",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "market",
+          "currency",
+          "paid_orders",
+          "gross_minor",
+          "confirmed_refund_minor",
+          "net_minor"
+        ],
+        "title": "SalesTotals",
         "type": "object"
       },
       "Ship": {
@@ -1897,6 +1997,104 @@
           }
         },
         "summary": "History",
+        "tags": [
+          "staff orders"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/overview": {
+      "get": {
+        "operationId": "readStaffOrderOverview",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": "7",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "title": "Days",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Overview",
         "tags": [
           "staff orders"
         ]
@@ -2447,6 +2645,77 @@
           }
         },
         "summary": "Reconcile Attempt",
+        "tags": [
+          "staff payments"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/refund-overview": {
+      "get": {
+        "operationId": "readStaffRefundOverview",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundQueueCount"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Refund Overview",
         "tags": [
           "staff payments"
         ]

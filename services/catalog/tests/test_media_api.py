@@ -42,6 +42,11 @@ async def test_upload_authority_bounds_status_and_private_outputs(staff, media_r
     job = UUID(response.json()["id"])
     assert media_roots.read_original(job) == b"not decoded until worker"
     listing = await client.get(route.rsplit("/", 1)[0])
+    queue_path = "/api/v1/admin/catalog/media/queue"
+    queue = await client.get(queue_path)
+    assert queue.status_code == 200
+    entry = next(row for row in queue.json()["jobs"] if row["id"] == str(job))
+    assert entry["product_id"] == product["id"] and entry["state"] == "uploaded"
     assert listing.json()["items"][0]["pending"]["state"] == "uploaded"
     assert listing.json()["items"][0]["urls"] == {}
     assert listing.json()["version"] == product["version"] + 1
@@ -60,6 +65,8 @@ async def test_upload_authority_bounds_status_and_private_outputs(staff, media_r
     assert (await client.get(f"/api/v1/catalog/images/{job}/320")).status_code == 404
     result = await client.get(f"/api/v1/admin/catalog/images/{job}/320")
     assert result.status_code == 200 and result.headers["content-type"] == "image/webp"
+    assert all(row["id"] != str(job) for row in (await client.get(queue_path)).json()["jobs"])
     app.dependency_overrides.pop(catalog_admin)
+    assert (await client.get(queue_path)).status_code == 401
     assert (await client.get(f"/api/v1/admin/catalog/images/{job}/320")).status_code == 401
     assert (await client.get(f"/api/v1/catalog/images/{uuid4()}/320")).status_code == 404

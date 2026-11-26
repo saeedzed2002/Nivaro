@@ -2,6 +2,8 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel
+from sqlalchemy import func, select
 
 from nivaro_catalog.api.admin import DB
 from nivaro_catalog.api.authorization import (
@@ -26,6 +28,7 @@ from nivaro_catalog.domain.reviews import (
     ReviewStatus,
     SavedReview,
 )
+from nivaro_catalog.infrastructure.models import ReviewRow
 
 responses: dict[int | str, dict[str, Any]] = {
     code: {"model": ErrorEnvelope} for code in (401, 403, 404, 409, 422, 503)
@@ -92,6 +95,18 @@ async def list_queue(
     limit: PageSize = 20,
 ) -> ModerationQueue:
     return await moderation_queue(db, status, before, limit)
+
+
+class ReviewOverview(BaseModel):
+    pending: int
+
+
+@staff.get("/overview", operation_id="readReviewQueueOverview")
+async def review_overview(auth: ReviewModerator, db: DB) -> ReviewOverview:
+    count = await db.scalar(
+        select(func.count()).select_from(ReviewRow).where(ReviewRow.status == "pending")
+    )
+    return ReviewOverview(pending=count or 0)
 
 
 @staff.post("/{review_id}/decision", operation_id="moderateProductReview")

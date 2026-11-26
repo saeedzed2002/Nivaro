@@ -1,7 +1,7 @@
 from datetime import timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import ColumnElement, func, or_, select, tuple_
+from sqlalchemy import ColumnElement, Select, func, or_, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,7 @@ from nivaro_support.contracts import (
     SendMessage,
     StateChange,
     SupportError,
+    UnansweredPage,
 )
 from nivaro_support.models import (
     AssignmentRow,
@@ -54,9 +55,7 @@ async def create_conversation(
         return Conversation.model_validate(row)
 
 
-async def list_conversations(
-    db: AsyncSession, actor: Actor, before: UUID | None, limit: int
-) -> ConversationPage:
+def visible_conversations(actor: Actor) -> Select[ConversationRow]:
     scoped = select(ConversationRow)
     if actor.kind == "customer":
         scoped = scoped.where(ConversationRow.customer_id == actor.user_id)
@@ -67,8 +66,32 @@ async def list_conversations(
                 ConversationRow.assigned_agent_id.is_(None) & (ConversationRow.status != "closed"),
             )
         )
+    return scoped
+
+
+async def list_conversations(
+    db: AsyncSession, actor: Actor, before: UUID | None, limit: int, *, unanswered: bool = False
+) -> ConversationPage:
+    visible = visible_conversations(actor)
+    scoped = visible
+    if unanswered:
+        latest_customer = (
+            select(MessageRow.sequence)
+            .where(
+                MessageRow.conversation_id == ConversationRow.id,
+                MessageRow.sequence == ConversationRow.last_sequence,
+                MessageRow.sender_kind == "customer",
+            )
+            .exists()
+        )
+        scoped = scoped.where(ConversationRow.status != "closed", latest_customer)
+    total = (
+        await db.scalar(scoped.with_only_columns(func.count(), maintain_column_froms=True))
+        if unanswered
+        else None
+    )
     if before is not None:
-        boundary = await db.scalar(scoped.where(ConversationRow.id == before))
+        boundary = await db.scalar(visible.where(ConversationRow.id == before))
         if boundary is None:
             raise SupportError("support.not_found", 404)
         scoped = scoped.where(
@@ -82,10 +105,11 @@ async def list_conversations(
             )
         )
     ).all()
-    return ConversationPage(
-        conversations=[Conversation.model_validate(row) for row in rows[:limit]],
-        next_before=rows[limit - 1].id if len(rows) > limit else None,
-    )
+    conversations = [Conversation.model_validate(row) for row in rows[:limit]]
+    next_before = rows[limit - 1].id if len(rows) > limit else None
+    if total is not None:
+        return UnansweredPage(conversations=conversations, next_before=next_before, total=total)
+    return ConversationPage(conversations=conversations, next_before=next_before)
 
 
 async def require_conversation(

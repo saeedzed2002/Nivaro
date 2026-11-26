@@ -6,8 +6,8 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from sqlalchemy import select, tuple_
 
 from nivaro_catalog.api.admin import DB
 from nivaro_catalog.api.authorization import CatalogAdmin
@@ -28,6 +28,51 @@ class MediaJob(BaseModel):
     id: UUID
     state: Literal["uploaded", "processing", "ready", "failed"]
     error_code: str | None
+
+
+class CatalogMediaQueueEntry(MediaJob):
+    product_id: UUID
+    position: int
+    created_at: AwareDatetime
+
+
+class CatalogMediaQueue(BaseModel):
+    jobs: list[CatalogMediaQueueEntry]
+    next_before: UUID | None
+
+
+@router.get("/api/v1/admin/catalog/media/queue", operation_id="listCatalogMediaQueue")
+async def media_queue(
+    auth: CatalogAdmin,
+    db: DB,
+    before: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=25)] = 10,
+) -> CatalogMediaQueue:
+    query = (
+        select(
+            MediaJobRow.id,
+            MediaJobRow.state,
+            MediaJobRow.error_code,
+            MediaJobRow.created_at,
+            MediaSlotRow.product_id,
+            MediaSlotRow.position,
+        )
+        .join(MediaSlotRow, MediaSlotRow.desired_job_id == MediaJobRow.id)
+        .where(MediaJobRow.state.in_(("uploaded", "processing", "failed")))
+        .order_by(MediaJobRow.created_at.desc(), MediaJobRow.id.desc())
+        .limit(limit + 1)
+    )
+    if before is not None:
+        boundary = await db.get(MediaJobRow, before)
+        if boundary is None:
+            raise HTTPException(404, "Image job not found")
+        query = query.where(
+            tuple_(MediaJobRow.created_at, MediaJobRow.id)
+            < tuple_(boundary.created_at, boundary.id)
+        )
+    rows = (await db.execute(query)).mappings().all()
+    jobs = [CatalogMediaQueueEntry.model_validate(row) for row in rows[:limit]]
+    return CatalogMediaQueue(jobs=jobs, next_before=jobs[-1].id if len(rows) > limit else None)
 
 
 class MediaSlot(BaseModel):

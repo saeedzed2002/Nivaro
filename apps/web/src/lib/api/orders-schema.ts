@@ -17,6 +17,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["readStaffOrderOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders/{order_id}/fulfillment": {
         parameters: {
             query?: never;
@@ -80,6 +97,23 @@ export interface paths {
         put?: never;
         /** Reconcile Attempt */
         post: operations["reconcileStaffPaymentAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/refund-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Refund Overview */
+        get: operations["readStaffRefundOverview"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -471,6 +505,29 @@ export interface components {
             /** Orders */
             orders: components["schemas"]["HistoryEntry"][];
         };
+        /** OrderOverview */
+        OrderOverview: {
+            /** Paid */
+            paid: number;
+            /**
+             * Paid Before
+             * Format: date-time
+             */
+            paid_before: string;
+            /**
+             * Paid From
+             * Format: date-time
+             */
+            paid_from: string;
+            /** Payment Review */
+            payment_review: number;
+            /** Processing */
+            processing: number;
+            /** Sales */
+            sales: components["schemas"]["SalesTotals"][];
+            /** Shipped */
+            shipped: number;
+        };
         /** OrderSnapshot */
         OrderSnapshot: {
             address: components["schemas"]["DeliveryAddress"];
@@ -643,6 +700,11 @@ export interface components {
             /** Refunds */
             refunds: components["schemas"]["RefundQueueEntry"][];
         };
+        /** RefundQueueCount */
+        RefundQueueCount: {
+            /** Manual Review */
+            manual_review: number;
+        };
         /** RefundQueueEntry */
         RefundQueueEntry: {
             /**
@@ -747,6 +809,19 @@ export interface components {
             /** Unit Price Minor */
             unit_price_minor: number;
         };
+        /** SalesTotals */
+        SalesTotals: {
+            /** Confirmed Refund Minor */
+            confirmed_refund_minor: string;
+            currency: components["schemas"]["Currency"];
+            /** Gross Minor */
+            gross_minor: string;
+            market: components["schemas"]["Market"];
+            /** Net Minor */
+            net_minor: string;
+            /** Paid Orders */
+            paid_orders: number;
+        };
         /** Ship */
         Ship: {
             /**
@@ -850,6 +925,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderHistory"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readStaffOrderOverview: {
+        parameters: {
+            query?: {
+                days?: "7" | "30" | "90";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOverview"];
                 };
             };
             /** @description Unauthorized */
@@ -1253,6 +1404,71 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readStaffRefundOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundQueueCount"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

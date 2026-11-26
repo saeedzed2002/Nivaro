@@ -24,9 +24,10 @@ export function StaffOrderError({ error, locale, reload }: { error: unknown; loc
   </div></div>;
 }
 
-export function StaffOrders({ locale }: { locale: Locale }) {
+export function StaffOrders({ locale, preset }: { locale: Locale; preset?: string }) {
   const session = useAdminSession();
-  const [filters, setFilters] = useState<StaffOrderFilters>({});
+  const initialStatus = orderStates.find(state => state === preset);
+  const [filters, setFilters] = useState<StaffOrderFilters>({ status: initialStatus });
   const [filterError, setFilterError] = useState('');
   const history = useInfiniteQuery({
     queryKey: ['staff', session?.profile.id, 'orders', filters],
@@ -71,8 +72,8 @@ export function StaffOrders({ locale }: { locale: Locale }) {
 
   return <>
     <header className="admin-heading"><h1>{text(locale, 'سفارش‌ها', 'Orders')}</h1></header>
-    <form className="admin-filter-row staff-order-filter" onSubmit={applyFilters} onReset={() => { setFilterError(''); setFilters({}); }}>
-      <label><span id="staff-order-status-label">{state}</span><select name="status" aria-labelledby="staff-order-status-label">
+    <form className="admin-filter-row staff-order-filter" onSubmit={applyFilters} onReset={() => { setFilterError(''); setFilters({ status: initialStatus }); }}>
+      <label><span id="staff-order-status-label">{state}</span><select name="status" aria-labelledby="staff-order-status-label" defaultValue={initialStatus ?? ''}>
         <option value="">{text(locale, 'همهٔ وضعیت‌ها', 'All statuses')}</option>
         {orderStates.map(value => <option key={value} value={value}>{orderStateText(locale, value)}</option>)}
       </select></label>

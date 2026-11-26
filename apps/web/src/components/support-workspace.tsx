@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { checkoutTime } from '@/lib/checkout-copy';
 import { text, type Locale } from '@/lib/content';
 import { IdentityError, type IdentitySession, type Scope } from '@/lib/identity-client';
-import { claimSupport, createSupport, isSupportStatus, listSupport, setSupportStatus, type Conversation, type ConversationStatus } from '@/lib/support-client';
+import { claimSupport, createSupport, isSupportStatus, listSupport, listUnansweredSupport, setSupportStatus, type Conversation, type ConversationStatus } from '@/lib/support-client';
 import { startSupportThread, type ThreadState } from '@/lib/support-thread';
 import { useAdminSession } from './admin-shared';
 
@@ -36,28 +36,29 @@ function SupportProblem({ locale, error }: { locale: Locale; error: unknown }) {
     : text(locale, 'ارتباط با پشتیبانی برقرار نشد. دوباره تلاش کنید.', 'Support is unavailable. Try again.')}</p>;
 }
 
-export function SupportInbox({ locale }: { locale: Locale }) {
+export function SupportInbox({ locale, initialUnanswered = false }: { locale: Locale; initialUnanswered?: boolean }) {
   const session = useAdminSession();
-  return session ? <SupportWorkspace key={session.profile.id} locale={locale} scope="admin" session={session}/> : null;
+  return session ? <SupportWorkspace key={`${session.profile.id}:${initialUnanswered}`} locale={locale} scope="admin" session={session} initialUnanswered={initialUnanswered}/> : null;
 }
 
 export function CustomerSupport({ locale, session }: { locale: Locale; session: IdentitySession }) {
   return <SupportWorkspace key={session.profile.id} locale={locale} scope="customer" session={session}/>;
 }
 
-function SupportWorkspace({ locale, scope, session }: { locale: Locale; scope: Scope; session: IdentitySession }) {
+function SupportWorkspace({ locale, scope, session, initialUnanswered = false }: { locale: Locale; scope: Scope; session: IdentitySession; initialUnanswered?: boolean }) {
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState<ConversationStatus | ''>('');
   const [override, setOverride] = useState<Conversation>();
   const [creating, setCreating] = useState(false);
+  const [unanswered, setUnanswered] = useState(initialUnanswered);
   const group = useQueryClient();
   const staff = scope === 'admin';
   const userId = session.profile.id;
   const manage = staff && session.permissions.includes('users.manage');
-  const queryKey = ['support-conversations', scope, userId] as const;
+  const queryKey = ['support-conversations', scope, userId, unanswered] as const;
   const queue = useInfiniteQuery({
     queryKey, initialPageParam: undefined as string | undefined,
-    queryFn: ({ signal, pageParam }) => listSupport(scope, signal, pageParam),
+    queryFn: ({ signal, pageParam }) => unanswered ? listUnansweredSupport(signal, pageParam) : listSupport(scope, signal, pageParam),
     getNextPageParam: page => page.next_before ?? undefined,
     gcTime: 0, retry: false,
   });
@@ -108,6 +109,9 @@ function SupportWorkspace({ locale, scope, session }: { locale: Locale; scope: S
               {statuses.map(status => <option key={status} value={status}>{statusLabel(locale, status)}</option>)}
             </select>
           </label>}
+          {staff && <label className="support-unanswered-filter"><input type="checkbox" checked={unanswered} onChange={event => {
+            if (keepDraft()) { setUnanswered(event.target.checked); setOverride(undefined); setSelectedId(undefined); }
+          }}/>{text(locale, 'فقط بی‌پاسخ', 'Unanswered only')}</label>}
           {!staff && <button type="button" className="button primary"
             onClick={() => { if (creating || keepDraft()) setCreating(true); }}>
             <Plus size={17}/>{text(locale, 'گفت‌وگوی جدید', 'New conversation')}

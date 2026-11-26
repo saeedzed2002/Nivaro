@@ -9,13 +9,13 @@ import { formatCommerceMoney, isUuid, text, type Locale } from '@/lib/content';
 import { useAdminSession } from './admin-shared';
 import { accessLost, PaymentProblem, PaymentViews, refundLabels } from './payment-admin-shared';
 
-export function RefundQueue({ locale }: { locale: Locale }) {
+export function RefundQueue({ locale, initialState }: { locale: Locale; initialState: 'open' | 'manual_review' }) {
   const actor = useAdminSession();
-  return actor ? <RefundQueueContent key={actor.profile.id} locale={locale} actorId={actor.profile.id}/> : null;
+  return actor ? <RefundQueueContent key={actor.profile.id} locale={locale} actorId={actor.profile.id} initialState={initialState}/> : null;
 }
 
-function RefundQueueContent({ locale, actorId }: { locale: Locale; actorId: string }) {
-  const [filters, setFilters] = useState<RefundFilters>({ state: 'open' });
+function RefundQueueContent({ locale, actorId, initialState }: { locale: Locale; actorId: string; initialState: 'open' | 'manual_review' }) {
+  const [filters, setFilters] = useState<RefundFilters>({ state: initialState });
   const [invalid, setInvalid] = useState(false);
   const queue = useInfiniteQuery({
     queryKey: ['staff-payments', actorId, 'refunds', filters],
@@ -48,8 +48,8 @@ function RefundQueueContent({ locale, actorId }: { locale: Locale; actorId: stri
     <header className="admin-heading"><h1>{text(locale, 'صف بازپرداخت', 'Refund queue')}</h1></header>
     <PaymentViews locale={locale} current="refunds"/>
     {accessLost(queue.error) ? <PaymentProblem locale={locale} error={queue.error}/> : <>
-      <form className="admin-panel admin-filter-row payment-filters" onSubmit={apply} onReset={() => { setFilters({ state: 'open' }); setInvalid(false); }}>
-        <label><span id="refund-state-label">{stateLabel}</span><select aria-labelledby="refund-state-label" name="state" defaultValue="open">
+      <form className="admin-panel admin-filter-row payment-filters" onSubmit={apply} onReset={() => { setFilters({ state: initialState }); setInvalid(false); }}>
+        <label><span id="refund-state-label">{stateLabel}</span><select aria-labelledby="refund-state-label" name="state" defaultValue={initialState}>
           <option value="open">{text(locale, 'بازپرداخت‌های باز', 'Open refunds')}</option>
           <option value="all">{text(locale, 'همهٔ وضعیت‌ها', 'All states')}</option>
           {Object.entries(refundLabels).map(([state, [fa, en]]) => <option key={state} value={state}>{text(locale, fa, en)}</option>)}

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Header, Query, Request
 from pydantic import AwareDatetime
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nivaro_orders.api.checkout import ErrorResponse
@@ -67,6 +67,10 @@ class OperationsDetails(Contract):
     attempt: OperationsAttempt
     order: PaymentOrderView | None
     last_reconciliation: ReconciliationView | None
+
+
+class RefundQueueCount(Contract):
+    manual_review: int
 
 
 async def order_context(db: AsyncSession, attempt: OperationsAttempt) -> PaymentOrderView | None:
@@ -151,6 +155,19 @@ async def refund_queue(
         return await list_refunds(
             db, state=state, market=market, order_id=order_id, before=before, limit=limit
         )
+
+
+@router.get("/refund-overview", operation_id="readStaffRefundOverview")
+async def refund_overview(request: Request) -> RefundQueueCount:
+    flow: CheckoutFlow = request.app.state.checkout
+    await staff_actor(request, flow, mutating=False, area="payments")
+    async with flow.database.sessions() as db:
+        count = await db.scalar(
+            select(func.count())
+            .select_from(OrderPaymentCompensation)
+            .where(OrderPaymentCompensation.state == "manual_review")
+        )
+    return RefundQueueCount(manual_review=count or 0)
 
 
 @router.get("/attempts/{attempt_id}", operation_id="readStaffPaymentAttempt")

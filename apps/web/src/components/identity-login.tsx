@@ -77,6 +77,7 @@ export function IdentityLogin({ locale, admin = false, initial, mock = false, de
           <p className="muted">{text(locale, 'این نشست از حساب خرید شما جداست.', 'This session is separate from your shopping account.')}</p>
           <Link className="button secondary" href={`/${locale}/admin/profile`}>{text(locale, 'پروفایل من', 'My profile')}</Link>
           {session.permissions.includes('catalog.write') && <Link className="button primary" href={`/${locale}/admin/products`}>{text(locale, 'مدیریت محصولات', 'Manage products')}</Link>}
+          <Link className="button primary" href={`/${locale}/admin`}>{text(locale, 'نمای کلی مدیریت', 'Staff overview')}</Link>
           {session.permissions.includes('orders.read') && <Link className="button primary" href={`/${locale}/admin/orders`}>{text(locale, 'مدیریت سفارش‌ها', 'Manage orders')}</Link>}
           {session.permissions.includes('payments.read') && <Link className="button primary" href={`/${locale}/admin/payments`}>{text(locale, 'مدیریت پرداخت‌ها', 'Manage payments')}</Link>}
           {session.permissions.includes('reviews.moderate') && <Link className="button primary" href={`/${locale}/admin/reviews`}>{text(locale, 'بررسی دیدگاه‌ها', 'Moderate reviews')}</Link>}

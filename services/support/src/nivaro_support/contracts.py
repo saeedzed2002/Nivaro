@@ -63,6 +63,10 @@ class ConversationPage(Contract):
     next_before: UUID | None
 
 
+class UnansweredPage(ConversationPage):
+    total: int
+
+
 class Message(Contract):
     id: UUID
     conversation_id: UUID

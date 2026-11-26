@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AlertCircle, Box, CheckCircle2, CreditCard, ExternalLink, FolderTree, MessageSquare, PackageCheck, UserRound, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Box, CheckCircle2, CreditCard, ExternalLink, FolderTree, LayoutDashboard, MessageSquare, PackageCheck, UserRound, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import { IdentityError, logout, readSession, type IdentitySession } from '@/lib/identity-client';
 import { type InitialIdentity } from '@/lib/identity-server';
 import { text, type Locale } from '@/lib/content';
@@ -47,6 +47,7 @@ const AdminSession = createContext<IdentitySession | null>(null);
 export const useAdminSession = () => useContext(AdminSession);
 
 const workspaces = {
+  overview: { title: ['نمای کلی مدیریت', 'Staff overview'], access: ['دسترسی مدیریت', 'Staff access'], denied: ['ورود کارکنان لازم است.', 'A staff session is required.'] },
   catalog: { title: ['مدیریت کاتالوگ', 'Catalog workspace'], access: ['دسترسی مدیریت محصولات', 'Product administration access'], denied: ['این حساب مجوز مدیریت کاتالوگ ندارد.', 'This account does not have catalog management permission.'] },
   orders: { title: ['مدیریت سفارش‌ها', 'Order workspace'], access: ['دسترسی مدیریت سفارش‌ها', 'Order administration access'], denied: ['این حساب مجوز مشاهدهٔ سفارش‌ها را ندارد.', 'This account does not have permission to view orders.'] },
   payments: { title: ['مدیریت پرداخت‌ها', 'Payment operations'], access: ['دسترسی مدیریت پرداخت‌ها', 'Payment administration access'], denied: ['این حساب مجوز مشاهدهٔ پرداخت‌ها را ندارد.', 'This account does not have permission to view payments.'] },
@@ -76,7 +77,7 @@ export function AdminShell({ locale, initial, children, selfProfile = false, wor
   const reviewsAllowed = identity?.permissions.includes('reviews.moderate');
   const supportAllowed = identity?.permissions.includes('support.reply');
   const accountsAllowed = identity?.permissions.includes('users.manage');
-  const allowed = { catalog: catalogAllowed, orders: ordersAllowed, payments: paymentsAllowed, reviews: reviewsAllowed, support: supportAllowed, accounts: accountsAllowed }[workspace];
+  const allowed = { overview: !!identity, catalog: catalogAllowed, orders: ordersAllowed, payments: paymentsAllowed, reviews: reviewsAllowed, support: supportAllowed, accounts: accountsAllowed }[workspace];
   const { title, access, denied } = workspaces[workspace];
   async function signOut() {
     if (document.querySelector('[data-unsaved="true"]') && !window.confirm(text(locale, 'تغییرات ذخیره‌نشده کنار گذاشته شوند؟', 'Leave and discard unsaved changes?'))) return;
@@ -88,6 +89,7 @@ export function AdminShell({ locale, initial, children, selfProfile = false, wor
     <div className="admin-layout"><aside className="admin-sidebar">
       <div className="admin-sidebar-title"><ShieldCheck size={24}/><div><strong>{text(locale, title[0], title[1])}</strong><small>{text(locale, 'نیوارو گیمینگ', 'Nivaro Gaming')}</small></div></div>
       <nav aria-label={text(locale, 'ناوبری مدیریت', 'Administration navigation')}>
+        {identity && <Link href={`/${locale}/admin`} aria-current={workspace === 'overview' && pathname.endsWith('/admin') ? 'page' : undefined}><LayoutDashboard size={19}/>{text(locale, 'نمای کلی', 'Overview')}</Link>}
         {catalogAllowed && <><Link href={`/${locale}/admin/products`} aria-current={pathname.includes('/admin/products') ? 'page' : undefined}><Box size={19}/>{text(locale, 'محصولات', 'Products')}</Link><Link href={`/${locale}/admin/categories`} aria-current={pathname.endsWith('/admin/categories') ? 'page' : undefined}><FolderTree size={19}/>{text(locale, 'دسته‌بندی‌ها', 'Categories')}</Link></>}
         {ordersAllowed && <Link href={`/${locale}/admin/orders`} aria-current={workspace === 'orders' ? 'page' : undefined}><PackageCheck size={19}/>{text(locale, 'سفارش‌ها', 'Orders')}</Link>}
         {paymentsAllowed && <Link href={`/${locale}/admin/payments`} aria-current={workspace === 'payments' ? 'page' : undefined}><CreditCard size={19}/>{text(locale, 'پرداخت‌ها', 'Payments')}</Link>}

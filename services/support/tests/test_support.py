@@ -392,6 +392,13 @@ async def test_private_history_assignment_and_idempotent_delivery():
             assert (
                 await support.get(staff_history, headers=credentials[loser][1])
             ).status_code == 404
+            queue_url = f"{STAFF}/unanswered"
+            winner_queue = await support.get(queue_url, headers=credentials[winner][1])
+            assert winner_queue.status_code == 200
+            assert winner_queue.json()["total"] == 1
+            assert [row["id"] for row in winner_queue.json()["conversations"]] == [cid]
+            loser_queue = await support.get(queue_url, headers=credentials[loser][1])
+            assert loser_queue.status_code == 200 and loser_queue.json()["total"] == 0
             subscription = frame("conversation.subscribe", cid, {"after": 0})
             async with open_socket(other_headers) as outside:
                 assert (await exchange(outside, subscription))["payload"] == {
@@ -421,6 +428,9 @@ async def test_private_history_assignment_and_idempotent_delivery():
                 assert accepted["type"] == "message.accepted"
                 assert accepted["payload"]["sequence"] == 2
                 assert (await receive_created(customer, accepted))["body"] == "Agent reply"
+
+            answered = await support.get(queue_url, headers=credentials[winner][1])
+            assert answered.status_code == 200 and answered.json()["total"] == 0
 
             async with (
                 open_socket(owner_headers) as customer,

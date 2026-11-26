@@ -36,6 +36,12 @@ export const saveOwnReview = (productId: string, body: ReviewInput) => authorize
 export const listModerationQueue = (status: SavedReview['status'], before?: string, signal?: AbortSignal) => authorized(async () =>
   unwrap(await client.GET('/api/v1/admin/catalog/reviews', { params: { query: { status, before } }, signal })), 'admin');
 
+export const readReviewOverview = (signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/catalog/reviews/overview', { signal })), 'admin');
+
+export const listCatalogMediaQueue = (before?: string, signal?: AbortSignal) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/catalog/media/queue', { params: { query: { before } }, signal })), 'admin');
+
 export const decideReview = (reviewId: string, body: ReviewDecision) => authorized(async csrf =>
   unwrap(await client.POST('/api/v1/admin/catalog/reviews/{review_id}/decision', {
     params: { path: { review_id: reviewId } }, headers: { 'X-CSRF-Token': csrf }, body,

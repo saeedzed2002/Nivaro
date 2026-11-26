@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -15,7 +15,9 @@ from nivaro_orders.application.fulfillment import (
     change_fulfillment,
     read_fulfillment,
 )
+from nivaro_orders.application.operations_overview import OrderOverview, order_overview
 from nivaro_orders.application.order_history import OrderHistory, list_orders
+from nivaro_orders.application.reservations import db_time
 from nivaro_orders.domain.checkout import Market, OrderState
 from nivaro_orders.infrastructure.checkout_sources import SourceError, StaffArea
 
@@ -77,6 +79,18 @@ async def history(
                 if placed_through is not None
                 else None
             ),
+        )
+
+
+@router.get("/overview", operation_id="readStaffOrderOverview")
+async def overview(request: Request, days: Literal["7", "30", "90"] = "7") -> OrderOverview:
+    flow: CheckoutFlow = request.app.state.checkout
+    await staff_actor(request, flow, mutating=False)
+    async with flow.database.sessions() as db:
+        now = await db_time(db)
+        today = now.astimezone(TEHRAN).date()
+        return await order_overview(
+            db, placement_boundary(today - timedelta(days=int(days) - 1)), now
         )
 
 

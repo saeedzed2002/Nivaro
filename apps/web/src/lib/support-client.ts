@@ -30,6 +30,9 @@ export const listSupport = (scope: Scope, signal?: AbortSignal, before?: string)
     params: { query: { before } }, signal,
   })), scope);
 
+export const listUnansweredSupport = (signal?: AbortSignal, before?: string, limit?: number) => authorized(async () =>
+  unwrap(await client.GET('/api/v1/admin/support/conversations/unanswered', { params: { query: { before, limit } }, signal })), 'admin');
+
 export const createSupport = (subject: string, client_conversation_id: string) => authorized(async csrf =>
   unwrap(await client.POST('/api/v1/support/conversations', {
     headers: { 'X-CSRF-Token': csrf }, body: { subject, client_conversation_id },
