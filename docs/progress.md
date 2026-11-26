@@ -1,6 +1,6 @@
 # Implementation progress
 
-Current status, 2026-11-26: **P01–P11 verified, P12 in progress**. The owner's Docker preview reads current web and API source through the local Compose configuration. Historical incomplete statuses below describe their original checkpoints.
+Current status, 2026-11-26: **P01–P12 verified for local release**. The owner's Docker preview reads current web and API source through the local Compose configuration. Historical incomplete statuses below describe their original checkpoints.
 
 ## 2026-10-27 — P00/P01 in progress
 
@@ -809,4 +809,9 @@ Run [40740509367](https://github.com/saeedzed2002/Nivaro/actions/runs/4074050936
 ### P12 clean build and delivery package
 
 - Built all seven release images from the tracked `2fcec65` archive with `--no-cache` and a unique `BUILDKIT_CACHE_MOUNT_NS`. The normal locked build installed dependencies from the registries. The foreground client exceeded its initial time bound while npm retried several downloads. BuildKit subsequently completed all seven tagged images. Verified the tags locally and used all seven images for a second successful isolated backup and restore drill on port 8089. Independent gateway checks confirmed HTTP 200 and the declared `fa-IR` RTL and `en` LTR directions.
-- The [clean release guide](runbooks/LOCAL_RELEASE.md), [incident procedures](runbooks/INCIDENTS.md) and [delivery dossier](DELIVERY.md) cover the Compose setup, operations, architecture, demo and verified browser evidence. Screenshots are from disposable browser runs. The private workflow now exercises the isolated restore and localized gateway checks with CI-built images. Final CI for this phase is pending.
+- The [clean release guide](runbooks/LOCAL_RELEASE.md), [incident procedures](runbooks/INCIDENTS.md) and [delivery dossier](DELIVERY.md) cover the Compose setup, operations, architecture, demo and verified browser evidence. Screenshots are from disposable browser runs. The private workflow exercises the isolated restore and localized gateway checks with CI-built images.
+
+### P12 verification complete
+
+- [GitHub Actions run 45840448826](https://github.com/saeedzed2002/Nivaro/actions/runs/45840448826) passed `web`, `support` and `image-processing` on exact implementation revision `f47f27a25387a8fd5a31e887ddb44790b55b8544`. The new isolated restore check, Compose development hot reload and container cleanup all passed.
+- Local release startup, the synthetic database and file recovery drill, and the delivery package complete the P12 scope. Payments and authentication were exercised with simulator and mock providers. Live hosting and providers still require separate deployment inputs and evidence.

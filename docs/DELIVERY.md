@@ -75,6 +75,6 @@ The checkout and Support demonstrations use the synthetic policies, users and fi
 | Environment | Evidence |
 | --- | --- |
 | Local Docker | Seven release images built from the archive with an empty application build cache. Database/media restore, customer reads and both localized storefront routes passed with those images. [Local phase evidence](progress.md#p12-clean-build-and-delivery-package) |
-| GitHub Actions | P11 passed on exact revision `3b2ba3dd41784da703a423f57e66cf9449f22a97`, including the recovery browser journeys and Docker development hot reload. Record the P12 phase run in the [progress log](progress.md). [P11 run](https://github.com/saeedzed2002/Nivaro/actions/runs/45832443785) |
+| GitHub Actions | P12 passed on exact implementation revision `f47f27a25387a8fd5a31e887ddb44790b55b8544`, including the isolated database/media restore, recovery browser journeys and Docker development hot reload. [P12 run](https://github.com/saeedzed2002/Nivaro/actions/runs/45840448826) |
 | Simulator | OTP, payments, fulfillment, reconciliation and refunds use synthetic fixtures. Demo prices, delivery, tax and inventory are test inputs. |
 | Live providers | Public hosting, live payments and SMS, actual market policies and representative recovery objectives require separate deployment evidence. |
