@@ -155,8 +155,14 @@ test('staff product workspace: responsive references, persistence, conflicts and
   await expect(page.getByRole('heading', { name: 'No products found' })).toBeVisible();
   await page.getByRole('link', { name: 'Show all products' }).click();
   await expect(page.locator('.admin-table tbody tr')).toHaveCount(10);
+  const nextPage = await context.request.get(`${base}/api/v1/admin/catalog/products?page=2&page_size=10`);
+  expect(nextPage.status()).toBe(200);
+  const nextProducts: { name: string }[] = (await nextPage.json()).items;
+  expect(nextProducts.length).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Next', exact: true }).click();
-  await expect(page.locator('.admin-table tbody tr')).toHaveCount(2);
+  const rows = page.locator('.admin-table tbody tr');
+  await expect(rows).toHaveCount(nextProducts.length);
+  for (const product of nextProducts) await expect(rows.filter({ hasText: product.name })).toBeVisible();
   await page.getByRole('link', { name: 'Add product', exact: true }).click();
   await page.getByLabel('Product name and model').fill('UI draft fixture');
   await page.getByLabel('URL slug', { exact: true }).fill('ui-draft-' + randomBytes(6).toString('hex'));
@@ -562,10 +568,10 @@ test('admin credentials are separate; customer login never grants staff access',
   await expect(page.getByText('Refunds', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText('User management', { exact: true })).toBeVisible();
-  const catalog = await context.request.get(`${base}/api/v1/admin/catalog/products`);
+  const catalog = await context.request.get(`${base}/api/v1/admin/catalog/products?q=9700X`);
   expect(catalog.status()).toBe(200);
   const products = await catalog.json();
-  expect(products.total).toBe(13);
+  expect(products.items).toEqual([expect.objectContaining({ slug: 'amd-ryzen-7-9700x' })]);
   const productUrl = `${base}/api/v1/admin/catalog/products/${products.items[0].id}`;
   const productResponse = await context.request.get(productUrl);
   expect(productResponse.status()).toBe(200);
