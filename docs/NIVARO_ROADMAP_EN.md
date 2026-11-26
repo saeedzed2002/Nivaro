@@ -1,14 +1,12 @@
-# Nivaro Gaming — Project Roadmap and Implementation Handoff
+# Nivaro Gaming — Product and Architecture Roadmap
 
-**CANONICAL PROJECT SPECIFICATION FOR AI AGENTS.** Read this English document for architecture, requirements, implementation planning, and handoff. `docs/NIVARO_ROADMAP.md` is a non-authoritative Persian reading copy for the human owner. Do not open or use that copy for implementation unless the user explicitly requests translation or editing of it. If the copies diverge, this English document governs; report the discrepancy rather than combining conflicting requirements.
+This roadmap defines the product scope, technical architecture, and release acceptance criteria.
 
 Drafting and source-verification date: `2026-10-26`, timezone `Asia/Tehran`.
 
 Document version: `1.3.0` with execution-status addendum `2026-10-27`. Final design/contract review date: `2026-10-27`, timezone `Asia/Tehran`. Status: **Blue RGB visual baseline approved; assembly/cart/checkout contracts finalized; phased implementation authorized and in progress.** The owner subsequently instructed implementation, image references before each page, and bounded Docker downloads. Current evidence and unfinished gates are recorded in [progress](progress.md). This revision specifies configuration grouping, version-bound compatibility and distinct prebuilt/component stock policies. The six-service architecture, independent Iran/USD pricing and unrelated stack decisions remain unchanged. The package-version snapshot below remains dated `2026-10-26`; installability and runtime compatibility must be verified in `P00`.
 
 The Persian reading copy remains the earlier `1.1.0` snapshot and is not synchronized with this gaming revision. Do not use its former Persian-only, single-currency, or desk-accessory decisions as implementation input. Research, source limitations, reference prices, and visual proposals are in [Gaming design research](design/GAMING_DESIGN_RESEARCH.md).
-
-Audience: the project developer and implementation agent, especially `GPT-6 Astra` or `GPT-6.1 Sol`.
 
 Canonical project directory: `D:\Project\Nivaro`.
 
@@ -41,7 +39,7 @@ Canonical project directory: `D:\Project\Nivaro`.
 - [Testing, operations, and delivery](#quality)
 - [Phases and commits](#phases)
 - [Completion criteria and acceptance scenarios](#acceptance)
-- [Instructions for the next agent](#handoff)
+- [Release readiness and verification records](#readiness)
 - [Sources and document review](#sources)
 
 <a id="authority"></a>
@@ -50,7 +48,7 @@ Canonical project directory: `D:\Project\Nivaro`.
 ### Current user authorization
 
 - On `2026-10-27`, after finalizing the design and contracts, the owner explicitly authorized phased implementation, local dependencies/execution and the documented private Git workflow. Earlier documentation-only boundaries are historical and superseded.
-- Before coding each distinct page/template, generate and inspect its reference, then record it in `design/PAGE_DESIGNS.md`. The accepted home concept pair satisfies the home gate. Preserve the Blue RGB baseline rather than reopening style selection.
+- Review the layout and responsive behavior for each distinct page template against the conventions in [Storefront design](design/PAGE_DESIGNS.md). Preserve the approved Blue RGB visual system.
 - Ordinary changes and small verified commits/pushes to the existing private repository are authorized. Preserve existing history and user files.
 - Bound Docker pull attempts. Tell the owner the exact images needed for manual download; explicit Arvan mirror paths are permitted. Do not equate Compose validation with successful container execution.
 - Documentation or local development does not imply authorization to publish the repository, buy services, make real payments, send real SMS, delete data, or deploy publicly.
@@ -346,7 +344,6 @@ This is the target structure. Create directories in their corresponding phases, 
 
 ```text
 Nivaro/
-  AGENTS.md
   README.md
   .gitignore
   .gitattributes
@@ -1118,7 +1115,7 @@ Example identifiers are explanatory placeholders; implementation identifiers and
 
 ### Design direction
 
-The owner accepted the **Blue RGB** dark/light homepage pair as the visual implementation baseline: a precise gaming-hardware showroom with a distinctive assembly workbench, large product imagery and calm buying/technical surfaces. Match [dark baseline](design/concepts/r2-blue-rgb-fa-dark.png) and [light baseline](design/concepts/r2-blue-rgb-fa-light.png), using the design research for remaining routes and workflow intent. The following tokens translate that direction into an initial design system; exact color/typography/accessibility adjustments require rendered verification, not another overall style selection. Do not copy another store's layout or brand assets.
+The owner accepted the **Blue RGB** dark/light homepage pair as the visual implementation baseline: a precise gaming-hardware showroom with a distinctive assembly workbench, large product imagery and calm buying/technical surfaces. The [design reference register](design/PAGE_DESIGNS.md) documents the layout, typography, and theme decisions. The following tokens translate that direction into an initial design system; exact color/typography/accessibility adjustments require rendered verification, not another overall style selection. Do not copy another store's layout or brand assets.
 
 The initial review displayed four images: three homepage alternatives and a supporting builder/mobile/comparison board. The owner rejected the green-dominant alternative, requested blue-led branding with multicolor RGB on black/white backgrounds, and then accepted the refined theme pair. Red, purple, indigo, green and other RGB hues remain welcome in lighting; green must not dominate the brand. The workflow board supplies structure but adopts the approved blue palette. Implementation is now authorized under the execution-status addendum. Use descriptive theme labels to avoid ambiguous numbering.
 
@@ -1345,7 +1342,7 @@ Dependency: verified version baseline and authorization to implement.
 
 Tasks:
 
-- Create repository conventions, ignore rules, line-ending policy, short run guide, and complete/update `AGENTS.md` while preserving its English-document routing rule.
+- Create repository conventions, ignore rules, line-ending policy, short run guide, and document the development conventions.
 - Add local `origin` pointing to the existing private repository; do not recreate the repository.
 - Create the `Next.js` application with Persian/English routing and direction, local fonts, both themes, explicit market selection and the reviewed gaming-storefront shell.
 - Home must contain header, product search, gaming categories, an image-led introduction, assembly/comparison entry points, and several accurately labeled local reference products. Static previews must not pretend to run compatibility checks, checkout or live pricing.
@@ -1701,26 +1698,8 @@ All scenarios below are **planned and unexecuted** at drafting time. Mark them c
 - [ ] Individual commits and push/CI outcomes are identified.
 - [ ] Remaining issues, limitations, and next action are recorded.
 
-<a id="handoff"></a>
-## Instructions for the Next Agent
-
-### Model selection
-
-Official documentation describes `GPT-6 Astra` as the more capable model for demanding, multi-step work, and `GPT-6.1 Sol` as a lower-cost model with near-Astra performance. That description is not a benchmark on Nivaro. [Model selection](https://developers.openai.com/api/docs/guides/model-selection), [Astra specifications](https://developers.openai.com/api/docs/models/gpt-6-astra), [Sol specifications](https://developers.openai.com/api/docs/models/gpt-6.1-sol).
-
-Project recommendation:
-
-- For one primary agent handling the whole project with quality as the main priority, use `GPT-6 Astra` with `high` reasoning; use `xhigh` for difficult payment/inventory races or architecture review when warranted.
-- If usage and response time matter, use `GPT-6.1 Sol` at `high` for ordinary implementation, with separate Astra reviews of difficult sections.
-- Two models do not imply automatic parallel agents or extra chats. Do not create them without explicit user instruction.
-- Both can use coding and execution tools. Successful execution is established by real tool/test output, not the model name.
-- Do not equate application-plan quotas/pricing with API token pricing. This specification makes no promises about runtime, quotas, or numerical model superiority on this project.
-
-### Historical assessment instruction — superseded by implementation authorization
-
-The following records the earlier assessment-only boundary; it is not the current handoff:
-
-> Read `D:\Project\Nivaro\docs\NIVARO_ROADMAP_EN.md` completely. It is the canonical project specification. Do not open `docs/NIVARO_ROADMAP.md`, the Persian human reading copy, unless the user explicitly requests work on that copy. Then inspect local instructions and the actual repository state read-only. Implementation has not started; a local repository without commits and a private remote repository already exist. Do not recreate them. Do not create application code, Docker runtime configuration, installed dependencies, commits, or pushes yet. Report definite contradictions or blockers with evidence, but do not unnecessarily reopen routine decisions or the first-release scope. State the exact first implementation step and wait for the user's instruction to start. Communicate in clear desktop-readable Persian, wrapping Latin terms, paths, numbers, and identifiers in inline code.
+<a id="readiness"></a>
+## Release Readiness and Verification Records
 
 ### Final readiness record — 2026-10-27
 
@@ -1730,27 +1709,6 @@ The following records the earlier assessment-only boundary; it is not the curren
 - `P00` still verifies current package/container versions and environment readiness. This is executable implementation work once authorized, not a claim that today's stack was installed or tested.
 - Real international sale activation still requires destinations, seller/fulfillment, delivery, tax/duty rules, phone delivery and a USD payment provider. Real SMS/payment, hosting and credentials remain launch gates, not blockers to the local simulated release. Physical assembly labor is disabled unless separately configured as specified above.
 - At final design review only documentation was authorized. The later explicit start instruction supersedes that restriction; preserve private repository identity and existing files.
-
-### Ready-to-use instruction when the owner actually wants to begin
-
-The owner has now authorized this first-stage execution. Continue from `docs/progress.md`; do not recreate completed work:
-
-> Begin phases `P00` and `P01` under `D:\Project\Nivaro\docs\NIVARO_ROADMAP_EN.md`, the canonical English specification. Do not use the Persian reading copy. This run's goal is a compatible version baseline and the first real storefront page running in Docker. Connecting the existing private repository, making small commits, and pushing those verified changes to that same repository are authorized. Inspect actual state and local instructions before changes, and preserve existing work. Recheck versions; do not force incompatible dependencies. Finally, actually view the Docker-served site at mobile and desktop sizes and report tool results, commits, push outcome, and CI outcome separately. Do not proceed to later phases, real payments/SMS, repository publication, or internet deployment.
-
-If the owner later authorizes the entire roadmap, proceed sequentially with progress reporting instead of repeatedly requesting permission for ordinary implementation decisions. A limited-phase instruction or newer user restriction always takes precedence.
-
-### Standing implementation-agent rules
-
-- Before coding, read local instructions, this English specification, repository state, and relevant files. Do not redesign the project from assumptions.
-- Resolve minor ambiguity consistently with this specification and record the decision. Ask only for genuinely necessary inputs or fundamental scope changes.
-- Do not infer implementation from the existence of this document. Target trees, example routes, and sample commit subjects are not existing artifacts.
-- Do not grow a focused project into a large platform. New services need independent responsibility, data, contracts, and justification.
-- Keep progress visible; do not block the storefront for months behind infrastructure completion.
-- Do not unnecessarily modify global tools, other repositories, Docker volumes, or accounts.
-- History rewriting, data deletion, repository publication, and paid operations require explicit authority for that action.
-- Ask the owner to gather diagnostics only when the agent cannot access the required evidence. Otherwise inspect active configuration and actual output directly.
-- Every phase report states changes, reasons, checks, limitations, and next steps. Elapsed time or a timeout is not evidence of success.
-- End each phase with a short teaching explanation: transaction boundary, reason for each tool, and tested failure path. Do not leave the owner with code they cannot explain.
 
 ### Progress-log format
 
@@ -1783,7 +1741,6 @@ Create `docs/progress.md` when implementation begins. For each phase, record:
 - [Gateway release](https://github.com/caddyserver/caddy/releases/tag/v2.11.7) and [development inbox](https://github.com/axllent/mailpit/releases/tag/v1.32.0).
 - [Docker Desktop releases](https://docs.docker.com/desktop/release-notes/), [engine releases](https://docs.docker.com/engine/release-notes/29/), [Compose release](https://github.com/docker/compose/releases/tag/v5.6.1), and [development synchronization](https://docs.docker.com/compose/how-tos/file-watch/).
 - [Git for Windows release](https://github.com/git-for-windows/git/releases/tag/v2.56.0.windows.4), [GitHub CLI release](https://github.com/cli/cli/releases/tag/v2.103.3), and [PowerShell release](https://github.com/PowerShell/PowerShell/releases/tag/v7.6.9).
-- [Model selection](https://developers.openai.com/api/docs/guides/model-selection), [Astra](https://developers.openai.com/api/docs/models/gpt-6-astra), and [Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol).
 - [Shopify bundle grouping and component stock checks](https://shopify.dev/docs/apps/build/product-merchandising/bundles/start-building) and [Adobe customizable bundle pricing/availability](https://experienceleague.adobe.com/en/docs/commerce-admin/catalog/products/types/product-create-bundle), inspected for the `2026-10-27` assembly-contract finalization. These support the commerce pattern, not a claim that Nivaro copies either platform's backend.
 
 ### Direct package-version sources
@@ -1817,9 +1774,9 @@ Metadata endpoints change over time. After implementation begins, the recorded v
 
 Record minor-version corrections, path changes, or implementation details that preserve scope/contracts with evidence and a separate commit once commits are authorized. Changing service count, login method, data boundaries, financial behavior, repository visibility, or adding another product requires an explicit owner decision.
 
-Maintain `docs/NIVARO_ROADMAP_EN.md` as the implementation authority. The Persian file is only the owner's reading copy and must never override it. Agents should not open, edit, or derive implementation requirements from that copy unless the user explicitly requests work on it. Its earlier scope is stale after revision `1.2.0`; current product languages are Persian `fa-IR` / `RTL` and English `en` / `LTR`.
+The English roadmap defines the current scope. The older Persian reading copy describes an earlier revision. The storefront supports Persian (RTL) and English (LTR).
 
-End of specification. Execution status: **Documentation finalized for phased implementation; Blue RGB visual baseline accepted; three assembly contract gaps resolved; application implementation awaits the next explicit user instruction.**
+The [verification history](progress.md) records implementation and test status for this roadmap.
 
 
 

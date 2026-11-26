@@ -1,6 +1,20 @@
 # Nivaro Gaming
 
-Bilingual Persian/English gaming hardware storefront, following [the canonical roadmap](docs/NIVARO_ROADMAP_EN.md). Blue-led dark and light themes. Private single-vendor project; preserve the existing repository.
+A bilingual gaming hardware storefront built with Next.js and six FastAPI services. Browse components and ready-built systems in Persian or English, compare hardware, and build a parts list for either the Iranian or international market. The storefront supports light and dark themes.
+
+![Nivaro Gaming English storefront in dark mode](docs/evidence/storefront-en-dark.png)
+
+## Build a PC
+
+Select one or more components, see the running total for the chosen market, and add the selection to the cart. A signed-in customer can save a named parts list for later.
+
+![PC builder with component selectors and selected-parts summary](docs/evidence/pc-builder-en-dark.png)
+
+## Catalog and product details
+
+Product pages show specifications, package options, and the retailer and observation date for the reference price. The two markets have independent offers and ready-built system lineups.
+
+![CyberPowerPC product detail with specifications and a dated retailer price](docs/evidence/product-detail-en-dark.png)
 
 ## Current delivery
 
@@ -14,7 +28,7 @@ docker compose -f compose.yaml -f compose.media.yaml up -d --no-build --pull nev
 
 For a fresh setup initialize both local and media secrets, then build with the base Compose configuration and include the media overlay when starting. The older base-only commands below describe storefront/development operation and do not mount media or start its workers. See [catalog media operations](services/catalog/README.md#p04-catalog-media-runtime) for exact candidate tests, permissions, retention and queue-recovery behavior.
 
-P02 verified: home, product collection/details, same-category product comparison and temporary PC assembly selections use the catalog API. PostgreSQL owns products, physical variants and independent market offers. Pages follow the references in [the image-first register](docs/design/PAGE_DESIGNS.md).
+The storefront, product collection and details, same-category comparison, and PC builder use the catalog API. PostgreSQL stores products, physical variants, and independent market offers. The [design reference register](docs/design/PAGE_DESIGNS.md) records the storefront layouts.
 
 The seed contains 14 documented products, with 12 priced listings in each market. Shared parts have independent Iranian and USD price references, and each market has its own ready-built systems. The development overlay initializes simulator inventory so selected parts can be added to the local cart. Product detail pages show price sources and observation dates. Customer login uses allowlisted mock codes, and administrator login uses separate credentials. See [the catalog price data](services/catalog/src/nivaro_catalog/data/retail-offers.json) and [identity setup](services/identity/README.md).
 
@@ -103,6 +117,10 @@ For backend checks, contract regeneration and disposable fresh-database verifica
 
 With development Compose Watch running, `node scripts/verify-watch.mjs` from `apps/web` verifies a reversible footer edit reaches the existing browser document, then restores the source and verifies the restoration. Run it without concurrent footer editing. Loopback `127.0.0.1` is explicitly permitted in Next's development-only origin list so the HMR connection works through Caddy. No wildcard origin allowance is used.
 
-## Continue implementation
+## Project documentation
 
-Read `AGENTS.md`, `docs/NIVARO_ROADMAP_EN.md`, `docs/progress.md`, and the image-first register. Do not read the stale Persian roadmap as implementation input. Follow phase dependencies and distinguish local checks, container checks and CI. Do not activate real payments/SMS or public deployment without the required separate inputs and authority.
+See the [product and architecture roadmap](docs/NIVARO_ROADMAP_EN.md), [verification history](docs/progress.md), and [delivery guide](docs/DELIVERY.md). Local payments and sign-in use a payment simulator and mock codes.
+
+## License
+
+Project software and documentation are available under the [MIT License](LICENSE). Third-party dependencies, fonts, and reference material are subject to their respective terms.

@@ -2,7 +2,7 @@
 
 Date: 2026-10-27, Asia/Tehran. Status: Blue RGB dark/light baseline accepted for implementation; research/reference evidence retained; no application implementation.
 
-The owner authorized gaming-store research, static visual proposals, and necessary documentation changes, selected independent USD pricing/sales, accepted the Blue RGB theme pair, and delegated finalization of the three assembly contract gaps. The canonical requirements remain in [NIVARO_ROADMAP_EN.md](../NIVARO_ROADMAP_EN.md), revision 1.3.0. The previous Persian reading copy is not synchronized. The current instruction still defers coding to a subsequent message.
+The owner authorized gaming-store research, static visual proposals, and necessary documentation changes, selected independent USD pricing/sales, accepted the Blue RGB theme pair, and delegated finalization of the three assembly contract gaps. The canonical requirements remain in [NIVARO_ROADMAP_EN.md](../NIVARO_ROADMAP_EN.md), revision 1.3.0. The previous Persian reading copy is not synchronized.
 
 ## Decision in one paragraph
 
@@ -12,7 +12,7 @@ Use the working display brand **Nivaro Gaming** with a product-led hardware show
 
 The owner correctly noted that four images were shown: three home concepts and one workflow board. The prior numbering was ambiguous. Future review should use descriptive image labels rather than making the workflow board look like an unnumbered alternative.
 
-The green-dominant Gear Gallery palette is rejected. Green remains welcome as one color in RGB lighting and as a semantic status color; it must not dominate the logo, primary actions or overall theme. The subsequently generated **Blue RGB — dark** and **Blue RGB — light** pair was accepted by the owner as the visual implementation baseline. Both are required, complementary theme states. Approval of the direction does not establish exact product imagery, accessible contrast, functioning motion or responsive behavior; verify these during implementation.
+The green-dominant Gear Gallery palette is rejected. Green remains welcome as one color in RGB lighting and as a semantic status color; it must not dominate the logo, primary actions or overall theme. The approved **Blue RGB — dark** and **Blue RGB — light** pair became the visual implementation baseline. Both are required, complementary theme states. Approval of the direction does not establish exact product imagery, accessible contrast, functioning motion or responsive behavior; verify these during implementation.
 
 ## What the supplied images establish
 
@@ -201,7 +201,7 @@ Arithmetic examples: the two ordinary-price Iranian component references total *
 - The retrieved GSI CPU page showed 96,900,000 tomans, but the live browser showed **unavailable** and no current payable price. That amount is historical reference only and is rejected as a current shopping fixture.
 - GSI's retrieved GPU page showed 255,000,000; the live browser showed 275,000,000. Use the latter for the current design register, with its seller update date.
 - BPR search and extracted-page amounts differed from the live browser. The current register uses the observed browser's 113,390,000 ordinary / 108,990,000 conditional cash amounts.
-- Initial image-generation prompts were dispatched before these live checks completed. Any image containing 96,900,000 / 255,000,000 / 351,900,000 is an early exploration, not the corrected design baseline. Corrected proposals must use 113,390,000 / 275,000,000 / 388,390,000 or remove the unsupported offer.
+- Any image containing 96,900,000 / 255,000,000 / 351,900,000 is an early exploration, not the corrected design baseline. Corrected proposals must use 113,390,000 / 275,000,000 / 388,390,000 or remove the unsupported offer.
 
 Technical facts should be verified against manufacturers: [AMD's 9800X3D specification](https://www.amd.com/en/products/processors/desktops/ryzen/9000-series/amd-ryzen-7-9800X3d.html) identifies AM5, DDR5, 8 cores/16 threads and distinct boxed/tray identifiers. Those facts alone do not establish compatibility with an arbitrary motherboard BIOS or complete build.
 
@@ -225,33 +225,31 @@ Before implementation completion: inspect both locales and both themes at 360/76
 
 ### Current refinement — one design, two themes
 
-- [Blue RGB — dark](concepts/r2-blue-rgb-fa-dark.png): black/charcoal surfaces, blue controls and emphasis, full-spectrum RGB hardware lighting.
-- [Blue RGB — light](concepts/r2-blue-rgb-fa-light.png): white surfaces and ink text, matching blue actions and multicolor hardware lighting; same Persian composition for direct theme comparison.
-- [Exact refinement prompts](BLUE_RGB_PROMPTS.md): built-in ImageGen edits with inspected, attached local input images. No code generation.
+- **Blue RGB — dark**: black/charcoal surfaces, blue controls and emphasis, full-spectrum RGB hardware lighting.
+- **Blue RGB — light**: white surfaces and ink text, matching blue actions and multicolor hardware lighting; same Persian composition for direct theme comparison.
 
 These labels identify complementary theme views, not alternatives where selecting one removes the other. The previous builder/mobile/comparison board remains a workflow reference; its older cyan action color is superseded by the blue direction. Geometry, tiny type, exact product imagery and measured accessibility still need deterministic review before implementation.
 
-Visual inspection of the generated pair confirmed the same major composition in both themes, separate Persian/market controls, left-pointing forward arrows, blue primary actions, and visible red/purple/indigo/blue/green RGB lighting. The light edit retains naturally dark hardware while changing the surrounding page and workbench to white. Neither file proves exact color tokens, contrast compliance, responsive behavior or implemented motion.
+Visual inspection of the two theme designs confirmed the same major composition in both themes, separate Persian/market controls, left-pointing forward arrows, blue primary actions, and visible red/purple/indigo/blue/green RGB lighting. The light edit retains naturally dark hardware while changing the surrounding page and workbench to white. Neither file proves exact color tokens, contrast compliance, responsive behavior or implemented motion.
 
 ### Earlier exploration — retained for provenance
 
-Three independent homepage proposals and a supporting workflow board were generated and displayed in the following order. The green-dominant palette is now rejected. Names are historical direction names, not approved branding.
+Three independent homepage proposals and a supporting workflow board were considered in the following order. The green-dominant palette is now rejected. Names are historical direction names, not approved branding.
 
 | Display order | Review image | Design emphasis |
 | --- | --- | --- |
-| 1 | [Hardware Atelier](concepts/01-hardware-atelier-fa-dark.png) | Persian dark hardware showroom, clear assembly entry, restrained cyan/violet |
-| 2 | [Gear Gallery — rejected palette](concepts/02-gear-gallery-en-dark.png) | Historical English dark/lime exploration; green-dominant direction rejected by owner |
-| 3 | [Build Studio](concepts/03-build-studio-en-light.png) | English light assembly entry, comparison action and an honest empty-build preview |
+| 1 | Hardware Atelier | Persian dark hardware showroom, clear assembly entry, restrained cyan/violet |
+| 2 | Gear Gallery — rejected palette | Historical English dark/lime exploration; green-dominant direction rejected by owner |
+| 3 | Build Studio | English light assembly entry, comparison action and an honest empty-build preview |
 
-[Supporting builder/mobile/comparison board](concepts/builder-mobile-comparison-corrected.png) revises the earlier price study. This is a workflow illustration, not a fourth homepage direction. Exact prompts and input-image provenance are in [IMAGE_PROMPTS.md](IMAGE_PROMPTS.md).
+Supporting builder/mobile/comparison board revises the earlier price study. This is a workflow illustration, not a fourth homepage direction.
 
 ### Visual review and remaining corrections
 
 - The three home images have legible main hierarchy, visible hardware and no fabricated review stars, discount countdown or FPS badge. The keyboard reference amount in the second image is USD 209.99 with a visible reference date, not a Nivaro offer.
-- Generated typography and hardware geometry are illustrative. Product pictures must later be replaced with accurate, licensed images for the exact SKU; the generated keyboard and PC case renders are not reliable model photographs.
+- The concept typography and hardware geometry are illustrative. Product pictures must later be replaced with accurate, licensed images for the exact SKU; the example keyboard and PC case illustrations are not reliable model photographs.
 - The corrected workflow board was visually checked: CPU 113,390,000 plus GPU 275,000,000 gives 388,390,000 tomans on desktop and mobile; USD system prices remain 2,069 and 2,839 with a 770 difference. Small Persian summary labels still need normal typesetting and spacing, and fees/taxes need their own explicit rows in the selected detailed design.
 - The earlier English light image compressed language/currency into one label and the rejected gear image abbreviated market to USD. The accepted Blue RGB pair now shows separate Persian/market controls. The implementation must retain **separate language and market decisions**, country eligibility and explicit basket requoting in both locales.
 - Persian direction, icon consistency, exact microcopy, contrast measurements, mobile touch targets and all four locale/theme combinations need deterministic implementation review. Static desktop pictures and the mobile panel do not prove working responsiveness.
-- The previous board under `references/superseded-builder-price-study.png` contains rejected old prices. It is retained only to reproduce the edit and must not be used as the current visual target or fixture.
 
-No application scaffold, HTML/CSS prototype, functioning animation, compatibility engine or working storefront was created in this task. The design baseline and reviewed architecture decisions are ready for phased implementation after the next explicit instruction; the current documentation turn does not authorize it.
+The [delivery guide](../DELIVERY.md) documents the implemented storefront and its verified behavior.
